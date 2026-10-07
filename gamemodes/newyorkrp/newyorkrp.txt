@@ -1,0 +1,12 @@
+"newyorkrp"
+{
+	"base"			"sandbox"
+	"title"			"New-York Roleplay"
+	"maps"			"^rp_"
+	"category"		"rp"
+	"menusystem"	"1"
+
+	"settings"
+	{
+	}
+}
