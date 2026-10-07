@@ -1,0 +1,8 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models/nyrp/clothes/cl_leather"
+	"$phong" "1"
+	"$phongexponent" "40"
+	"$phongboost" "3"
+	"$phongfresnelranges" "[0.4 0.8 1]"
+}
