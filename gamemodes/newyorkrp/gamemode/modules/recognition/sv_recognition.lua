@@ -89,3 +89,28 @@ timer.Create("nyrp.recog.memory", NYRP.Config.Memory.Check, 0, function()
 		end
 	end
 end)
+
+-- ----------------------------------------------------------- меню памяти (H) --
+-- Клиент просит воспоминания: знакомые (имя, внешность, описание, когда виделись) и выполненные задания.
+net.Receive("nyrp.memory", function(_, ply)
+	if (ply.nyrpMemNext or 0) > CurTime() then return end
+	ply.nyrpMemNext = CurTime() + 1
+	if not NYRP.HasCharacter(ply) then return end
+	local people = {}
+	local ids = {}
+	for id in pairs(ply.nyrpRecog or {}) do ids[#ids + 1] = tonumber(id) end
+	if #ids > 0 then
+		local rows = NYRP.DB.Query("SELECT id, name, model, gender, description, height FROM nyrp_characters WHERE id IN (" .. table.concat(ids, ",") .. ")") or {}
+		for _, r in ipairs(rows) do
+			local id = tonumber(r.id)
+			people[#people + 1] = { id = id, name = r.name, model = r.model, gender = r.gender, desc = r.description,
+				height = tonumber(r.height) or 175, seen = ply.nyrpRecog[id] or 0 }
+		end
+	end
+	table.sort(people, function(a, b) return a.seen > b.seen end)
+	net.Start("nyrp.memory")
+	net.WriteTable(people)
+	net.WriteTable(NYRP.NPC and NYRP.NPC.DoneQuests and NYRP.NPC.DoneQuests(ply) or {})
+	net.WriteDouble(os.time())
+	net.Send(ply)
+end)

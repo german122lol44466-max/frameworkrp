@@ -45,6 +45,8 @@ NYRP.NetMessages = {
 	"nyrp.atm.open", "nyrp.atm.pin", "nyrp.atm.op", "nyrp.atm.info", "nyrp.atm.close",
 	-- аренда дверей
 	"nyrp.door.list", "nyrp.door.rent", "nyrp.door.act",
+	-- память (H)
+	"nyrp.memory",
 }
 
 if SERVER then

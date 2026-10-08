@@ -24,6 +24,9 @@ ICONS = {
     "w_hands": "hand", "unknown": "cowled", "known": "person",
     # NPC и задания
     "npc_trader": "shop", "npc_talk": "conversation", "quest": "scroll-quill", "quest_point": "flag-objective",
+    # меню памяти (H)
+    "mem_brain": "brain", "mem_think": "think", "mem_memories": "spiral-bloom", "mem_people": "shaking-hands",
+    "mem_thought": "thought-bubble", "mem_done": "scroll-unfurled", "mem_eye": "semi-closed-eye",
 }
 
 

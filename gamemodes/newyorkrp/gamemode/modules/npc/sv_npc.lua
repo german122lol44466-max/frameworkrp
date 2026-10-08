@@ -143,6 +143,19 @@ function N.SyncQuests(ply)
 	net.Send(ply)
 end
 
+-- Для меню памяти: выполненные задания (название, описание, кто дал)
+function N.DoneQuests(ply)
+	local out = {}
+	for key, st in pairs(quests(ply)) do
+		if st.state == "done" then
+			local q, ent = questDef(key)
+			if q then out[#out + 1] = { name = q.name, desc = q.desc, npc = IsValid(ent) and ent:GetNW2String("nyrp.npcName") or "", t = st.t or 0 } end
+		end
+	end
+	table.sort(out, function(a, b) return a.t > b.t end)
+	return out
+end
+
 -- дошёл до точки
 timer.Create("nyrp.npc.quests", 1, 0, function()
 	for _, ply in ipairs(player.GetAll()) do
@@ -183,6 +196,19 @@ local function visibleOptions(ply, ent, node)
 			show = #d.trade > 0
 		end
 		if show then out[#out + 1] = { i = i, text = o.text, act = o.act } end
+	end
+	-- активные задания этого NPC всегда можно сдать, даже если в диалоге нет ответа «сдать»
+	ply.nyrpTalkExtra = {}
+	local has = {}
+	for _, o in ipairs(node.options or {}) do if o.act == "turnin" then has[o.arg or ""] = true end end
+	local slot = 15
+	for qid, q in pairs(d.quests or {}) do
+		local st = quests(ply)[N.QuestKey(d.id, qid)]
+		if st and st.state == "active" and not has[qid] and slot > 11 then
+			ply.nyrpTalkExtra[slot] = qid
+			out[#out + 1] = { i = slot, text = "Насчёт задания «" .. q.name .. "»" .. (questReady(ply, q, st) and " — готово." or "…"), act = "turnin" }
+			slot = slot - 1
+		end
 	end
 	return out
 end
@@ -226,6 +252,10 @@ net.Receive("nyrp.npc.choose", function(_, ply)
 	if talk.node == "#back" then sendNode(ply, ent, d.dialog.start) return end
 	local node = d.dialog.nodes[talk.node]
 	local o = node and node.options[idx]
+	-- автоматический ответ «сдать задание»
+	if not o and ply.nyrpTalkExtra and ply.nyrpTalkExtra[idx] then
+		o = { act = "turnin", arg = ply.nyrpTalkExtra[idx] }
+	end
 	if idx == 0 or not o then sendNode(ply, ent, nil) return end
 	if o.act == "goto" then
 		sendNode(ply, ent, d.dialog.nodes[o.arg or ""] and o.arg or nil)

@@ -101,23 +101,13 @@ end)
 N.Quests = N.Quests or {}
 net.Receive("nyrp.quest.sync", function() N.Quests = net.ReadTable() end)
 
+-- Список заданий на экране не рисуем — задания в меню памяти (H → Воспоминания → Мысли).
+-- Там задание «дойти до места» можно отметить: тогда на экране видна только метка цели.
+N.Tracked = N.Tracked or nil
 hook.Add("HUDPaint", "nyrp.quests", function()
-	if NYRP.HUDHidden() or #N.Quests == 0 then return end
-	local x, y = UI.S(24), UI.S(24)
-	local mat = UI.Mat("nyrp/status/quest.png")
-	surface.SetMaterial(mat)
-	surface.SetDrawColor(247, 198, 0)
-	surface.DrawTexturedRect(x, y, UI.S(18), UI.S(18))
-	draw.SimpleText("ЗАДАНИЯ", NYRP.Font("title", 15), x + UI.S(26), y + UI.S(9), Color(230, 232, 238), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-	y = y + UI.S(28)
+	if NYRP.HUDHidden() or not N.Tracked then return end
 	for _, q in ipairs(N.Quests) do
-		local col = q.ready and UI.Col.green or Color(236, 237, 242)
-		draw.SimpleText(q.name, NYRP.Font("semibold", 15), x + 1, y + 1, Color(0, 0, 0, 160))
-		draw.SimpleText(q.name, NYRP.Font("semibold", 15), x, y, col)
-		draw.SimpleText(q.goal .. (q.npc and (" · " .. q.npc) or ""), NYRP.Font("regular", 13), x, y + UI.S(18), UI.Col.dim)
-		y = y + UI.S(42)
-		-- метка точки «дойти до»
-		if q.point then
+		if q.key == N.Tracked and q.point then
 			local p = Vector(q.point.x, q.point.y, q.point.z)
 			local sc = (p + Vector(0, 0, 40)):ToScreen()
 			if sc.visible then
@@ -125,7 +115,7 @@ hook.Add("HUDPaint", "nyrp.quests", function()
 				surface.SetMaterial(UI.Mat("nyrp/status/quest_point.png"))
 				surface.SetDrawColor(247, 198, 0, 230)
 				surface.DrawTexturedRect(sc.x - UI.S(12), sc.y - UI.S(12), UI.S(24), UI.S(24))
-				draw.SimpleText(d .. " м", NYRP.Font("bold", 13), sc.x, sc.y + UI.S(20), color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText(q.name .. " · " .. d .. " м", NYRP.Font("bold", 13), sc.x, sc.y + UI.S(20), color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			end
 		end
 	end

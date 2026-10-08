@@ -25,3 +25,10 @@ npc_trader.png <- shop
 npc_talk.png <- conversation
 quest.png <- scroll-quill
 quest_point.png <- flag-objective
+mem_brain.png <- brain
+mem_think.png <- think
+mem_memories.png <- spiral-bloom
+mem_people.png <- shaking-hands
+mem_thought.png <- thought-bubble
+mem_done.png <- scroll-unfurled
+mem_eye.png <- semi-closed-eye
