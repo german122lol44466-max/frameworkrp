@@ -232,42 +232,47 @@ local function dragThink()
 end
 
 -- -------------------------------------------------- рамка «сумки» (ткань) --
+-- Весь декор — отдельные материалы: nyrp/ui/fabric, zipper, zipper_pull, stitch_h/v, rivet.
+local function tiled(mat, x, y, w, h, tw, th)
+	surface.SetMaterial(UI.Mat(mat))
+	surface.DrawTexturedRectUV(x, y, w, h, 0, 0, w / tw, h / th)
+end
+
 local function paintBag(pnl, w, h, title, icon)
 	local r = UI.S(18)
 	UI.Masked(r, 0, 0, w, h, function()
-		local tile = UI.S(160)
-		surface.SetMaterial(UI.Mat("nyrp/ui/fabric.png"))
 		surface.SetDrawColor(255, 255, 255, 255)
-		surface.DrawTexturedRectUV(0, 0, w, h, 0, 0, w / tile, h / tile)
+		tiled("nyrp/ui/fabric.png", 0, 0, w, h, UI.S(200), UI.S(200))
 		surface.SetMaterial(UI.Mat("vgui/gradient-d"))
-		surface.SetDrawColor(0, 0, 0, 150)
+		surface.SetDrawColor(0, 0, 0, 140)
 		surface.DrawTexturedRect(0, h * 0.35, w, h * 0.65)
-		UI.Vignette(-UI.S(30), -UI.S(30), w + UI.S(60), h + UI.S(60), 160)
-		-- молния сверху
+		UI.Vignette(-UI.S(30), -UI.S(30), w + UI.S(60), h + UI.S(60), 150)
+		-- лента и зубья молнии
 		local zy = UI.S(16)
 		surface.SetDrawColor(18, 17, 16, 255)
-		surface.DrawRect(0, zy - UI.S(4), w, UI.S(20))
-		surface.SetMaterial(UI.Mat("nyrp/ui/zipper.png"))
+		surface.DrawRect(0, zy - UI.S(5), w, UI.S(22))
 		surface.SetDrawColor(255, 255, 255, 255)
-		local zt = UI.S(16)
-		surface.DrawTexturedRectUV(UI.S(10), zy, w - UI.S(20), UI.S(12), 0, 0, (w - UI.S(20)) / (zt * 2), 1)
-		-- бегунок
-		local px = w - UI.S(70)
-		UI.RoundedRect(UI.S(3), px, zy - UI.S(3), UI.S(22), UI.S(18), Color(170, 168, 160))
-		UI.RoundedRect(UI.S(3), px + UI.S(5), zy + UI.S(12), UI.S(12), UI.S(22), UI.Col.accent)
+		tiled("nyrp/ui/zipper.png", UI.S(8), zy, w - UI.S(16), UI.S(12), UI.S(24), UI.S(12))
 	end)
 	-- строчка по краю
-	local inset = UI.S(10)
-	local dash, gap = UI.S(9), UI.S(6)
-	surface.SetDrawColor(255, 255, 255, 34)
-	for x = inset + r, w - inset - r, dash + gap do
-		surface.DrawRect(x, h - inset, math.min(dash, w - inset - r - x), 1)
-	end
-	for y = UI.S(44), h - inset - r, dash + gap do
-		surface.DrawRect(inset, y, 1, math.min(dash, h - inset - r - y))
-		surface.DrawRect(w - inset - 1, y, 1, math.min(dash, h - inset - r - y))
+	local inset = UI.S(11)
+	surface.SetDrawColor(255, 255, 255, 200)
+	tiled("nyrp/ui/stitch_h.png", inset + r, UI.S(44), w - (inset + r) * 2, UI.S(5), UI.S(18), UI.S(5))
+	tiled("nyrp/ui/stitch_h.png", inset + r, h - inset - UI.S(3), w - (inset + r) * 2, UI.S(5), UI.S(18), UI.S(5))
+	tiled("nyrp/ui/stitch_v.png", inset - UI.S(2), UI.S(52), UI.S(5), h - UI.S(52) - inset - r, UI.S(5), UI.S(18))
+	tiled("nyrp/ui/stitch_v.png", w - inset - UI.S(3), UI.S(52), UI.S(5), h - UI.S(52) - inset - r, UI.S(5), UI.S(18))
+	-- заклёпки по углам
+	local rs = UI.S(14)
+	surface.SetDrawColor(255, 255, 255, 255)
+	surface.SetMaterial(UI.Mat("nyrp/ui/rivet.png"))
+	for _, c in ipairs({ { inset + UI.S(4), UI.S(40) }, { w - inset - UI.S(4), UI.S(40) }, { inset + UI.S(4), h - inset - UI.S(4) }, { w - inset - UI.S(4), h - inset - UI.S(4) } }) do
+		surface.DrawTexturedRect(c[1] - rs / 2, c[2] - rs / 2, rs, rs)
 	end
 	UI.Outline(r, 0, 0, w, h, Color(0, 0, 0, 200), 2)
+	-- бегунок с язычком у правого верхнего края
+	surface.SetDrawColor(255, 255, 255, 255)
+	surface.SetMaterial(UI.Mat("nyrp/ui/zipper_pull.png"))
+	surface.DrawTexturedRect(w - UI.S(200), UI.S(6), UI.S(28), UI.S(56))
 	if title then
 		UI.DrawIcon(icon or "briefcase", UI.S(40), UI.S(64), UI.S(22), UI.Col.accent)
 		draw.SimpleText(string.upper(title), NYRP.Font("title", 24), UI.S(60), UI.S(64), UI.Col.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)

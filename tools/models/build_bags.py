@@ -26,12 +26,12 @@ FPS = 30
 OPEN_FRAMES = 24
 
 MATERIALS = {
-    # имя: (базовый цвет, шум, «ткань»)
-    "bag_fabric": ((64, 62, 60), 10, True),
-    "bag_strap": ((32, 32, 36), 6, True),
-    "bag_metal": ((150, 150, 155), 8, False),
-    "bag_accent": ((247, 198, 0), 6, True),
-    "bag_inner": ((70, 64, 58), 6, True),
+    # имя: (базовый цвет, вид текстуры — см. textures.py)
+    "bag_fabric": ((62, 64, 68), "cordura"),
+    "bag_strap": ((30, 31, 34), "webbing"),
+    "bag_metal": ((168, 168, 174), "metal"),
+    "bag_accent": ((240, 190, 10), "cordura"),
+    "bag_inner": ((112, 40, 38), "lining"),
 }
 
 
@@ -42,15 +42,29 @@ def reset_scene():
     scn = bpy.context.scene
     scn.render.fps = FPS
     scn.frame_start, scn.frame_end = 0, OPEN_FRAMES
-    for name, (col, _, _) in MATERIALS.items():
-        m = bpy.data.materials.new(name)
-        m.diffuse_color = (*(c / 255 for c in col), 1)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes.get("Principled BSDF")
-        bsdf.inputs["Base Color"].default_value = (*((c / 255) ** 2.2 for c in col), 1)
-        bsdf.inputs["Roughness"].default_value = 0.4 if name == "bag_metal" else 0.85
-        if name == "bag_metal":
-            bsdf.inputs["Metallic"].default_value = 0.9
+    for name, (col, kind) in MATERIALS.items():
+        textured_material(name, col, kind, rough=0.35 if kind == "metal" else 0.85, metal=0.9 if kind == "metal" else 0)
+
+
+def textured_material(name, col, kind, rough=0.85, metal=0.0):
+    """Материал Blender с процедурной текстурой (для превью и .blend)."""
+    import numpy as np
+    import textures
+    img_arr = textures.make(kind, col, name).astype(np.float32) / 255.0
+    rgba = np.concatenate([img_arr[::-1], np.ones((*img_arr.shape[:2], 1), np.float32)], axis=2)
+    img = bpy.data.images.new(name + "_tex", img_arr.shape[1], img_arr.shape[0])
+    img.pixels.foreach_set(rgba.ravel())
+    img.pack()
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = rough
+    bsdf.inputs["Metallic"].default_value = metal
+    return m
 
 
 def new_object(name, bm, material, parent=None):
@@ -147,50 +161,38 @@ def box_uv(ob, scale=0.12):
 def build_waistbag():
     root = bpy.data.objects.new("waistbag", None)
     bpy.context.collection.objects.link(root)
-    L, D, H = 13.0, 5.0, 7.0   # длина (Y), глубина (X), высота (Z)
-    seam = 1.2
+    L, D, H = 10.5, 3.8, 5.4   # длина (Y), глубина (X), высота (Z)
+    seam, bev = 0.9, 1.5
 
-    body = new_object("waistbag_body", cut(rounded_box((D, L, H), bevel=2.0, segments=4), seam, False),
-                      "bag_fabric", root)
-    lid = new_object("waistbag_lid", cut(rounded_box((D, L, H), bevel=2.0, segments=4), seam, True),
-                     "bag_fabric", root)
+    new_object("waistbag_body", cut(rounded_box((D, L, H), bevel=bev, segments=4), seam, False), "bag_fabric", root)
+    lid = new_object("waistbag_lid", cut(rounded_box((D, L, H), bevel=bev, segments=4), seam, True), "bag_fabric", root)
     set_origin(lid, (-D / 2, 0, seam))
-
-    # внутренняя тёмная поверхность (видна при открытии)
-    inner = new_object("waistbag_inner", rounded_box((D - 1.0, L - 1.0, 0.2), center=(0, 0, seam - 0.15), bevel=0.08, segments=1),
-                       "bag_inner", root)
-
-    # молния по шву
-    zip_band = new_object("waistbag_zipband", cut(cut(rounded_box((D + 0.25, L + 0.25, H + 0.25), bevel=2.1, segments=4),
-                                                      seam + 0.25, False), seam - 0.25, True), "bag_strap", root)
-    slider = rounded_box((0.9, 1.2, 0.5), center=(D / 2 + 0.1, L / 2 - 2.6, seam + 0.1), bevel=0.15, segments=2)
-    pull = rounded_box((0.18, 0.7, 1.1), center=(D / 2 + 0.45, L / 2 - 2.6, seam - 0.55), bevel=0.06, segments=1)
-    zipper = new_object("waistbag_zipper", slider, "bag_metal", root)
-    zpull = new_object("waistbag_zipper_pull", pull, "bag_accent", zipper)
-    set_origin(zipper, (D / 2 + 0.1, L / 2 - 2.6, seam + 0.1))
-
-    # передний карман и жёлтая нашивка
-    new_object("waistbag_pocket", rounded_box((1.2, L * 0.62, H * 0.42), center=(D / 2 + 0.25, 0, -1.9), bevel=0.45, segments=2),
+    new_object("waistbag_inner", rounded_box((D - 0.8, L - 0.8, 0.15), center=(0, 0, seam - 0.1), bevel=0.06, segments=1),
+               "bag_inner", root)
+    new_object("waistbag_zipband", cut(cut(rounded_box((D + 0.2, L + 0.2, H + 0.2), bevel=bev + 0.1, segments=4),
+                                           seam + 0.2, False), seam - 0.2, True), "bag_strap", root)
+    zx, zy, zz = D / 2 + 0.08, L / 2 - 2.0, seam + 0.08
+    zipper = new_object("waistbag_zipper", rounded_box((0.7, 0.9, 0.4), center=(zx, zy, zz), bevel=0.12, segments=2), "bag_metal", root)
+    new_object("waistbag_zipper_pull", rounded_box((0.14, 0.55, 0.85), center=(D / 2 + 0.35, zy, seam - 0.42), bevel=0.05, segments=1),
+               "bag_accent", zipper)
+    set_origin(zipper, (zx, zy, zz))
+    new_object("waistbag_pocket", rounded_box((0.9, L * 0.62, H * 0.4), center=(D / 2 + 0.2, 0, -1.45), bevel=0.35, segments=2),
                "bag_fabric", root)
-    new_object("waistbag_patch", rounded_box((0.12, 3.4, 0.9), center=(D / 2 + 0.9, 0, -1.8), bevel=0.04, segments=1),
+    new_object("waistbag_patch", rounded_box((0.1, 2.6, 0.7), center=(D / 2 + 0.68, 0, -1.35), bevel=0.03, segments=1),
                "bag_accent", root)
-
-    # пояс вокруг талии (позади сумки)
-    # эллипс вокруг талии: от левого торца сумки через спину к правому
-    path = ellipse_path(-7.2, 0, 7.4, 8.4, 0.2, math.pi * 0.3, math.pi * 1.7, 30)
-    path = [(-1.0, L / 2 - 0.6, 0.2)] + path + [(-1.0, -L / 2 + 0.6, 0.2)]
-    new_object("waistbag_belt", tube(path, 0.22, 1.3, 8), "bag_strap", root)
-    buckle = rounded_box((0.5, 1.6, 2.2), center=(-14.5, 0, 0.2), bevel=0.15, segments=2)
-    new_object("waistbag_buckle", buckle, "bag_metal", root)
+    # пояс вокруг талии: от правого торца сумки через спину к левому
+    path = ellipse_path(-6.6, 0, 6.6, 7.4, 0.15, math.pi * 0.3, math.pi * 1.7, 30)
+    path = [(-0.8, L / 2 - 0.4, 0.15)] + path + [(-0.8, -L / 2 + 0.4, 0.15)]
+    new_object("waistbag_belt", tube(path, 0.18, 1.0, 8), "bag_strap", root)
+    new_object("waistbag_buckle", rounded_box((0.4, 1.3, 1.7), center=(-13.2, 0, 0.15), bevel=0.12, segments=2), "bag_metal", root)
 
     for ob in root.children_recursive:
-        box_uv(ob)
+        box_uv(ob, 0.18)
 
-    # анимация открытия: бегунок едет по шву, затем крышка откидывается назад
     scn = bpy.context.scene
-    for f, (zy, rot) in {0: (L / 2 - 2.6, 0), 12: (-L / 2 + 2.6, 0), 14: (-L / 2 + 2.6, -8), OPEN_FRAMES: (-L / 2 + 2.6, -72)}.items():
+    for f, (y, rot) in {0: (zy, 0), 12: (-zy, 0), 14: (-zy, -8), OPEN_FRAMES: (-zy, -72)}.items():
         scn.frame_set(f)
-        zipper.location.y = zy
+        zipper.location.y = y
         zipper.keyframe_insert("location", index=1)
         lid.rotation_euler.y = math.radians(rot)
         lid.keyframe_insert("rotation_euler", index=1)
@@ -200,47 +202,47 @@ def build_waistbag():
 def build_backpack():
     root = bpy.data.objects.new("backpack", None)
     bpy.context.collection.objects.link(root)
-    W, D, H = 14.0, 7.5, 20.0
+    W, D, H = 11.0, 5.0, 15.0
 
-    body = new_object("backpack_body", rounded_box((D, W, H), bevel=2.6, segments=4), "bag_fabric", root)
-    new_object("backpack_inner", rounded_box((D - 1.6, W - 1.6, 0.2), center=(0, 0, H / 2 - 0.7), bevel=0.08, segments=1),
+    new_object("backpack_body", rounded_box((D, W, H), bevel=1.9, segments=4), "bag_fabric", root)
+    new_object("backpack_inner", rounded_box((D - 1.2, W - 1.2, 0.15), center=(0, 0, H / 2 - 0.55), bevel=0.06, segments=1),
                "bag_inner", root)
 
     # клапан: крышка сверху + свисающая передняя часть
-    fbm = rounded_box((D + 0.8, W + 0.5, 1.2), center=(0.2, 0, H / 2 + 0.05), bevel=0.55, segments=3)
-    front = rounded_box((1.0, W * 0.8, 7.0), center=(D / 2 + 0.35, 0, H / 2 - 3.2), bevel=0.45, segments=3)
     flap_bm = bmesh.new()
-    for part in (fbm, front):
+    for part in (rounded_box((D + 0.6, W + 0.4, 0.9), center=(0.15, 0, H / 2 + 0.05), bevel=0.42, segments=3),
+                 rounded_box((0.8, W * 0.8, 5.2), center=(D / 2 + 0.28, 0, H / 2 - 2.4), bevel=0.35, segments=3)):
         tmp = bpy.data.meshes.new("tmp")
         part.to_mesh(tmp)
         part.free()
         flap_bm.from_mesh(tmp)
         bpy.data.meshes.remove(tmp)
     flap = new_object("backpack_flap", flap_bm, "bag_fabric", root)
-    patch = new_object("backpack_patch", rounded_box((0.15, 4.2, 1.2), center=(D / 2 + 0.9, 0, H / 2 - 4.4), bevel=0.05, segments=1),
-                       "bag_accent", flap)
+    new_object("backpack_patch", rounded_box((0.12, 3.2, 0.9), center=(D / 2 + 0.72, 0, H / 2 - 3.3), bevel=0.04, segments=1),
+               "bag_accent", flap)
     for y in (-W * 0.25, W * 0.25):
-        new_object(f"backpack_buckle_{'l' if y > 0 else 'r'}", rounded_box((0.5, 1.5, 1.5), center=(D / 2 + 0.95, y, H / 2 - 6.6),
-                                                                          bevel=0.15, segments=2), "bag_metal", flap)
-        new_object(f"backpack_strapf_{'l' if y > 0 else 'r'}", rounded_box((0.25, 1.1, 8.0), center=(D / 2 + 0.25, y, -1.5),
-                                                                          bevel=0.08, segments=1), "bag_strap", root)
-    new_object("backpack_handle", tube([(-1.5, -2.5, H / 2 + 0.7), (-1.5, -1.8, H / 2 + 2.0), (-1.5, 1.8, H / 2 + 2.0),
-                                        (-1.5, 2.5, H / 2 + 0.7)], 0.5, 0.25, 6), "bag_strap", flap)
-    set_origin(flap, (-D / 2 + 0.2, 0, H / 2 + 0.5))
+        side = "l" if y > 0 else "r"
+        new_object(f"backpack_buckle_{side}", rounded_box((0.4, 1.15, 1.15), center=(D / 2 + 0.75, y, H / 2 - 5.0),
+                                                           bevel=0.12, segments=2), "bag_metal", flap)
+        new_object(f"backpack_strapf_{side}", rounded_box((0.2, 0.85, 6.0), center=(D / 2 + 0.2, y, -1.2),
+                                                           bevel=0.06, segments=1), "bag_strap", root)
+    new_object("backpack_handle", tube([(-1.1, -1.9, H / 2 + 0.55), (-1.1, -1.4, H / 2 + 1.5), (-1.1, 1.4, H / 2 + 1.5),
+                                        (-1.1, 1.9, H / 2 + 0.55)], 0.38, 0.2, 6), "bag_strap", flap)
+    set_origin(flap, (-D / 2 + 0.15, 0, H / 2 + 0.4))
 
-    new_object("backpack_pocket", rounded_box((2.6, W * 0.72, H * 0.36), center=(D / 2 + 0.9, 0, -H / 2 + 4.8), bevel=1.0, segments=3),
+    new_object("backpack_pocket", rounded_box((1.9, W * 0.72, H * 0.36), center=(D / 2 + 0.7, 0, -H / 2 + 3.6), bevel=0.75, segments=3),
                "bag_fabric", root)
-    new_object("backpack_pocket_zip", rounded_box((0.3, W * 0.6, 0.35), center=(D / 2 + 2.25, 0, -H / 2 + 7.2), bevel=0.1, segments=1),
+    new_object("backpack_pocket_zip", rounded_box((0.25, W * 0.6, 0.28), center=(D / 2 + 1.65, 0, -H / 2 + 5.4), bevel=0.08, segments=1),
                "bag_metal", root)
 
     # лямки за спиной (в сторону владельца, -X)
-    for y in (-3.6, 3.6):
-        pts = [(-D / 2 + 0.4, y, H / 2 - 2.0), (-D / 2 - 1.6, y * 1.05, H / 2 - 3.5), (-D / 2 - 3.0, y * 1.15, 3.0),
-               (-D / 2 - 2.6, y * 1.2, -4.0), (-D / 2 - 1.2, y * 1.25, -H / 2 + 3.5), (-D / 2 + 0.3, y * 1.25, -H / 2 + 2.0)]
-        new_object(f"backpack_strap_{'l' if y > 0 else 'r'}", tube(pts, 1.25, 0.3, 8), "bag_strap", root)
+    for y in (-2.8, 2.8):
+        pts = [(-D / 2 + 0.3, y, H / 2 - 1.5), (-D / 2 - 1.0, y * 1.05, H / 2 - 2.6), (-D / 2 - 1.9, y * 1.12, 2.2),
+               (-D / 2 - 1.7, y * 1.15, -3.0), (-D / 2 - 0.8, y * 1.2, -H / 2 + 2.6), (-D / 2 + 0.2, y * 1.2, -H / 2 + 1.5)]
+        new_object(f"backpack_strap_{'l' if y > 0 else 'r'}", tube(pts, 0.95, 0.22, 8), "bag_strap", root)
 
     for ob in root.children_recursive:
-        box_uv(ob)
+        box_uv(ob, 0.18)
 
     scn = bpy.context.scene
     for f, rot in {0: 0, 6: -6, OPEN_FRAMES: -118}.items():
@@ -521,24 +523,12 @@ def write_vtf(path, rgb_rows, size):
 
 
 def build_textures():
-    import random
-    os.makedirs(MATDIR, exist_ok=True)
-    size = 64
-    for name, (col, noise, weave) in MATERIALS.items():
-        rng = random.Random(name)
-        img = []
-        for y in range(size):
-            for x in range(size):
-                k = rng.randint(-noise, noise)
-                if weave:
-                    k += 7 if ((x // 2) + (y // 2)) % 2 == 0 else -5
-                    if y % 16 == 0 and x % 4 < 2:
-                        k += 14  # строчка
-                img.append(tuple(max(0, min(255, c + k)) for c in col))
-        write_vtf(os.path.join(MATDIR, name + ".vtf"), img, size)
-        with open(os.path.join(MATDIR, name + ".vmt"), "w") as f:
-            extra = '\t"$phong" "1"\n\t"$phongexponent" "30"\n\t"$phongboost" "2"\n\t"$phongfresnelranges" "[0.5 0.8 1]"\n' if name == "bag_metal" else ""
-            f.write(f'"VertexLitGeneric"\n{{\n\t"$basetexture" "models/nyrp/bags/{name}"\n{extra}}}\n')
+    import textures
+    for name, (col, kind) in MATERIALS.items():
+        textures.write_vtf(os.path.join(MATDIR, name + ".vtf"), textures.make(kind, col, name))
+        textures.write_vmt(os.path.join(MATDIR, name + ".vmt"), "models/nyrp/bags/" + name,
+                           phong=name in ("bag_metal", "bag_fabric"), exponent=40 if name == "bag_metal" else 8,
+                           boost=3 if name == "bag_metal" else 0.4)
     print("textures ok")
 
 
@@ -562,7 +552,7 @@ def render_preview(path):
     cam_data.lens = 50
     cam = bpy.data.objects.new("cam", cam_data)
     bpy.context.collection.objects.link(cam)
-    cam.location = (95, -55, 45)
+    cam.location = (62, -36, 30)
     con = cam.constraints.new("TRACK_TO")
     con.target = target
     scn.camera = cam

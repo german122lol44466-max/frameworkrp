@@ -1,4 +1,8 @@
 "VertexLitGeneric"
 {
 	"$basetexture" "models/nyrp/bags/bag_fabric"
+	"$phong" "1"
+	"$phongexponent" "8"
+	"$phongboost" "0.4"
+	"$phongfresnelranges" "[0.5 0.8 1]"
 }

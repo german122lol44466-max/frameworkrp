@@ -21,31 +21,27 @@ SRC = os.path.join(ROOT, "tools", "models", "src", "clothes")
 MATDIR = os.path.join(bb.GM, "content", "materials", "models", "nyrp", "clothes")
 
 MATS = {
-    "cl_navy": ((30, 40, 70), 6, True),
-    "cl_white": ((214, 214, 218), 8, True),
-    "cl_black": ((26, 26, 28), 5, True),
-    "cl_leather": ((92, 58, 38), 7, False),
-    "cl_denim": ((52, 76, 116), 10, True),
-    "cl_red": ((160, 36, 40), 6, True),
-    "cl_maskblue": ((150, 196, 220), 5, True),
-    "cl_lens": ((16, 18, 24), 2, False),
-    "cl_metal": ((160, 160, 165), 6, False),
-    "cl_accent": ((247, 198, 0), 5, True),
-    "cl_card": ((236, 238, 242), 3, False),
-    "cl_photo": ((120, 128, 140), 4, False),
+    # имя: (цвет, вид текстуры — см. textures.py)
+    "cl_navy": ((32, 44, 78), "knit"),
+    "cl_white": ((218, 218, 222), "knit"),
+    "cl_black": ((30, 30, 33), "leather"),
+    "cl_leather": ((104, 64, 40), "leather"),
+    "cl_denim": ((54, 80, 122), "denim"),
+    "cl_red": ((168, 38, 42), "cordura"),
+    "cl_maskblue": ((156, 200, 222), "lining"),
+    "cl_lens": ((16, 18, 24), "plastic"),
+    "cl_metal": ((170, 170, 176), "metal"),
+    "cl_accent": ((240, 190, 10), "cordura"),
+    "cl_card": ((236, 238, 242), "plastic"),
+    "cl_photo": ((120, 128, 140), "plastic"),
 }
 
 
 def setup():
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    for name, (col, _, _) in MATS.items():
-        m = bpy.data.materials.new(name)
-        m.use_nodes = True
-        bsdf = m.node_tree.nodes.get("Principled BSDF")
-        bsdf.inputs["Base Color"].default_value = (*((c / 255) ** 2.2 for c in col), 1)
-        bsdf.inputs["Roughness"].default_value = 0.15 if name in ("cl_lens", "cl_metal") else 0.8
-        if name == "cl_metal":
-            bsdf.inputs["Metallic"].default_value = 0.9
+    for name, (col, kind) in MATS.items():
+        bb.textured_material(name, col, kind, rough=0.2 if name in ("cl_lens", "cl_metal") else 0.8,
+                             metal=0.9 if name == "cl_metal" else 0)
 
 
 def obj(name, bm, mat, root, matrix=None):
@@ -256,24 +252,12 @@ def write_lua(path, items):
 
 
 def textures():
-    import random
-    os.makedirs(MATDIR, exist_ok=True)
-    size = 64
-    for name, (col, noise, weave) in MATS.items():
-        rng = random.Random(name)
-        img = []
-        for y in range(size):
-            for x in range(size):
-                k = rng.randint(-noise, noise)
-                if weave:
-                    k += 5 if ((x // 2) + (y // 2)) % 2 == 0 else -4
-                img.append(tuple(max(0, min(255, c + k)) for c in col))
-        bb.write_vtf(os.path.join(MATDIR, name + ".vtf"), img, size)
-        extra = ""
-        if name in ("cl_lens", "cl_metal", "cl_leather"):
-            extra = '\t"$phong" "1"\n\t"$phongexponent" "40"\n\t"$phongboost" "3"\n\t"$phongfresnelranges" "[0.4 0.8 1]"\n'
-        with open(os.path.join(MATDIR, name + ".vmt"), "w") as f:
-            f.write(f'"VertexLitGeneric"\n{{\n\t"$basetexture" "models/nyrp/clothes/{name}"\n{extra}}}\n')
+    import textures as tx
+    for name, (col, kind) in MATS.items():
+        tx.write_vtf(os.path.join(MATDIR, name + ".vtf"), tx.make(kind, col, name))
+        tx.write_vmt(os.path.join(MATDIR, name + ".vmt"), "models/nyrp/clothes/" + name,
+                     phong=name in ("cl_lens", "cl_metal", "cl_leather", "cl_black", "cl_card"),
+                     exponent=40 if name in ("cl_lens", "cl_metal") else 12, boost=3 if name in ("cl_lens", "cl_metal") else 0.6)
 
 
 def preview(path):

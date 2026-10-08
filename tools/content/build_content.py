@@ -173,28 +173,83 @@ def build_shapes():
 
 
 def build_bag_textures():
-    import random
-    rng = random.Random(4)
-    # тайл ткани сумки (кордура) 256x256, бесшовный
-    T = 256
-    img = Image.new("RGB", (T, T), (34, 31, 28))
-    d = ImageDraw.Draw(img)
-    for y in range(0, T, 2):
-        for x in range(0, T, 2):
-            c = 30 + ((x // 2 + y // 2) % 2) * 6 + rng.randint(-3, 3)
-            d.rectangle([x, y, x + 1, y + 1], fill=(c + 2, c, c - 3))
-    img = img.filter(ImageFilter.GaussianBlur(0.6))
-    img.save(out("materials", "nyrp", "ui", "fabric.png"))
+    """Материалы окна инвентаря: ткань, зубья молнии, бегунок с язычком, строчка, заклёпка."""
+    sys.path.insert(0, os.path.join(ROOT, "tools", "models"))
+    import textures
+    Image.fromarray(textures.make("cordura", (42, 44, 50), "inv")).save(out("materials", "nyrp", "ui", "fabric.png"))
 
-    # зубчик молнии 32x16 (повторяется по горизонтали)
-    z = Image.new("RGBA", (32 * 4, 16 * 4), (0, 0, 0, 0))
+    k = 4
+    # зубья молнии 32x16 (повторяются по горизонтали)
+    z = Image.new("RGBA", (32 * k, 16 * k), (0, 0, 0, 0))
     zd = ImageDraw.Draw(z)
-    zd.rounded_rectangle([4 * 4, 1 * 4, 12 * 4, 9 * 4], radius=6, fill=(150, 140, 120, 255))
-    zd.rounded_rectangle([20 * 4, 7 * 4, 28 * 4, 15 * 4], radius=6, fill=(150, 140, 120, 255))
-    zd.rounded_rectangle([5 * 4, 2 * 4, 11 * 4, 5 * 4], radius=4, fill=(200, 190, 165, 255))
-    zd.rounded_rectangle([21 * 4, 8 * 4, 27 * 4, 11 * 4], radius=4, fill=(200, 190, 165, 255))
+    for x0, y0 in ((4, 1), (20, 7)):
+        zd.rounded_rectangle([x0 * k, y0 * k, (x0 + 8) * k, (y0 + 8) * k], radius=6, fill=(120, 116, 108, 255))
+        zd.rounded_rectangle([(x0 + 1) * k, (y0 + 1) * k, (x0 + 7) * k, (y0 + 4) * k], radius=4, fill=(205, 198, 182, 255))
     z.resize((32, 16), Image.LANCZOS).save(out("materials", "nyrp", "ui", "zipper.png"))
-    print("bag textures ok")
+
+    # бегунок молнии с жёлтым кожаным язычком 64x128
+    W, H = 64 * k, 128 * k
+    pull = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(sh)
+    sd.rounded_rectangle([14 * k, 8 * k, 52 * k, 40 * k], radius=8 * k, fill=(0, 0, 0, 150))
+    sd.rounded_rectangle([16 * k, 48 * k, 50 * k, 124 * k], radius=8 * k, fill=(0, 0, 0, 150))
+    pull.alpha_composite(sh.filter(ImageFilter.GaussianBlur(4 * k)), (2 * k, 4 * k))
+    d = ImageDraw.Draw(pull)
+    # металлический корпус бегунка (вертикальный градиент)
+    body = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(body)
+    for i in range(34 * k):
+        t = i / (34 * k)
+        c = int(225 - 110 * t + 25 * (t > 0.45))
+        bd.line([(12 * k, (6 * k) + i), (52 * k, (6 * k) + i)], fill=(c, c - 2, c - 8, 255))
+    mask = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([12 * k, 6 * k, 52 * k, 40 * k], radius=9 * k, fill=255)
+    pull.paste(body, (0, 0), mask)
+    d.rounded_rectangle([12 * k, 6 * k, 52 * k, 40 * k], radius=9 * k, outline=(60, 58, 54, 255), width=k)
+    d.line([(17 * k, 11 * k), (47 * k, 11 * k)], fill=(255, 255, 250, 200), width=k)
+    # кольцо
+    d.rounded_rectangle([24 * k, 34 * k, 40 * k, 54 * k], radius=6 * k, outline=(150, 146, 138, 255), width=3 * k)
+    # язычок
+    tab = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    td = ImageDraw.Draw(tab)
+    for i in range(76 * k):
+        t = i / (76 * k)
+        td.line([(14 * k, 46 * k + i), (50 * k, 46 * k + i)], fill=(int(248 - 40 * t), int(200 - 45 * t), int(30 - 20 * t), 255))
+    tmask = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(tmask).rounded_rectangle([14 * k, 46 * k, 50 * k, 122 * k], radius=9 * k, fill=255)
+    pull.paste(tab, (0, 0), tmask)
+    d.rounded_rectangle([14 * k, 46 * k, 50 * k, 122 * k], radius=9 * k, outline=(120, 86, 0, 255), width=k)
+    for y in range(58 * k, 114 * k, 7 * k):  # строчка по краю язычка
+        d.line([(19 * k, y), (19 * k, y + 4 * k)], fill=(110, 76, 0, 255), width=k)
+        d.line([(45 * k, y), (45 * k, y + 4 * k)], fill=(110, 76, 0, 255), width=k)
+    d.ellipse([27 * k, 50 * k, 37 * k, 60 * k], fill=(70, 66, 60, 255), outline=(190, 186, 176, 255), width=2 * k)
+    d.text((32 * k, 90 * k), "NY", fill=(120, 86, 0, 255), anchor="mm",
+           font=ImageFont.truetype("/usr/share/fonts/opentype/inter/InterDisplay-Black.otf", 18 * k))
+    pull.resize((64, 128), Image.LANCZOS).save(out("materials", "nyrp", "ui", "zipper_pull.png"))
+
+    # строчка (нитка с тенью), горизонтальная и вертикальная
+    st = Image.new("RGBA", (32 * k, 6 * k), (0, 0, 0, 0))
+    sdr = ImageDraw.Draw(st)
+    sdr.rounded_rectangle([4 * k, 3 * k, 24 * k, 5 * k], radius=k, fill=(0, 0, 0, 140))
+    sdr.rounded_rectangle([4 * k, 1 * k, 24 * k, 3 * k], radius=k, fill=(222, 214, 196, 230))
+    st = st.resize((32, 6), Image.LANCZOS)
+    st.save(out("materials", "nyrp", "ui", "stitch_h.png"))
+    st.rotate(90, expand=True).save(out("materials", "nyrp", "ui", "stitch_v.png"))
+
+    # заклёпка 32x32
+    R = 32 * k
+    rv = Image.new("RGBA", (R, R), (0, 0, 0, 0))
+    rd = ImageDraw.Draw(rv)
+    rd.ellipse([3 * k, 5 * k, 29 * k, 31 * k], fill=(0, 0, 0, 120))
+    for i in range(12 * k, 0, -1):
+        t = i / (12 * k)
+        c = int(240 - 140 * t)
+        off = int((1 - t) * 3 * k)
+        rd.ellipse([16 * k - i - off, 15 * k - i - off, 16 * k + i - off, 15 * k + i - off], fill=(c, c - 4, c - 12, 255))
+    rv = rv.filter(ImageFilter.GaussianBlur(k * 0.4)).resize((32, 32), Image.LANCZOS)
+    rv.save(out("materials", "nyrp", "ui", "rivet.png"))
+    print("bag ui materials ok")
 
 
 def build_branding():
