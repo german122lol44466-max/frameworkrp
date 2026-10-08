@@ -434,6 +434,29 @@ def write_anim_lua(path, models):
     print("wrote", os.path.relpath(path, ROOT))
 
 
+def dump_vm_parts(name, root, anim_parts):
+    """Геометрия частей для вьюмодели рук: без пояса/пряжки. tools/models/src/<name>_vm.npz"""
+    import numpy as np
+    bones = {o.name: o for o in anim_parts.values()}
+    bpy.context.scene.frame_set(0)
+    data = {}
+    for ob in root.children_recursive:
+        if ob.type != "MESH" or "belt" in ob.name or "buckle" in ob.name:
+            continue
+        bname = bone_of(ob, bones)
+        inv = bones[bname].matrix_world.inverted() if bname != "root" else Matrix.Identity(4)
+        m = inv @ ob.matrix_world
+        nm = m.to_3x3().inverted().transposed()
+        mat = ob.data.materials[0].name
+        short = bname.replace(name + "_", "")
+        for tri in mesh_tris(ob):
+            for co, n, uv in tri:
+                c = m @ co
+                nn = (nm @ n).normalized()
+                data.setdefault(f"{short}|{mat}", []).append([c.x, c.y, c.z, nn.x, nn.y, nn.z, uv[0], uv[1]])
+    np.savez_compressed(os.path.join(SRC, f"{name}_vm.npz"), **{k: np.array(v, np.float32) for k, v in data.items()})
+
+
 def compile_parts(name, parts):
     import mdlc
     out = os.path.join(GM, "content", "models", "nyrp", "bags")
@@ -596,6 +619,7 @@ def main():
         write_qc(name, mass)
         models[name] = (parts, bones, frames)
         compile_parts(name, parts)
+        dump_vm_parts(name, root, anim)
         root.location = offset
         tri = sum(len(t) for p in parts.values() for t in p.values())
         print(name, "triangles:", tri)

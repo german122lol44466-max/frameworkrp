@@ -2,6 +2,7 @@
 	Сумки на персонаже: части .mdl (models/nyrp/bags/*) крепятся к телу,
 	крышка/клапан и бегунок молнии анимируются кадрами из sh_bag_models.lua.
 	NYRP.Bags.DrawOn(ent, bagId, frame) — рисует сумку на любой модели (превью в меню создания).
+	От первого лица — отдельная вьюмодель с руками c_arms (см. ниже).
 ]]
 
 local UI = NYRP.UI
@@ -102,8 +103,10 @@ function Bags.Frame(ply, bagId)
 	return math.Clamp(last - (CurTime() - ply:GetNW2Float("nyrp.bagTime")) * fps * 1.4, 0, last)
 end
 
+-- Сумку на теле видит только сам владелец (от третьего лица); у других игроков её не видно.
 hook.Add("PostPlayerDraw", "nyrp.bags", function(ply)
-	if not ply:Alive() or ply:GetNoDraw() then return end
+	if ply ~= LocalPlayer() or not ply:Alive() or ply:GetNoDraw() then return end
+	if Bags.FPActive and Bags.FPActive() then return end
 	local bag = ply:GetNW2String("nyrp.bag", "")
 	if bag == "" or not (NYRP.BagModels and NYRP.BagModels[bag]) then return end
 	Bags.DrawOn(ply, bag, Bags.Frame(ply, bag))
@@ -120,33 +123,40 @@ end)
 local look = 0
 hook.Add("Think", "nyrp.bags.look", function()
 	local inv = NYRP.Inventory
-	local want = inv and (inv.Opening or (inv.IsOpen and inv.IsOpen())) and not NYRP.Camera.IsThirdPerson()
+	local custom = Bags.FPActive and Bags.FPActive()
+	-- со своей анимацией рук камеру не наклоняем: руки и так подносят сумку к глазам
+	local want = inv and (inv.Opening or (inv.IsOpen and inv.IsOpen())) and not NYRP.Camera.IsThirdPerson() and not custom
 	look = UI.Approach(look, want and 1 or 0, want and 6 or 8)
 	local bag = LocalPlayer():GetNW2String("nyrp.bag", "waistbag")
 	NYRP.Camera.LookBlend = look
-	local custom = Bags.FPActive and Bags.FPActive()
-	NYRP.Camera.LookPitch = custom and 22 or (bag == "backpack" and 38 or 62)
+	NYRP.Camera.LookPitch = custom and 0 or (bag == "backpack" and 38 or 62)
 	NYRP.Camera.LookYaw = (custom or bag ~= "backpack") and 0 or 35
 end)
 
 -- ------------------------------------------- своя анимация от первого лица --
--- От первого лица на экране руки (модель рук вашего персонажа) поднимают сумку в кадр,
--- бегунок едет по молнии, крышка откидывается; при закрытии — обратно и руки опускаются.
--- От третьего лица — жест рук и анимация сумки на теле (её видят и другие).
+-- Вьюмодель models/nyrp/bags/v_<сумка>.mdl: скелет c_arms + кости сумки, анимация сделана в
+-- tools/models/viewmodel (Blender + IK): руки достают сумку, левая тянет бегунок молнии и откидывает
+-- крышку (у рюкзака — правая поднимает клапан). Руки вашего персонажа (ply:GetHands()) цепляются
+-- к ней бонмерджем, так что перчатки/кожа — свои. Последовательности: open, close, idle_open, idle_closed.
+local VM_FOV = 62
+local OPEN_RATE, CLOSE_RATE = 1.25, 1.7
+local OPEN_FRAMES = 48 / 30
 local fp
-local HANDS_VM = "models/weapons/c_medkit.mdl" -- даёт позу и анимацию доставания для рук
 local fpVM, fpHands
 
-local function ensureHands()
-	local ply = LocalPlayer()
-	local hands = ply:GetHands()
-	local mdl = IsValid(hands) and hands:GetModel() or "models/weapons/c_arms_citizen.mdl"
-	if not mdl or mdl == "" then return end
-	if not IsValid(fpVM) then
-		fpVM = ClientsideModel(HANDS_VM, RENDERGROUP_OPAQUE)
+local function ensureModels(bag)
+	local path = "models/nyrp/bags/v_" .. bag .. ".mdl"
+	if not IsValid(fpVM) or fpVM:GetModel() ~= path then
+		if IsValid(fpVM) then fpVM:Remove() end
+		fpVM = ClientsideModel(path, RENDERGROUP_OPAQUE)
 		if not IsValid(fpVM) then return end
 		fpVM:SetNoDraw(true)
+		if IsValid(fpHands) then fpHands:Remove() end
+		fpHands = nil
 	end
+	local hands = LocalPlayer():GetHands()
+	local mdl = IsValid(hands) and hands:GetModel() or ""
+	if mdl == "" then mdl = "models/weapons/c_arms_citizen.mdl" end
 	if not IsValid(fpHands) or fpHands:GetModel() ~= mdl then
 		if IsValid(fpHands) then fpHands:Remove() end
 		fpHands = ClientsideModel(mdl, RENDERGROUP_OPAQUE)
@@ -162,73 +172,28 @@ local function ensureHands()
 	return fpVM, fpHands
 end
 
+-- Через сколько секунд после начала анимации показывать окно инвентаря (крышка почти открыта).
+function Bags.FPOpenDelay()
+	if not fp then return 0.95 end
+	return OPEN_FRAMES / OPEN_RATE * 0.9
+end
+
 function Bags.FPStart()
 	if NYRP.Camera.IsThirdPerson() then return end
 	local bag = LocalPlayer():GetNW2String("nyrp.bag", "")
 	if not NYRP.BagModels[bag] then return end
-	fp = { bag = bag, start = RealTime() }
+	if not util.IsValidModel("models/nyrp/bags/v_" .. bag .. ".mdl") then return end
+	fp = { bag = bag, seq = "open", start = RealTime(), from = 0 }
 end
 
 function Bags.FPClose()
-	if fp and not fp.closing then fp.closing = RealTime() end
+	if not fp or fp.seq == "close" then return end
+	-- закрываем с того места, где сейчас открытие (обратная последовательность)
+	local c = math.Clamp((RealTime() - fp.start) * OPEN_RATE / OPEN_FRAMES, 0, 1)
+	fp = { bag = fp.bag, seq = "close", start = RealTime(), from = 1 - c }
 end
 
 function Bags.FPActive() return fp ~= nil end
-
--- Настройка анимации рук от первого лица (единицы — в масштабе модели сумки).
--- grip  — за что берётся левая рука, пока едет молния (точка на бегунке);
--- lift  — край крышки/клапана, который она поднимает;
--- wrist — смещение запястья от точки хвата (вдоль взгляда / вправо / вверх).
-local poses = {
-	waistbag = {
-		scale = 0.62, pitch = 34,
-		zip = { from = 0, to = 12 }, lift = { from = 13, to = 24 },
-		grip = { part = "zipper", pt = Vector(0.3, 0, -0.5) },
-		edge = { part = "lid", pt = Vector(3.4, 0, 1.1) },
-		wrist = Vector(-3.2, -0.6, -1.2),
-	},
-	backpack = {
-		scale = 0.48, pitch = 18,
-		zip = { from = 0, to = 4 }, lift = { from = 4, to = 24 },
-		grip = { part = "flap", pt = Vector(5.3, 0, -4.8) },
-		edge = { part = "flap", pt = Vector(5.3, 0, -4.8) },
-		wrist = Vector(-3.2, -0.6, -1.4),
-	},
-}
-CreateClientConVar("nyrp_bagfp_debug", "0", false, false, "Показать точки, к которым тянется рука при открытии сумки")
-
--- Кость предмета во вьюмодели (аптечка) — на её место ставим сумку: рука держит именно её.
-local propBone
-local function findPropBone(vm)
-	if propBone and propBone.model == vm:GetModel() then return propBone.id end
-	local id
-	for i = 0, vm:GetBoneCount() - 1 do
-		local name = vm:GetBoneName(i) or ""
-		if name ~= "__INVALIDBONE__" and not string.find(name, "ValveBiped", 1, true) then id = i break end
-	end
-	propBone = { model = vm:GetModel(), id = id }
-	return id
-end
-
--- Переносим всю левую руку (от плеча, оно за кадром) так, чтобы кисть оказалась в target.
-local function placeLeftHand(vm, target)
-	local upper = vm:LookupBone("ValveBiped.Bip01_L_UpperArm")
-	local hand = vm:LookupBone("ValveBiped.Bip01_L_Hand")
-	if not upper or not hand then return end
-	vm:ManipulateBonePosition(upper, vector_origin)
-	vm:InvalidateBoneCache()
-	vm:SetupBones()
-	if not target then return end
-	local hm = vm:GetBoneMatrix(hand)
-	local parent = vm:GetBoneParent(upper)
-	local pm = parent and parent >= 0 and vm:GetBoneMatrix(parent)
-	if not hm or not pm then return end
-	local delta = target - hm:GetTranslation()
-	local localDelta = WorldToLocal(delta, Angle(), vector_origin, pm:GetAngles())
-	vm:ManipulateBonePosition(upper, localDelta)
-	vm:InvalidateBoneCache()
-	vm:SetupBones()
-end
 
 local function setupLighting(eye, view)
 	local function light(dir)
@@ -247,87 +212,41 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	if not fp then return end
 	local ply = LocalPlayer()
 	if not ply:Alive() or NYRP.Camera.IsThirdPerson() then fp = nil return end
-	local def = NYRP.BagModels[fp.bag]
-	local last = #(select(2, next(def.anim))) - 1
-	local now = RealTime()
-	local t = now - fp.start
-	local p = poses[fp.bag]
-	local eye, view = EyePos(), EyeAngles()
+	local vm, hands = ensureModels(fp.bag)
+	if not IsValid(vm) or not IsValid(hands) then fp = nil return end
 
-	local DRAW = 0.6
-	local raise = UI.EaseInOut(math.Clamp(t / DRAW, 0, 1))          -- рука поднимает сумку
-	local frame = math.Clamp((t - DRAW * 0.85) / 0.45, 0, 1) * last  -- молния и крышка
-	if fp.closing then
-		local c = now - fp.closing
-		frame = frame * (1 - math.Clamp(c / 0.25, 0, 1))
-		raise = raise * (1 - UI.EaseInOut(math.Clamp((c - 0.2) / 0.35, 0, 1)))
-		if c > 0.6 then fp = nil return end
+	local t = RealTime() - fp.start
+	local seqName, cycle
+	if fp.seq == "open" then
+		cycle = math.min(t * OPEN_RATE / OPEN_FRAMES, 1)
+		seqName = cycle >= 1 and "idle_open" or "open"
+	else
+		cycle = fp.from + t * CLOSE_RATE / OPEN_FRAMES
+		if cycle >= 1 then fp = nil return end
+		seqName = "close"
 	end
+	local seq = vm:LookupSequence(seqName)
+	if seq < 0 then fp = nil return end
+	if vm:GetSequence() ~= seq then vm:ResetSequence(seq) end
+	vm:SetPlaybackRate(0)
+	vm:SetCycle(math.Clamp(cycle, 0, 0.999))
 
-	cam.Start3D(eye, view, 62)
+	local eye, view = EyePos(), EyeAngles()
+	-- лёгкое покачивание вместе с дыханием, чтобы картинка не была мёртвой
+	local sway = Angle(math.sin(RealTime() * 1.3) * 0.35, math.cos(RealTime() * 0.9) * 0.3, 0)
+	vm:SetPos(eye)
+	vm:SetAngles(view + sway)
+	vm:InvalidateBoneCache()
+	vm:SetupBones()
+	hands:InvalidateBoneCache()
+	hands:SetupBones()
+
+	cam.Start3D(eye, view, VM_FOV, nil, nil, nil, nil, 1, 300)
 	render.ClearDepth()
 	render.SuppressEngineLighting(true)
 	setupLighting(eye, view)
-
-	local bagPos
-	local vm, hands = ensureHands()
-	local drawSeq = IsValid(vm) and vm:SelectWeightedSequence(ACT_VM_DRAW) or -1
-	if IsValid(vm) and IsValid(hands) and drawSeq >= 0 then
-		if vm:GetSequence() ~= drawSeq then vm:SetSequence(drawSeq) end
-		vm:SetPlaybackRate(0)
-		vm:SetCycle(math.Clamp(raise, 0, 0.999))
-		-- при закрытии рука ещё и уходит вниз из кадра
-		local lower = fp.closing and (1 - raise) or 0
-		vm:SetPos(eye - view:Up() * (10 * lower))
-		vm:SetAngles(view)
-		vm:InvalidateBoneCache()
-		vm:SetupBones()
-		hands:InvalidateBoneCache()
-		hands:SetupBones()
-		placeLeftHand(vm, nil)
-		local bone = findPropBone(vm) or vm:LookupBone("ValveBiped.Bip01_R_Hand")
-		local m = bone and vm:GetBoneMatrix(bone)
-		if m then bagPos = m:GetTranslation() end
-		if bagPos then
-			-- левая рука: снизу в кадр -> язычок молнии -> ведёт его -> поднимает край крышки
-			local wob = (frame > 0 and frame < last and not fp.closing) and math.sin(t * 55) * 1.2 or 0
-			local _, bagAng = LocalToWorld(Vector(), Angle(p.pitch, 195, math.sin(t * 1.6) * 2 + wob), eye, view)
-			local function at(spec, f)
-				local pt = Bags.PartPoint(fp.bag, bagPos, bagAng, f, p.scale, spec.part, spec.pt)
-				return pt + LocalToWorld(p.wrist, Angle(), vector_origin, view)
-			end
-			local rest = eye + view:Forward() * 14 + view:Right() * -9 + view:Up() * -24
-			local target
-			local reach = math.Clamp((t - DRAW * 0.45) / 0.35, 0, 1)  -- рука тянется к молнии
-			if frame <= p.zip.to then
-				target = LerpVector(UI.EaseInOut(reach), rest, at(p.grip, frame))
-			else
-				local k = math.Clamp((frame - p.lift.from) / (p.lift.to - p.lift.from), 0, 1)
-				target = LerpVector(UI.EaseInOut(math.min(k * 3, 1)), at(p.grip, frame), at(p.edge, frame))
-			end
-			if fp.closing then
-				target = LerpVector(1 - raise, target, rest)
-			end
-			placeLeftHand(vm, target)
-			hands:InvalidateBoneCache()
-			hands:SetupBones()
-			fp.debug = GetConVar("nyrp_bagfp_debug"):GetBool() and { target, at(p.grip, frame), at(p.edge, frame) } or nil
-		end
-		hands:DrawModel()
-	end
-	if not bagPos then
-		-- без рук: сумка просто поднимается в кадр
-		bagPos = LocalToWorld(Vector(18, 2, Lerp(raise, -26, -8)), Angle(), eye, view)
-	end
-	local wobble = (frame > 0 and frame < last and not fp.closing) and math.sin(t * 55) * 1.2 or 0
-	local _, ang = LocalToWorld(Vector(), Angle(p.pitch, 195, math.sin(t * 1.6) * 2 + wobble), eye, view)
-	Bags.DrawAt(fp.bag, bagPos, ang, frame, p.scale)
-	if fp.debug then
-		render.SetColorMaterial()
-		for i, v in ipairs(fp.debug) do
-			render.DrawSphere(v, 0.4, 8, 8, i == 1 and Color(255, 60, 60) or Color(60, 255, 120))
-		end
-	end
+	vm:DrawModel()
+	hands:DrawModel()
 	render.SuppressEngineLighting(false)
 	cam.End3D()
 end)

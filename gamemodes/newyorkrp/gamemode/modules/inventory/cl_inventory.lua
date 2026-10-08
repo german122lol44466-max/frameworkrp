@@ -782,8 +782,9 @@ function Inv.Toggle()
 	if NYRP.Bags.FPStart then NYRP.Bags.FPStart() end
 	net.Start("nyrp.inv.open")
 	net.SendToServer()
-	-- руки тянутся к сумке, крышка открывается, потом — окно
-	timer.Simple(0.95, function()
+	-- руки достают сумку, открывают молнию/клапан, потом — окно
+	local delay = NYRP.Bags.FPOpenDelay and NYRP.Bags.FPOpenDelay() or 0.95
+	timer.Simple(delay, function()
 		if not Inv.Opening then return end
 		Inv.Opening = false
 		if LocalPlayer():Alive() then Inv.Open() end

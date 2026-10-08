@@ -84,8 +84,10 @@ def check(path):
                 for s in range(ns):
                     st = struct.unpack_from("<iiiihBii", x, sg + so + s * 27)
                     assert st[5] & 1, "trilist"
-                    bsc = struct.unpack_from("<ii", x, sg + so + s * 27 + st[7])
-                    assert bsc == (0, 0)
+                    nbsc = st[6]
+                    for c in range(nbsc):  # смена аппаратных костей (у анимированных моделей)
+                        hw, bone = struct.unpack_from("<ii", x, sg + so + s * 27 + st[7] + c * 8)
+                        assert 0 <= hw < mbs and 0 <= bone < nb, "bone state change"
                     for t in range(st[1], st[1] + st[0], 3):
                         tri = []
                         for j in (0, 2, 1):  # по часовой -> против
