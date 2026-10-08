@@ -760,6 +760,7 @@ function Inv.Close()
 		net.SendToServer()
 	end
 	if IsValid(UI.ActiveMenu) then UI.ActiveMenu:Remove() end
+	if NYRP.Bags.FPClose then NYRP.Bags.FPClose() end
 	Inv.Press, Inv.Drag, Inv.DropZone = nil, nil, nil
 	Inv.Opening = false
 end
@@ -770,6 +771,7 @@ function Inv.Toggle()
 	local ply = LocalPlayer()
 	if NYRP.State ~= "playing" or not ply:Alive() or not NYRP.HasCharacter(ply) then return end
 	Inv.Opening = true
+	if NYRP.Bags.FPStart then NYRP.Bags.FPStart() end
 	net.Start("nyrp.inv.open")
 	net.SendToServer()
 	-- руки тянутся к сумке, крышка открывается, потом — окно

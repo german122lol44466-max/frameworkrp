@@ -88,6 +88,11 @@
 `tools\compile_models.bat`: он найдёт `studiomdl.exe` в папке Garry's Mod, скомпилирует все `.qc`
 из `tools/models/src` и скопирует результат в `content/models/nyrp`.
 
+## Проверка без игры
+
+`python3 tools/test/load_test.py` (нужен `pip install lupa`) прогоняет настоящую загрузку режима в обоих
+реалмах с заглушками API GMod и ловит ошибки вида «attempt to index nil» при загрузке.
+
 ## Структура
 
 ```

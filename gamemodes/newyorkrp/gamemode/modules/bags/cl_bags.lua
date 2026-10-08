@@ -112,6 +112,73 @@ hook.Add("Think", "nyrp.bags.look", function()
 	look = UI.Approach(look, want and 1 or 0, want and 6 or 8)
 	local bag = LocalPlayer():GetNW2String("nyrp.bag", "waistbag")
 	NYRP.Camera.LookBlend = look
-	NYRP.Camera.LookPitch = bag == "backpack" and 38 or 62
-	NYRP.Camera.LookYaw = bag == "backpack" and 35 or 0
+	local custom = Bags.FPActive and Bags.FPActive()
+	NYRP.Camera.LookPitch = custom and 22 or (bag == "backpack" and 38 or 62)
+	NYRP.Camera.LookYaw = (custom or bag ~= "backpack") and 0 or 35
+end)
+
+-- ------------------------------------------- своя анимация от первого лица --
+-- От первого лица сумка поднимается в кадр, бегунок едет по молнии, крышка откидывается;
+-- при закрытии — обратно и вниз из кадра. От третьего лица — жест рук и анимация на теле.
+local fp
+
+function Bags.FPStart()
+	if NYRP.Camera.IsThirdPerson() then return end
+	local bag = LocalPlayer():GetNW2String("nyrp.bag", "")
+	if not NYRP.BagModels[bag] then return end
+	fp = { bag = bag, start = RealTime() }
+end
+
+function Bags.FPClose()
+	if fp and not fp.closing then fp.closing = RealTime() end
+end
+
+function Bags.FPActive() return fp ~= nil end
+
+local poses = {
+	waistbag = { dist = 17, up = -7.5, pitch = 38 },
+	backpack = { dist = 27, up = -10, pitch = 22 },
+}
+
+hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
+	if not fp then return end
+	local ply = LocalPlayer()
+	if not ply:Alive() or NYRP.Camera.IsThirdPerson() then fp = nil return end
+	local def = NYRP.BagModels[fp.bag]
+	local last = #(select(2, next(def.anim))) - 1
+	local now = RealTime()
+	local t = now - fp.start
+	local rise = UI.Ease(t / 0.35)
+	local frame = math.Clamp((t - 0.3) / 0.6, 0, 1) * last
+	if fp.closing then
+		local c = now - fp.closing
+		frame = frame * (1 - math.Clamp(c / 0.3, 0, 1))
+		rise = rise * (1 - UI.Ease((c - 0.25) / 0.3))
+		if c > 0.6 then fp = nil return end
+	end
+
+	local p = poses[fp.bag]
+	local eye, view = EyePos(), EyeAngles()
+	-- лёгкое покачивание, рывок, когда бегунок идёт по молнии
+	local zipShake = (t > 0.3 and t < 0.65 and not fp.closing) and math.sin(t * 70) * 0.25 or 0
+	local localPos = Vector(p.dist, Lerp(rise, -6, 0), Lerp(rise, -30, p.up) + math.sin(t * 2) * 0.3 + zipShake)
+	local localAng = Angle(p.pitch + (1 - rise) * 25, 180 + (1 - rise) * 20, math.sin(t * 1.6) * 2 + zipShake * 4)
+	local pos, ang = LocalToWorld(localPos, localAng, eye, view)
+
+	cam.Start3D(eye, view, 72)
+	render.ClearDepth()
+	render.SuppressEngineLighting(true)
+	local function light(dir)
+		local c = render.ComputeLighting(eye, dir) + render.ComputeDynamicLighting(eye, dir)
+		return math.Clamp(c.x + 0.12, 0, 1.4), math.Clamp(c.y + 0.12, 0, 1.4), math.Clamp(c.z + 0.14, 0, 1.4)
+	end
+	render.SetModelLighting(BOX_TOP, light(Vector(0, 0, 1)))
+	render.SetModelLighting(BOX_BOTTOM, light(Vector(0, 0, -1)))
+	render.SetModelLighting(BOX_FRONT, light(view:Forward()))
+	render.SetModelLighting(BOX_BACK, light(-view:Forward()))
+	render.SetModelLighting(BOX_LEFT, light(-view:Right()))
+	render.SetModelLighting(BOX_RIGHT, light(view:Right()))
+	Bags.DrawAt(fp.bag, pos, ang, frame, 1)
+	render.SuppressEngineLighting(false)
+	cam.End3D()
 end)

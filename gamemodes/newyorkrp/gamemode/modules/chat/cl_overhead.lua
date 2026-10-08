@@ -67,9 +67,15 @@ hook.Add("HUDPaint", "nyrp.overhead", function()
 	local showSelf = NYRP.Camera.IsThirdPerson()
 
 	for _, ply in ipairs(player.GetAll()) do
-		if not IsValid(ply) or not ply:Alive() or ply:GetNoDraw() or (ply == me and not showSelf) then continue end
+		if IsValid(ply) and ply:Alive() and not ply:GetNoDraw() and (ply ~= me or showSelf) and eye:Distance(ply:GetPos()) <= 900 then
+			O.Draw(ply, me, eye, look, now)
+		end
+	end
+end)
+
+function O.Draw(ply, me, eye, look, now)
+	do
 		local dist = eye:Distance(ply:GetPos())
-		if dist > 900 then continue end
 		local st = state[ply] or { tag = 0, typing = 0, voice = 0, typeKind = T.IC }
 		state[ply] = st
 
@@ -81,10 +87,10 @@ hook.Add("HUDPaint", "nyrp.overhead", function()
 		st.voice = UI.Approach(st.voice, ply:IsSpeaking() and 1 or 0, 10)
 
 		local list = bubbles[ply]
-		if st.tag < 0.01 and st.typing < 0.01 and st.voice < 0.01 and not (list and #list > 0) then continue end
+		if st.tag < 0.01 and st.typing < 0.01 and st.voice < 0.01 and not (list and #list > 0) then return end
 
 		local sc = headPos(ply):ToScreen()
-		if not sc.visible then continue end
+		if not sc.visible then return end
 		local k = math.Clamp(1.15 - dist / 700, 0.6, 1)
 		local x, y = sc.x, sc.y
 		local gap = UI.S(6)
@@ -153,7 +159,7 @@ hook.Add("HUDPaint", "nyrp.overhead", function()
 			end
 		end
 	end
-end)
+end
 
 hook.Add("EntityRemoved", "nyrp.overhead", function(ent)
 	bubbles[ent] = nil
