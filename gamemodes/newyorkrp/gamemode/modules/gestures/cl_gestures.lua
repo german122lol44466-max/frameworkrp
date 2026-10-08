@@ -85,23 +85,24 @@ function G.OpenRadial()
 				local a = math.rad(a0 + (a1 - a0) * k / 10)
 				poly[#poly + 1] = { x = cx + math.sin(a) * r1, y = cy - math.cos(a) * r1 }
 			end
-			draw.NoTexture()
-			surface.SetDrawColor(UI.LerpColor(hv, Color(14, 16, 24, 225), Color(40, 34, 14, 240)))
-			-- выпуклые многоугольники: рисуем сектор полосками
-			for k = 1, 10 do
-				surface.DrawPoly({ poly[k], poly[k + 1], poly[22 - k], poly[23 - k] })
+			-- без серых подложек: сектор подсвечивается только под курсором
+			if hv > 0.01 then
+				draw.NoTexture()
+				surface.SetDrawColor(247, 198, 0, 38 * hv)
+				for k = 1, 10 do
+					surface.DrawPoly({ poly[k], poly[k + 1], poly[22 - k], poly[23 - k] })
+				end
 			end
 			local mid = math.rad((a0 + a1) / 2)
 			local ir = (r1 + outer) / 2
 			local ix, iy = cx + math.sin(mid) * ir, cy - math.cos(mid) * ir
-			UI.DrawIcon(g.icon, ix, iy - UI.S(8), UI.S(30) * (1 + hv * 0.15), UI.LerpColor(hv, Color(220, 222, 230), UI.Col.accent))
-			draw.SimpleText(g.name, NYRP.Font("semibold", 12), ix, iy + UI.S(20), UI.LerpColor(hv, UI.Col.dim, UI.Col.text), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			UI.DrawIcon(g.icon, ix + 1, iy - UI.S(8) + 2, UI.S(30) * (1 + hv * 0.15), Color(0, 0, 0, 150))
+			UI.DrawIcon(g.icon, ix, iy - UI.S(8), UI.S(30) * (1 + hv * 0.15), UI.LerpColor(hv, Color(230, 232, 238), UI.Col.accent))
+			draw.SimpleText(g.name, NYRP.Font("semibold", 12), ix + 1, iy + UI.S(21), Color(0, 0, 0, 160), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText(g.name, NYRP.Font("semibold", 12), ix, iy + UI.S(20), UI.LerpColor(hv, Color(200, 203, 212), UI.Col.text), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
-		-- обводки
-		UI.Ring(cx, cy, r2 + UI.S(2), Color(255, 255, 255, 14))
 		-- центр
-		UI.Circle(cx, cy, r1 - UI.S(10), Color(8, 9, 14, 235))
-		UI.Ring(cx, cy, r1 - UI.S(10), Color(255, 255, 255, 18))
+		UI.Ring(cx, cy, r1 - UI.S(10), Color(255, 255, 255, 22))
 		local g = s.Sel and G.List[s.Sel]
 		if g then
 			UI.DrawIcon(g.icon, cx, cy - UI.S(18), UI.S(34), UI.Col.accent)

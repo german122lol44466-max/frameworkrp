@@ -180,45 +180,35 @@ local function drawMessages(x, y, w, h, sx, sy, isOpen)
 	local now = RealTime()
 	render.SetScissorRect(sx + x, sy + y, sx + x + w, sy + y + h, true)
 	local skip = Chat.Scroll
-	local hits = {}
-	local sel = isOpen and Chat.Sel
-	local s0, s1 = sel and math.min(sel.a, sel.b), sel and math.max(sel.a, sel.b)
+	local layout = {}
+	local tx = x + UI.S(14)
 	for i = #Chat.Messages, 1, -1 do
 		local m = Chat.Messages[i]
 		local a = isOpen and 1 or math.Clamp(1 - (now - m.time - 10) / 1.5, 0, 1)
 		if a <= 0 then break end
 		local lines = wrapMessage(m, font, width)
-		local selected = sel and i >= s0 and i <= s1
-		local hover = isOpen and Chat.HoverMsg == i
 		for li = #lines, 1, -1 do
 			if skip > 0 then
 				skip = skip - 1
 			else
 				by = by - lineH
 				if by < y - lineH then break end
-				-- для выделения мышью: где на экране лежит это сообщение
-				local h = hits[#hits]
-				if h and h.i == i then h.y0 = by else hits[#hits + 1] = { i = i, y0 = by, y1 = by + lineH } end
-				if selected then
-					surface.SetDrawColor(247, 198, 0, 34)
-					surface.DrawRect(x + UI.S(8), by, w - UI.S(16), lineH)
-					surface.SetDrawColor(247, 198, 0, 200)
-					surface.DrawRect(x + UI.S(8), by, UI.S(2), lineH)
-				elseif hover then
-					surface.SetDrawColor(255, 255, 255, 8)
-					surface.DrawRect(x + UI.S(8), by, w - UI.S(16), lineH)
+				local line = lines[li]
+				if isOpen then
+					layout[#layout + 1] = { m = i, l = li, y = by, line = line }
+					Chat.DrawSelection(line, i, li, tx, by, lineH, font)
 				end
-				for _, seg in ipairs(lines[li]) do
+				for _, seg in ipairs(line) do
 					local col = seg[1]
-					draw.SimpleText(seg[2], font, x + UI.S(14) + seg[3] + 1, by + 1, Color(0, 0, 0, 170 * a))
-					draw.SimpleText(seg[2], font, x + UI.S(14) + seg[3], by, Color(col.r, col.g, col.b, 255 * a))
+					draw.SimpleText(seg[2], font, tx + seg[3] + 1, by + 1, Color(0, 0, 0, 170 * a))
+					draw.SimpleText(seg[2], font, tx + seg[3], by, Color(col.r, col.g, col.b, 255 * a))
 				end
 			end
 		end
 		if by < y then break end
 	end
 	render.SetScissorRect(0, 0, 0, 0, false)
-	if isOpen then Chat.Hits = hits end
+	if isOpen then Chat.Layout = { lines = layout, x = tx, h = lineH, font = font } end
 end
 
 -- ------------------------------------------------- выделение и копирование --
@@ -228,21 +218,100 @@ function Chat.PlainText(m)
 	return table.concat(out)
 end
 
--- Номер сообщения под точкой (координаты окна чата).
-local function messageAt(ly)
-	for _, h in ipairs(Chat.Hits or {}) do
-		if ly >= h.y0 and ly < h.y1 then return h.i end
+-- Свободное выделение текста: позиция = { m = сообщение, l = строка, c = символ (0..длина) }.
+local function lineChars(line, font)
+	if line.chars and line.font == font then return line end
+	local text = {}
+	for _, seg in ipairs(line) do text[#text + 1] = seg[2] end
+	text = table.concat(text)
+	local chars = {}
+	for _, c in utf8.codes(text) do chars[#chars + 1] = utf8.char(c) end
+	surface.SetFont(font)
+	local cx, acc = { 0 }, ""
+	for k, c in ipairs(chars) do
+		acc = acc .. c
+		cx[k + 1] = surface.GetTextSize(acc)
 	end
+	line.chars, line.cx, line.font = chars, cx, font
+	return line
+end
+
+local function cmp(p, q)
+	if p.m ~= q.m then return p.m < q.m end
+	if p.l ~= q.l then return p.l < q.l end
+	return p.c <= q.c
+end
+
+local function selRange()
+	local sel = Chat.Sel
+	if not sel then return end
+	if cmp(sel.a, sel.b) then return sel.a, sel.b end
+	return sel.b, sel.a
+end
+
+function Chat.DrawSelection(line, m, l, tx, by, lineH, font)
+	local s0, s1 = selRange()
+	if not s0 then return end
+	local here = { m = m, l = l, c = 0 }
+	if cmp(here, { m = s0.m, l = s0.l, c = -1 }) or not cmp({ m = m, l = l, c = 0 }, s1) then return end
+	lineChars(line, font)
+	local c0 = (m == s0.m and l == s0.l) and s0.c or 0
+	local c1 = (m == s1.m and l == s1.l) and s1.c or #line.chars
+	if c1 <= c0 and not (m ~= s1.m or l ~= s1.l) then return end
+	local x0, x1 = line.cx[c0 + 1] or 0, line.cx[c1 + 1] or line.cx[#line.cx]
+	surface.SetDrawColor(247, 198, 0, 70)
+	surface.DrawRect(tx + x0, by, math.max(x1 - x0, 2), lineH)
+end
+
+-- Позиция символа под точкой (координаты окна чата).
+local function posAt(lx, ly)
+	local L = Chat.Layout
+	if not L or #L.lines == 0 then return end
+	local best = L.lines[1]
+	for _, e in ipairs(L.lines) do
+		if ly >= e.y and ly < e.y + L.h then best = e break end
+		if ly >= e.y + L.h and e.y >= best.y then best = e end
+	end
+	-- выше всех видимых строк — верхняя строка
+	local top = L.lines[#L.lines]
+	if ly < top.y then best = top end
+	local line = lineChars(best.line, L.font)
+	local rx = lx - L.x
+	local c = #line.chars
+	for k = 1, #line.chars do
+		if rx < (line.cx[k] + line.cx[k + 1]) / 2 then c = k - 1 break end
+	end
+	return { m = best.m, l = best.l, c = c }, (ly >= best.y and ly < best.y + L.h)
 end
 
 local function selectedText()
-	local sel = Chat.Sel
-	if not sel then return end
-	local out = {}
-	for i = math.min(sel.a, sel.b), math.max(sel.a, sel.b) do
-		if Chat.Messages[i] then out[#out + 1] = Chat.PlainText(Chat.Messages[i]) end
+	local s0, s1 = selRange()
+	if not s0 or (s0.m == s1.m and s0.l == s1.l and s0.c == s1.c) then return end
+	local out, font = {}, Chat.Layout and Chat.Layout.font
+	for i = s0.m, s1.m do
+		local m = Chat.Messages[i]
+		if m then
+			local lines = m.lines
+			if not lines then
+				out[#out + 1] = Chat.PlainText(m)
+			else
+				local parts = {}
+				for li = (i == s0.m and s0.l or 1), (i == s1.m and s1.l or #lines) do
+					local line = lineChars(lines[li], font or m.wrapF)
+					local c0 = (i == s0.m and li == s0.l) and s0.c or 0
+					local c1 = (i == s1.m and li == s1.l) and s1.c or #line.chars
+					parts[#parts + 1] = table.concat(line.chars, "", c0 + 1, math.max(c0, c1))
+				end
+				out[#out + 1] = table.concat(parts)
+			end
+		end
 	end
-	return table.concat(out, "\n"), #out
+	return string.Trim(table.concat(out, "\n")), s1.m - s0.m + 1
+end
+
+local function messageAt(lx, ly)
+	local p, inside = posAt(lx, ly)
+	return inside and p and p.m or nil
 end
 
 local function copy(text)
@@ -255,9 +324,9 @@ end
 function Chat.MessageMenu(i)
 	local m = Chat.Messages[i]
 	local opts = {}
-	local selText, n = selectedText()
-	if selText and n > 1 then
-		opts[#opts + 1] = { text = "Копировать выделенное (" .. n .. ")", icon = "copy", func = function() copy(selText) end }
+	local selText = selectedText()
+	if selText and selText ~= "" then
+		opts[#opts + 1] = { text = "Копировать выделенное", icon = "copy", func = function() copy(selText) end }
 	end
 	if m then
 		opts[#opts + 1] = { text = "Копировать сообщение", icon = "copy", func = function() copy(Chat.PlainText(m)) end }
@@ -269,7 +338,11 @@ function Chat.MessageMenu(i)
 		end
 	end
 	opts[#opts + 1] = { divider = true }
-	opts[#opts + 1] = { text = "Выделить всё", icon = "layout", func = function() Chat.Sel = { a = 1, b = #Chat.Messages } end }
+	opts[#opts + 1] = { text = "Выделить всё", icon = "layout", func = function()
+		local n = #Chat.Messages
+		local last = Chat.Messages[n]
+		if last then Chat.Sel = { a = { m = 1, l = 1, c = 0 }, b = { m = n, l = #(last.lines or { 1 }), c = 1e6 } } end
+	end }
 	if Chat.Sel then
 		opts[#opts + 1] = { text = "Снять выделение", icon = "close", func = function() Chat.Sel = nil end }
 	end
@@ -438,35 +511,32 @@ function Chat.Open(prefix)
 		end
 	end
 	pnl.OnMouseWheeled = function(_, d) Chat.Scroll = math.max(0, Chat.Scroll + d * 2) end
-	-- ЛКМ — выделить сообщение (тянуть — несколько), ПКМ — меню копирования
+	-- ЛКМ — свободное выделение текста (тянуть мышью, Shift — продлить), ПКМ — меню копирования
 	pnl:SetCursor("beam")
 	pnl.OnMousePressed = function(s, code)
-		local _, ly = s:CursorPos()
-		local i = messageAt(ly)
+		local lx, ly = s:CursorPos()
+		local p = posAt(lx, ly)
 		if code == MOUSE_LEFT then
-			if i then
-				if input.IsShiftDown() and Chat.Sel then Chat.Sel.b = i else Chat.Sel = { a = i, b = i } end
+			if p then
+				if input.IsShiftDown() and Chat.Sel then Chat.Sel.b = p else Chat.Sel = { a = p, b = p } end
 				s.Selecting = true
 				s:MouseCapture(true)
 			else
 				Chat.Sel = nil
 			end
 		elseif code == MOUSE_RIGHT then
-			if i and not (Chat.Sel and i >= math.min(Chat.Sel.a, Chat.Sel.b) and i <= math.max(Chat.Sel.a, Chat.Sel.b)) then
-				Chat.Sel = { a = i, b = i }
-			end
-			if i or Chat.Sel then Chat.MessageMenu(i) end
+			Chat.MessageMenu(messageAt(lx, ly))
 		end
 	end
 	pnl.OnMouseReleased = function(s)
 		if s.Selecting then s.Selecting = false s:MouseCapture(false) end
 	end
 	pnl.Think = function(s)
-		local _, ly = s:CursorPos()
-		Chat.HoverMsg = s:IsHovered() and messageAt(ly) or nil
-		if s.Selecting then
-			local i = messageAt(ly)
-			if i and Chat.Sel then Chat.Sel.b = i end
+		if s.Selecting and Chat.Sel then
+			local lx, ly = s:CursorPos()
+			-- у края окна прокручиваем
+			local p = posAt(lx, ly)
+			if p then Chat.Sel.b = p end
 		end
 		-- Ctrl+C копирует выделенное, если в строке ввода ничего не выделено
 		local ctrlC = input.IsControlDown() and input.IsKeyDown(KEY_C)

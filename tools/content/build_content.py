@@ -34,13 +34,14 @@ def out(*parts):
 FONTS = {
     "manrope": ["400Regular", "500Medium", "600SemiBold", "800ExtraBold"],
     "oswald": ["300Light", "500Medium", "600SemiBold"],
+    "exo-2": ["500Medium", "600SemiBold"],
 }
 
 
 def build_fonts():
     for fam, weights in FONTS.items():
         for w in weights:
-            name = f"{fam.capitalize()}_{w}.ttf"
+            name = f"{fam.replace('-', '').capitalize()}_{w}.ttf"
             src = os.path.join(NM, "@expo-google-fonts", fam, w, name)
             shutil.copy(src, out("resource", "fonts", name))
     print("fonts ok")

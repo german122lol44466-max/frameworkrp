@@ -77,36 +77,49 @@ local holdIcons = {
 }
 local function weaponIcon(ply)
 	local wep = ply:GetActiveWeapon()
-	if not IsValid(wep) or wep:GetClass() == "nyrp_hands" or wep:GetNoDraw() then return end
+	if not IsValid(wep) or wep:GetClass() == "nyrp_hands" or wep:GetNoDraw() then return "w_hands" end
 	local ht = wep.GetHoldType and wep:GetHoldType() or ""
-	if ht == "" or ht == "normal" or ht == "fist" then return end
+	if ht == "" or ht == "normal" or ht == "fist" then return "w_hands" end
 	return holdIcons[ht] or "w_pistol"
 end
 
--- Ник над головой (как в референсе): крупный светлый текст с тенью, слева — оружие в руках.
-local NAME_COL = Color(214, 216, 222)
+-- Текст с обводкой: тёмный контур вокруг (8 направлений) + сам текст.
+local OFFS = {}
+for i = 0, 15 do local a = i / 16 * math.pi * 2 OFFS[#OFFS + 1] = { math.cos(a), math.sin(a) } end
+local function strokeText(text, font, x, y, col, stroke, sa)
+	for _, o in ipairs(OFFS) do
+		draw.SimpleText(text, font, x + o[1] * stroke, y + o[2] * stroke, Color(6, 7, 10, sa))
+	end
+	draw.SimpleText(text, font, x, y, col)
+end
+local function strokeIcon(mat, x, y, size, col, stroke, sa)
+	surface.SetMaterial(mat)
+	surface.SetDrawColor(6, 7, 10, sa)
+	for _, o in ipairs(OFFS) do surface.DrawTexturedRect(x + o[1] * stroke, y + o[2] * stroke, size, size) end
+	surface.SetDrawColor(col)
+	surface.DrawTexturedRect(x, y, size, size)
+end
+
+-- Ник над головой: Exo 2 с обводкой, слева — что в руках (оружие или ладонь).
+-- Появляется плавно: поднимается, проявляется, обводка «нарастает», иконка выезжает слева.
+local NAME_COL = Color(222, 224, 230)
 local function nameTag(ply, y, a)
 	local known = NYRP.Recog and NYRP.Recog.Knows(ply)
 	local text = known and NYRP.CharName(ply) or "НЕИЗВЕСТНЫЙ"
-	local font = known and NYRP.FontRaw("medium", 46) or NYRP.FontRaw("title", 46)
+	local font = NYRP.FontRaw(known and "tag" or "tagbold", 58)
 	local tw, th = size(text, font)
 	local icon = weaponIcon(ply)
-	local isz = th * 0.95
-	local w = tw + (icon and isz + 22 or 0)
+	local isz = th * 0.92
+	local gap = 22
+	local w = tw + isz + gap
 	local x = -w / 2
-	local by = y - th + (1 - a) * 12
-	local col = known and NAME_COL or Color(232, 232, 236)
-	if icon then
-		local mat = UI.Mat("nyrp/status/" .. icon .. ".png")
-		surface.SetMaterial(mat)
-		surface.SetDrawColor(0, 0, 0, 120 * a)
-		surface.DrawTexturedRect(x + 2, by + (th - isz) / 2 + 3, isz, isz)
-		surface.SetDrawColor(col.r, col.g, col.b, 235 * a)
-		surface.DrawTexturedRect(x, by + (th - isz) / 2, isz, isz)
-		x = x + isz + 22
-	end
-	draw.SimpleText(text, font, x + 2, by + 3, Color(0, 0, 0, 130 * a))
-	draw.SimpleText(text, font, x, by, Color(col.r, col.g, col.b, 255 * a))
+	local by = y - th + (1 - a) * 18
+	local col = Color(NAME_COL.r, NAME_COL.g, NAME_COL.b, 255 * a)
+	local stroke = 2.5 * a
+	local ia = UI.Ease(math.Clamp(a * 1.6 - 0.4, 0, 1))
+	strokeIcon(UI.Mat("nyrp/status/" .. icon .. ".png"), x - (1 - ia) * 20, by + (th - isz) / 2, isz,
+		Color(col.r, col.g, col.b, 240 * ia), stroke, 200 * ia)
+	strokeText(text, font, x + isz + gap, by, col, stroke, 200 * a)
 	return th
 end
 

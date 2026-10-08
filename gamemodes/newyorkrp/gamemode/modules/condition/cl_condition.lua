@@ -52,19 +52,24 @@ hook.Add("HUDPaint", "nyrp.condition", function()
 	if st >= 99.9 and not tired then barFull = barFull + FrameTime() else barFull = 0 end
 	barAlpha = UI.Approach(barAlpha, barFull < 1.5 and 1 or 0, 8)
 	shown = UI.Approach(shown, st / 100, 12)
-	local y = top
+	-- полоска выносливости — внизу по центру, жёлтая
 	if barAlpha > 0.01 then
 		surface.SetAlphaMultiplier(barAlpha)
-		local bw, bh = UI.S(300), UI.S(6)
-		local bx = right - bw
-		local by = y + UI.S(10)
-		drawIcon(statusMat("stamina"), bx - UI.S(22), by + bh / 2, UI.S(26), tired and COL.barLow or COL.bar)
-		UI.RoundedRect(bh / 2, bx, by, bw, bh, COL.track)
-		local fill = tired and COL.barLow or UI.LerpColor(math.Clamp((st - 15) / 30, 0, 1), COL.barLow, COL.bar)
-		if shown > 0.005 then UI.RoundedRect(bh / 2, bx, by, math.max(bw * shown, bh), bh, fill) end
+		local bw, bh = UI.S(300), UI.S(5)
+		local bx = ScrW() / 2 - bw / 2
+		local by = ScrH() - UI.S(52) + (1 - UI.Ease(barAlpha)) * UI.S(10)
+		local yellow = UI.Col.accent
+		local col = tired and COL.barLow or UI.LerpColor(math.Clamp((st - 10) / 25, 0, 1), COL.barLow, yellow)
+		drawIcon(statusMat("stamina"), bx - UI.S(20), by + bh / 2, UI.S(22), col)
+		UI.RoundedRect(bh / 2, bx, by, bw, bh, Color(0, 0, 0, 140))
+		UI.RoundedRect(bh / 2, bx, by, bw, bh, Color(247, 198, 0, 22))
+		if shown > 0.005 then
+			UI.RoundedRect(bh / 2, bx, by, math.max(bw * shown, bh), bh, col)
+			UI.Glow(bx + bw * shown, by + bh / 2, UI.S(26), UI.S(16), UI.Alpha(col, 90))
+		end
 		surface.SetAlphaMultiplier(1)
-		y = y + UI.S(30) * UI.Ease(barAlpha)
 	end
+	local y = top
 
 	-- иконки состояний (справа налево), с анимацией появления и ухода
 	local size, gap = UI.S(30), UI.S(12)
@@ -106,7 +111,7 @@ hook.Add("HUDPaint", "nyrp.condition", function()
 			end
 		end
 	end
-	local h = (y - top) + (any and UI.S(42) or UI.S(8))
+	local h = any and UI.S(48) or 0
 	Cond.HUDHeight = UI.Approach(Cond.HUDHeight, h, 10)
 
 	-- подсказка при наведении

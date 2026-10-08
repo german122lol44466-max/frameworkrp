@@ -140,7 +140,7 @@ hook.Add("HUDPaint", "nyrp.interact", function()
 				local pop = UI.Ease(st.a)
 				local r = (UI.S(11) + st.t * UI.S(8)) * k * (0.6 + 0.4 * pop)
 				local icon, text = info(ent)
-				local a = st.a * (0.55 + st.t * 0.45)
+				local a = st.a * (0.9 + st.t * 0.1) -- иконки почти непрозрачные — их хорошо видно
 				UI.Circle(sc.x, sc.y + UI.S(2), r + UI.S(3), Color(0, 0, 0, 70 * a))
 				UI.Circle(sc.x, sc.y, r, Color(255, 255, 255, 245 * a))
 				UI.DrawIcon(icon, sc.x, sc.y, r * 1.15, Color(12, 14, 20, 255 * a))

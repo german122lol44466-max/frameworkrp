@@ -18,5 +18,6 @@ w_shotgun.png <- sawed-off-shotgun
 w_melee.png <- bowie-knife
 w_grenade.png <- grenade
 w_tool.png <- spyglass
-unknown.png <- hooded-figure
+w_hands.png <- hand
+unknown.png <- cowled
 known.png <- person

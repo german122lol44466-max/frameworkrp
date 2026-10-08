@@ -143,7 +143,7 @@ hook.Add("HUDPaint", "nyrp.weaponselect", function()
 	local wSel = UI.S(108)
 	local total = (#list - 1) * (w + gap) + wSel
 	local x0 = ScrW() / 2 - total / 2
-	local y = ScrH() - UI.S(118) + (1 - UI.Ease(alpha)) * UI.S(24)
+	local y = ScrH() - UI.S(176) + (1 - UI.Ease(alpha)) * UI.S(24) -- над полоской выносливости
 	surface.SetAlphaMultiplier(alpha)
 	UI.BlurRect(x0 - UI.S(8), y - UI.S(8), total + UI.S(16), h + UI.S(16), 3, 255 * alpha)
 	UI.RoundedRect(UI.S(12), x0 - UI.S(8), y - UI.S(8), total + UI.S(16), h + UI.S(16), Color(6, 8, 14, 150))

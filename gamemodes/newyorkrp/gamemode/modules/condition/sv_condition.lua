@@ -117,16 +117,18 @@ function Cond.KnockOut(ply, critical)
 	rag:Activate()
 	rag:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 
-	-- поза тела в момент падения + его скорость
-	ply:SetupBones()
+	-- поза тела в момент падения + его скорость (на сервере у игрока нет SetupBones —
+	-- берём позицию кости по имени, если она есть)
 	local vel = ply:GetVelocity()
 	for i = 0, rag:GetPhysicsObjectCount() - 1 do
 		local phys = rag:GetPhysicsObjectNum(i)
-		local m = ply:GetBoneMatrix(rag:TranslatePhysBoneToBone(i))
 		if IsValid(phys) then
-			if m then
-				phys:SetPos(m:GetTranslation())
-				phys:SetAngles(m:GetAngles())
+			local bone = ply:LookupBone(rag:GetBoneName(rag:TranslatePhysBoneToBone(i)) or "")
+			local pos, ang
+			if bone then pos, ang = ply:GetBonePosition(bone) end
+			if pos and ang then
+				phys:SetPos(pos)
+				phys:SetAngles(ang)
 			end
 			phys:SetVelocity(vel * 0.5)
 		end
@@ -206,6 +208,7 @@ hook.Add("Think", "nyrp.condition.ko", function()
 				if CurTime() >= ply:GetNW2Float("nyrp.koUntil", 0) then
 					if ply:GetNW2Bool("nyrp.koCritical") then
 						cleanupKO(ply)
+						ply.nyrpDeathCause = "Не дождались помощи"
 						ply:Kill() -- помощь не пришла
 					else
 						Cond.WakeUp(ply)

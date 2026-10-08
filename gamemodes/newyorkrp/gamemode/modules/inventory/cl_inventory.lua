@@ -112,6 +112,17 @@ function SLOTP:GetItem() return itemAt(self.Kind, self.Key) end
 
 function SLOTP:OnCursorEntered()
 	if self:GetItem() then UI.Sound("hover") end
+	self.HoverSince = RealTime()
+end
+
+-- Наведение на предмет — сразу осмотр (панель слева), без клика.
+function SLOTP:Think()
+	if not self:IsHovered() or Inv.Drag or not self.HoverSince or RealTime() - self.HoverSince < 0.2 then return end
+	if not self:GetItem() or self.Kind == "cont" then return end
+	local ref = Inv.DetailRef
+	if ref and ref.kind == self.Kind and tostring(ref.key) == tostring(self.Key) then return end
+	Inv.DetailRef = { kind = self.Kind, key = self.Key }
+	Inv.BuildDetail(true)
 end
 
 function SLOTP:OnMousePressed(code)
@@ -147,7 +158,6 @@ function SLOTP:Paint(w, h)
 	-- снаряжение — тёмные «вдавленные» слоты, сумка — чуть светлее
 	local bg = eq and Color(6, 7, 11, 215) or Color(0, 0, 0, 90)
 	UI.RoundedRect(r, 0, 0, w, h, bg)
-	if eq then UI.RoundedRect(r, 1, 1, w - 2, h * 0.45, Color(255, 255, 255, 4)) end
 	if accepting then UI.RoundedRect(r, 0, 0, w, h, Color(247, 198, 0, 14 + self.Hover * 30)) end
 	local edge = eq and Color(255, 255, 255, 8 + self.Hover * 34) or Color(255, 255, 255, 14 + self.Hover * 40)
 	UI.Outline(r, 0, 0, w, h, accepting and UI.Alpha(UI.Col.accent, 120 + self.Hover * 100) or edge, 1)

@@ -1,5 +1,5 @@
 --[[
-	Шрифты: Manrope (интерфейс, чат) и Oswald (заголовки). Лежат в content/resource/fonts.
+	Шрифты: Manrope (интерфейс, чат), Oswald (заголовки), Exo 2 (ники над головой). Лежат в content/resource/fonts.
 	NYRP.Font(style, size) — size в пикселях для 1080p, масштабируется под экран.
 ]]
 
@@ -11,6 +11,9 @@ local families = {
 	title = { "Oswald SemiBold", 600 },
 	titlemed = { "Oswald Medium", 500 },
 	titlelight = { "Oswald Light", 300 },
+	-- Exo 2 — ники над игроками
+	tag = { "Exo 2 Medium", 500 },
+	tagbold = { "Exo 2 SemiBold", 600 },
 }
 
 local created = {}

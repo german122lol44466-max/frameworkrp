@@ -20,6 +20,9 @@ end
 for _, f in ipairs(file.Find("resource/fonts/Manrope_*.ttf", "GAME") or {}) do
 	resource.AddSingleFile("resource/fonts/" .. f)
 end
+for _, f in ipairs(file.Find("resource/fonts/Exo2_*.ttf", "GAME") or {}) do
+	resource.AddSingleFile("resource/fonts/" .. f)
+end
 for _, f in ipairs(file.Find("resource/fonts/Oswald_*.ttf", "GAME") or {}) do
 	resource.AddSingleFile("resource/fonts/" .. f)
 end

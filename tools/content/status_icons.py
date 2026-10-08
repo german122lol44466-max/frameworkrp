@@ -21,7 +21,7 @@ ICONS = {
     # что в руках у игрока (табличка над головой)
     "w_pistol": "pistol-gun", "w_smg": "mp5", "w_rifle": "ak47", "w_shotgun": "sawed-off-shotgun",
     "w_melee": "bowie-knife", "w_grenade": "grenade", "w_tool": "spyglass",
-    "unknown": "hooded-figure", "known": "person",
+    "w_hands": "hand", "unknown": "cowled", "known": "person",
 }
 
 
