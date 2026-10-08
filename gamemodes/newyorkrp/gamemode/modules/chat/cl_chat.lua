@@ -20,6 +20,7 @@ local COL = {
 	name = Color(120, 214, 110), text = Color(236, 237, 242), whisper = Color(170, 180, 200),
 	yell = Color(255, 236, 200), me = Color(196, 160, 255), it = Color(232, 204, 140),
 	ooc = Color(255, 138, 36), looc = Color(96, 190, 232), steam = Color(200, 205, 220), system = Color(150, 155, 170),
+	join = Color(104, 200, 120), leave = Color(214, 70, 64), faint = Color(100, 104, 118),
 }
 
 Chat.Modes = {
@@ -74,6 +75,14 @@ net.Receive("nyrp.chat.msg", function()
 		segs = { { COL.it, "** " .. text } }
 	elseif kind == T.OOC then
 		segs = { { COL.ooc, "[OOC] " }, { COL.steam, IsValid(ply) and ply:Nick() or "?" }, { COL.name, " (" .. nameOf(ply) .. ")" }, { COL.text, ": " .. text } }
+	elseif kind == T.JOIN or kind == T.LEAVE then
+		-- вход/выход: «●  Ник  заходит на сервер» / «●  Ник  покинул сервер · причина»
+		local nick, reason = string.match(text, "^(.-)\n(.*)$")
+		nick = nick or text
+		local join = kind == T.JOIN
+		segs = { { join and COL.join or COL.leave, "● " }, { COL.steam, nick },
+			{ COL.system, join and " заходит на сервер" or " покинул сервер" } }
+		if reason and reason ~= "" then segs[#segs + 1] = { COL.faint, " · " .. reason } end
 	elseif kind == T.LOOC then
 		segs = { { COL.looc, "[LOOC] " }, { COL.steam, IsValid(ply) and ply:Nick() or "?" }, { COL.name, " (" .. nameOf(ply) .. ")" }, { COL.text, ": '" .. text .. "'" } }
 	else
@@ -83,7 +92,8 @@ net.Receive("nyrp.chat.msg", function()
 	if (kind == T.IC or kind == T.WHISPER or kind == T.YELL or kind == T.ME) and IsValid(ply) and NYRP.Overhead.AddBubble then
 		NYRP.Overhead.AddBubble(ply, kind, text)
 	end
-	if kind ~= T.SYSTEM then UI.Sound("hover") end
+	if kind == T.JOIN or kind == T.LEAVE then UI.Sound("notify")
+	elseif kind ~= T.SYSTEM then UI.Sound("hover") end
 	local out = {}
 	for _, s in ipairs(segs) do out[#out + 1] = s[1] out[#out + 1] = s[2] end
 	out[#out + 1] = "\n"
@@ -105,7 +115,8 @@ function chat.AddText(...)
 end
 
 function GM:ChatText(index, name, text, kind)
-	if kind == "joinleave" or kind == "none" or kind == "servermsg" or kind == "namechange" or kind == "teamchange" then
+	if kind == "joinleave" then return true end -- вход/выход присылает сервер в своём стиле
+	if kind == "none" or kind == "servermsg" or kind == "namechange" or kind == "teamchange" then
 		Chat.AddMessage({ { COL.system, text } })
 	end
 	return true

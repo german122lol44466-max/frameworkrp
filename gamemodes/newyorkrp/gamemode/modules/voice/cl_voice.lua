@@ -1,5 +1,5 @@
 --[[
-	Голос: без стандартных панелей справа. Внизу, справа от полоски выносливости — значок режима
+	Голос: без стандартных панелей справа. Внизу по центру, над полоской выносливости — значок режима
 	(шёпот/голос/крик), который «дышит» от громкости вашего голоса. Над говорящими — свой значок
 	(modules/chat/cl_overhead). После смены режима 5 секунд виден радиус слышимости вокруг вас.
 ]]
@@ -29,7 +29,7 @@ hook.Add("HUDPaint", "nyrp.voice", function()
 	if vol <= 0 and talking then vol = 0.25 + math.abs(math.sin(RealTime() * 7)) * 0.2 end
 	level = UI.Approach(level, math.Clamp(vol * 2.2, 0, 1), 18)
 
-	local x, y = ScrW() / 2 + UI.S(200), ScrH() - UI.S(50)
+	local x, y = ScrW() / 2, ScrH() - UI.S(100) -- по центру, над полоской выносливости
 	if level > 0.45 and (waves[#waves] or 0) < RealTime() - 0.25 then waves[#waves + 1] = RealTime() end
 	for i = #waves, 1, -1 do
 		local t = (RealTime() - waves[i]) / 0.9
@@ -95,7 +95,7 @@ hook.Add("HUDPaint", "nyrp.voice.mode", function()
 	local text = mode.name .. " · слышно на ~" .. meters .. " м"
 	local font = NYRP.Font("semibold", 16)
 	local w = UI.TextSize(text, font) + UI.S(60)
-	local x, y = ScrW() / 2 - w / 2, ScrH() - UI.S(110) + (1 - a) * UI.S(10)
+	local x, y = ScrW() / 2 - w / 2, ScrH() - UI.S(160) + (1 - a) * UI.S(10)
 	surface.SetAlphaMultiplier(a)
 	UI.RoundedRect(UI.S(16), x, y, w, UI.S(34), Color(10, 11, 16, 220))
 	UI.Outline(UI.S(16), x, y, w, UI.S(34), UI.Alpha(mode.col, 90), 1)

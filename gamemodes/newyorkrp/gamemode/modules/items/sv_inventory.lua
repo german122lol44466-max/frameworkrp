@@ -216,7 +216,7 @@ function Inv.Equip(ply, slot, target)
 		return
 	end
 	local isWeapon = def.category == "weapon"
-	NYRP.Action(ply, isWeapon and "Орудую..." or "Одеваю...", 2, function()
+	NYRP.Action(ply, isWeapon and "Достаю оружие..." or "Одеваю...", isWeapon and 0.9 or 1.2, function()
 		if inv.slots[slot] ~= it then return end -- предмет успели переложить
 		local prev = inv.equip[target]
 		if prev then takeWeapon(ply, prev) end
@@ -225,9 +225,9 @@ function Inv.Equip(ply, slot, target)
 		if isWeapon then
 			giveWeapon(ply, it)
 			ply:SelectWeapon(def.class)
-			ply:EmitSound("items/ammo_pickup.wav", 60)
+			ply:EmitSound("nyrp/fx/weapon_draw.wav", 62, math.random(96, 104))
 		else
-			ply:EmitSound("nyrp/fx/cloth.wav", 60)
+			ply:EmitSound("nyrp/fx/cloth_on.wav", 60, math.random(95, 105))
 		end
 		Inv.ApplyEquipment(ply)
 		Inv.Sync(ply)
@@ -251,12 +251,19 @@ function Inv.Unequip(ply, target, toSlot)
 	end
 	dest = dest or Inv.FreeSlot(ply)
 	if not dest then NYRP.Notify(ply, "В сумке нет места", "error") return end
-	inv.equip[target] = nil
-	inv.slots[dest] = it
-	takeWeapon(ply, it)
-	ply:EmitSound("nyrp/fx/cloth.wav", 55, 115)
-	Inv.ApplyEquipment(ply)
-	Inv.Sync(ply)
+	local isWeapon = Items.Get(it.id).category == "weapon"
+	-- снятие — тоже с коротким прогресс-баром
+	NYRP.Action(ply, isWeapon and "Убираю оружие..." or "Снимаю...", isWeapon and 0.6 or 0.8, function()
+		if inv.equip[target] ~= it then return end
+		if inv.slots[dest] then dest = Inv.FreeSlot(ply) end
+		if not dest then NYRP.Notify(ply, "В сумке нет места", "error") return end
+		inv.equip[target] = nil
+		inv.slots[dest] = it
+		takeWeapon(ply, it)
+		ply:EmitSound(isWeapon and "nyrp/fx/weapon_holster.wav" or "nyrp/fx/cloth_off.wav", 58, math.random(95, 105))
+		Inv.ApplyEquipment(ply)
+		Inv.Sync(ply)
+	end, isWeapon and "arrow_left" or "hanger")
 end
 
 -- --------------------------------------------------------------- сеть --
@@ -388,13 +395,7 @@ net.Receive("nyrp.inv.view", function(_, ply)
 		NYRP.Notify(ply, "Посмотрите на человека рядом, чтобы показать удостоверение", "warning")
 		return
 	end
-	net.Start("nyrp.inv.view")
-	net.WriteEntity(ply)
-	net.WriteTable(it.data)
-	net.Send(target)
-	ply:AnimRestartGesture(GESTURE_SLOT_CUSTOM, ACT_GMOD_GESTURE_ITEM_GIVE, true)
-	if it.data.char == (ply.nyrpChar and ply.nyrpChar.id) and NYRP.Recog then NYRP.Recog.Add(target, ply) end
-	NYRP.Notify(ply, "Вы показали удостоверение", "success")
+	NYRP.OfferID(ply, target, it)
 end)
 
 -- ----------------------------------------------------------- админ-команды --

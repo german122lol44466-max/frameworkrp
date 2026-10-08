@@ -51,5 +51,16 @@ def blood_edges(W=1024, H=576, seed=7):
     print("blood_edges.png")
 
 
+def film_grain(S=256, seed=3):
+    """Зерно плёнки: тайлящийся шум (серый, полупрозрачный)."""
+    rng = np.random.default_rng(seed)
+    n = rng.normal(0.5, 0.22, (S, S)).clip(0, 1)
+    v = (n * 255).astype(np.uint8)
+    a = (np.abs(n - 0.5) * 2 * 255).clip(0, 255).astype(np.uint8)
+    Image.fromarray(np.dstack([v, v, v, a]), "RGBA").save(os.path.join(OUT, "grain.png"))
+    print("grain.png")
+
+
 if __name__ == "__main__":
     blood_edges()
+    film_grain()

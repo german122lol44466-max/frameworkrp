@@ -41,16 +41,4 @@ hook.Add("RenderScreenspaceEffects", "nyrp.time", function()
 	})
 end)
 
--- Часы.
-hook.Add("HUDPaint", "nyrp.time", function()
-	if NYRP.HUDHidden() then return end
-	local icon, name = T.Phase()
-	local x, y = UI.S(26), UI.S(26)
-	local col = icon == "moon" and Color(150, 175, 230) or (icon == "sun" and UI.Col.accent or UI.Col.orange)
-	UI.DrawIcon(icon, x + 1, y + UI.S(10) + 2, UI.S(22), Color(0, 0, 0, 150))
-	UI.DrawIcon(icon, x, y + UI.S(10), UI.S(22), col)
-	local font = NYRP.Font("bold", 22)
-	draw.SimpleText(T.Format(), font, x + UI.S(20) + 1, y + UI.S(10) + 2, Color(0, 0, 0, 150), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-	draw.SimpleText(T.Format(), font, x + UI.S(20), y + UI.S(10), UI.Col.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-	draw.SimpleText(name, NYRP.Font("medium", 12), x + UI.S(20), y + UI.S(30), UI.Col.dim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-end)
+-- Часов на экране нет: время смотрят в телефоне (NYRP.Time.Format()).

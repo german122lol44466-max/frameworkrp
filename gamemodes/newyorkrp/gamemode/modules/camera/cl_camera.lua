@@ -78,13 +78,13 @@ local function bodyView(ply, origin, angles, fov)
 	local base = ply:EyePos()
 	local off = Cam.EyePos(ply) - base
 	local len = off:Length()
-	if len > 18 then off = off * (18 / len) end
-	-- голову не глушим, кроме сильного взгляда вниз с оружием (там дрожит поза прицеливания)
+	if len > 32 then off = off * (32 / len) end
+	-- камера всегда идёт за головой (с оружием поза наклоняет корпус вперёд — раньше камера
+	-- оставалась позади шеи); дрожание позы прицеливания гасим сильнее сглаживанием
 	local wep = ply:GetActiveWeapon()
 	local armed = IsValid(wep) and wep:GetClass() ~= "nyrp_hands"
-	local calm = armed and (1 - math.Clamp((angles.p - 55) / 25, 0, 0.8)) or 1
-	off = off * calm
-	smoothOffset = smoothOffset and LerpVector(1 - math.exp(-30 * FrameTime()), smoothOffset, off) or off
+	local rate = (armed and angles.p > 40) and 14 or 30
+	smoothOffset = smoothOffset and LerpVector(1 - math.exp(-rate * FrameTime()), smoothOffset, off) or off
 
 	-- камеру чуть вперёд по горизонтали, сильнее при взгляде вниз — чтобы не видеть грудь изнутри
 	local flat = Angle(0, angles.y, 0):Forward()

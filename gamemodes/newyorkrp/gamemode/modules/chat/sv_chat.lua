@@ -70,6 +70,19 @@ net.Receive("nyrp.chat.say", function(_, ply)
 	ply:SetNW2Int("nyrp.typing", 0)
 end)
 
+-- Вход и выход игроков — в чат всем (свой стиль, см. cl_chat).
+gameevent.Listen("player_connect")
+hook.Add("player_connect", "nyrp.chat.join", function(data)
+	if data.bot == 1 then return end
+	Chat.Send(player.GetAll(), T.JOIN, nil, data.name or "?")
+end)
+gameevent.Listen("player_disconnect")
+hook.Add("player_disconnect", "nyrp.chat.leave", function(data)
+	local reason = data.reason or ""
+	if string.find(string.lower(reason), "disconnect by user", 1, true) then reason = "" end
+	Chat.Send(player.GetAll(), T.LEAVE, nil, (data.name or "?") .. "\n" .. reason)
+end)
+
 -- «Говорит/Кричит/Шепчет...» над головой.
 net.Receive("nyrp.chat.typing", function(_, ply)
 	local st = net.ReadUInt(4)

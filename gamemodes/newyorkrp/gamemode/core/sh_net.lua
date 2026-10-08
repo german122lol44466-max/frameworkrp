@@ -27,6 +27,8 @@ NYRP.NetMessages = {
 	"nyrp.player.act", "nyrp.money.give",
 	-- режим голоса
 	"nyrp.voice.mode",
+	-- запрос «показать удостоверение»
+	"nyrp.id.request", "nyrp.id.answer",
 	-- время суток
 	"nyrp.time.light",
 	-- контейнеры

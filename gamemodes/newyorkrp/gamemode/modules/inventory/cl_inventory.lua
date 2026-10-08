@@ -269,8 +269,11 @@ end
 
 -- -------------------------------------------------- рамка «сумки» (ткань) --
 -- Весь декор — отдельные материалы: nyrp/ui/fabric, zipper, zipper_pull, stitch_h/v, rivet.
+local tileMats = {}
 local function tiled(mat, x, y, w, h, tw, th)
-	surface.SetMaterial(UI.Mat(mat))
+	-- noclamp: иначе PNG не повторяется, а растягивает крайние пиксели
+	tileMats[mat] = tileMats[mat] or Material(mat, "noclamp smooth")
+	surface.SetMaterial(tileMats[mat])
 	surface.DrawTexturedRectUV(x, y, w, h, 0, 0, w / tw, h / th)
 end
 

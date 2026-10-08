@@ -5,7 +5,7 @@
 NYRP.Chat = NYRP.Chat or {}
 local Chat = NYRP.Chat
 
-Chat.Types = { IC = 1, WHISPER = 2, YELL = 3, OOC = 4, LOOC = 5, ME = 6, SYSTEM = 7, IT = 8 }
+Chat.Types = { IC = 1, WHISPER = 2, YELL = 3, OOC = 4, LOOC = 5, ME = 6, SYSTEM = 7, IT = 8, JOIN = 9, LEAVE = 10 }
 
 local prefixes = {
 	{ "//", Chat.Types.OOC }, { "/ooc ", Chat.Types.OOC }, { "/оос ", Chat.Types.OOC },
