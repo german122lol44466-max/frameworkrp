@@ -3,6 +3,7 @@
   dist/newyorkrp_content.zip     — аддон с контентом (materials, models, sound, resource + addon.json):
                                    распаковать в garrysmod/addons/ или залить в Workshop.
   dist/newyorkrp_models_src.zip  — исходники моделей: .blend, SMD, QC, скрипты.
+  dist/newyorkrp_gamemode.zip    — готовый режим целиком (код + контент): распаковать в папку garrysmod/.
 
 Запуск: python3 tools/content/make_archive.py
 """
@@ -26,6 +27,12 @@ def add_dir(z, src, arc_prefix):
 
 def main():
     os.makedirs(DIST, exist_ok=True)
+    path = os.path.join(DIST, "newyorkrp_gamemode.zip")
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        add_dir(z, os.path.join(ROOT, "gamemodes", "newyorkrp"), "gamemodes/newyorkrp")
+        z.write(os.path.join(ROOT, "README.md"), "gamemodes/newyorkrp/README.md")
+    print("wrote", os.path.relpath(path, ROOT), os.path.getsize(path) // 1024, "KB")
+
     path = os.path.join(DIST, "newyorkrp_content.zip")
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         add_dir(z, CONTENT, "newyorkrp_content")
