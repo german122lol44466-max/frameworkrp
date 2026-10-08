@@ -1,0 +1,13 @@
+Иконки состояний: game-icons.net (CC BY 3.0) — Lorc, Delapouite и другие авторы.
+tired.png <- lungs
+hunger.png <- meal
+thirst.png <- water-drop
+wet.png <- droplets
+fall.png <- falling
+injured.png <- bleeding-wound
+critical.png <- heart-beats
+bruise.png <- broken-bone
+concussion.png <- knockout
+stamina.png <- run
+unconscious.png <- knockout
+cold.png <- thermometer-cold

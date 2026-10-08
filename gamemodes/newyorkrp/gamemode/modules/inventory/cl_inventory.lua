@@ -134,19 +134,31 @@ end
 
 function SLOTP:Paint(w, h)
 	local it = self:GetItem()
+	-- курсор: рука над предметом, обычная стрелка над пустой ячейкой
+	local want = it and "hand" or "arrow"
+	if self.NYRPCursor ~= want then self:SetCursor(want) end
 	local drag = Inv.Drag
 	local dragging = drag and drag.kind == self.Kind and tostring(drag.key) == tostring(self.Key)
 	local accepting = drag and not dragging and self:Accepts(drag.kind, drag.key, drag.item)
 	self.Hover = UI.Approach(self.Hover, (self:IsHovered() or (accepting and self.DropHover)) and 1 or 0, 14)
 	local r = UI.S(8)
 
-	local bg = self.Kind == "eq" and Color(255, 255, 255, 10) or Color(0, 0, 0, 70)
+	local eq = self.Kind == "eq"
+	-- снаряжение — тёмные «вдавленные» слоты, сумка — чуть светлее
+	local bg = eq and Color(6, 7, 11, 215) or Color(0, 0, 0, 90)
 	UI.RoundedRect(r, 0, 0, w, h, bg)
+	if eq then UI.RoundedRect(r, 1, 1, w - 2, h * 0.45, Color(255, 255, 255, 4)) end
 	if accepting then UI.RoundedRect(r, 0, 0, w, h, Color(247, 198, 0, 14 + self.Hover * 30)) end
-	UI.Outline(r, 0, 0, w, h, accepting and UI.Alpha(UI.Col.accent, 120 + self.Hover * 100) or Color(255, 255, 255, 14 + self.Hover * 40), 1)
+	local edge = eq and Color(255, 255, 255, 8 + self.Hover * 34) or Color(255, 255, 255, 14 + self.Hover * 40)
+	UI.Outline(r, 0, 0, w, h, accepting and UI.Alpha(UI.Col.accent, 120 + self.Hover * 100) or edge, 1)
 
 	if it and not dragging then
-		local pad = UI.S(6)
+		-- мягкая подсветка под предметом, чтобы он читался на тёмном фоне
+		local s = math.min(w, h)
+		surface.SetMaterial(UI.Mat("nyrp/ui/glow.png"))
+		surface.SetDrawColor(255, 255, 255, 16 + self.Hover * 14)
+		surface.DrawTexturedRect(w / 2 - s * 0.5, h / 2 - s * 0.5, s, s)
+		local pad = UI.S(3)
 		NYRP.DrawItemIcon(it.id, pad, pad, w - pad * 2, h - pad * 2)
 		if it.n > 1 then
 			draw.SimpleText("×" .. it.n, NYRP.Font("bold", 14), w - UI.S(6), h - UI.S(4), UI.Col.text, TEXT_ALIGN_RIGHT, TEXT_ALIGN_BOTTOM)
@@ -155,9 +167,9 @@ function SLOTP:Paint(w, h)
 			UI.Outline(r, 0, 0, w, h, UI.Col.accent, 2)
 		end
 	elseif self.Opts.icon then
-		UI.DrawIcon(self.Opts.icon, w / 2, h / 2 - (self.Opts.label and UI.S(6) or 0), math.min(w, h) * 0.36, Color(255, 255, 255, 40 + self.Hover * 40))
+		UI.DrawIcon(self.Opts.icon, w / 2, h / 2 - (self.Opts.label and UI.S(6) or 0), math.min(w, h) * 0.34, Color(255, 255, 255, (eq and 26 or 40) + self.Hover * 40))
 		if self.Opts.label then
-			draw.SimpleText(self.Opts.label, NYRP.Font("medium", 12), w / 2, h - UI.S(8), Color(255, 255, 255, 60), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+			draw.SimpleText(self.Opts.label, NYRP.Font("medium", 12), w / 2, h - UI.S(8), Color(255, 255, 255, eq and 42 or 60), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 		end
 	end
 end
@@ -774,6 +786,7 @@ function Inv.Toggle()
 	if Inv.Opening then return end
 	local ply = LocalPlayer()
 	if NYRP.State ~= "playing" or not ply:Alive() or not NYRP.HasCharacter(ply) then return end
+	if NYRP.Cond and NYRP.Cond.KO(ply) then return end
 	Inv.Opening = true
 	if NYRP.Bags.FPStart then NYRP.Bags.FPStart() end
 	net.Start("nyrp.inv.open")

@@ -97,8 +97,11 @@ Items.Register("medkit", {
 	model = "models/items/healthkit.mdl", category = "medical", stack = 2,
 	buffs = { { "+40 к здоровью", true } }, useText = "Использовать",
 	use = function(ply)
-		if ply:Health() >= ply:GetMaxHealth() then NYRP.Notify(ply, "Вы и так здоровы", "warning") return false end
-		heal(ply, 40) ply:EmitSound("items/medshot4.wav", 60) return true
+		local hurt = NYRP.Cond and (NYRP.Cond.Until(ply, "fracture") > 0 or NYRP.Cond.Until(ply, "bruise") > 0)
+		if ply:Health() >= ply:GetMaxHealth() and not hurt then NYRP.Notify(ply, "Вы и так здоровы", "warning") return false end
+		heal(ply, 40) ply:EmitSound("items/medshot4.wav", 60)
+		hook.Run("NYRP.ItemUsed", ply, "medkit") -- шина на перелом, снимает ушиб (modules/condition)
+		return true
 	end,
 })
 Items.Register("painkillers", {

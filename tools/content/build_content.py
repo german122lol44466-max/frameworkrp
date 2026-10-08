@@ -105,35 +105,76 @@ def build_ui_sounds():
 
 
 # ----------------------------------------------------------------- images ---
+CURSOR_ICONS = {
+    # вид курсора: иконка Tabler (outline), точка «острия» в долях 24x24
+    "hand": "hand-finger", "grab": "hand-grab", "move": "arrows-move", "resize_h": "arrows-horizontal",
+    "resize_v": "arrows-vertical", "resize_d1": "arrows-diagonal", "resize_d2": "arrows-diagonal-2",
+    "no": "ban", "wait": "hourglass", "zoom": "zoom",
+}
+
+
 def build_cursors():
+    """Курсоры: тёмный контур + светлая заливка/обводка, жёлтая метка в точке клика."""
     S = 64
     k = 4
+    dark = (12, 14, 22, 255)
+    white = (245, 246, 250, 255)
 
-    def arrow(fill, accent):
-        img = Image.new("RGBA", (S * k, S * k), (0, 0, 0, 0))
-        pts = [(4, 3), (4, 44), (14, 34), (21, 50), (28, 47), (21, 31), (35, 31)]
-        pts = [(x * k, y * k) for x, y in pts]
+    def shadow(img, mask, off=(1.5, 2.5), blur=2.5, a=150):
         sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        ImageDraw.Draw(sh).polygon([(x + 2 * k, y + 3 * k) for x, y in pts], fill=(0, 0, 0, 150))
-        img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(3 * k)))
-        d = ImageDraw.Draw(img)
-        d.polygon(pts, fill=(14, 16, 26, 255))
-        inner = [(4, 3), (4, 44), (14, 34), (21, 50), (28, 47), (21, 31), (35, 31)]
-        cx, cy = 12, 28
-        inner = [((x - cx) * 0.78 + cx, (y - cy) * 0.78 + cy) for x, y in inner]
-        d.polygon([(x * k, y * k) for x, y in inner], fill=fill)
-        d.ellipse([3 * k, 2 * k, 9 * k, 8 * k], fill=accent)
-        return img.resize((S, S), Image.LANCZOS)
+        sh.putalpha(mask.point(lambda v: v * a // 255))
+        sh = sh.transform(sh.size, Image.AFFINE, (1, 0, -off[0] * k, 0, 1, -off[1] * k))
+        img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(blur * k)))
 
-    arrow((245, 246, 250, 255), TAXI + (255,)).save(out("materials", "nyrp", "cursor", "arrow.png"))
-    arrow(ORANGE + (255,), (255, 255, 255, 255)).save(out("materials", "nyrp", "cursor", "hand.png"))
+    # стрелка: тёмная заливка, ровная светлая кайма (через расширение маски), жёлтое остриё
+    img = Image.new("RGBA", (S * k, S * k), (0, 0, 0, 0))
+    pts = [(4, 3.5), (4, 33), (11.5, 26.5), (16.5, 37.5), (21, 35.5), (16, 24.5), (26, 24.5)]
+    m = Image.new("L", img.size, 0)
+    ImageDraw.Draw(m).polygon([(x * k, y * k) for x, y in pts], fill=255)
+    rim = m.filter(ImageFilter.MaxFilter(2 * k * 2 - 1 if (2 * k * 2 - 1) % 2 else 2 * k * 2 + 1))
+    shadow(img, rim)
+    img.alpha_composite(Image.merge("RGBA", (Image.new("L", img.size, 245),) * 3 + (rim,)))
+    img.alpha_composite(Image.merge("RGBA", (Image.new("L", img.size, 14),) * 3 + (m,)))
+    tip = Image.new("L", img.size, 0)
+    ImageDraw.Draw(tip).polygon([(0, 0), (0, 14 * k), (13 * k, 0)], fill=255)
+    tip = Image.fromarray(__import__("numpy").minimum(__import__("numpy").array(tip), __import__("numpy").array(m)))
+    img.alpha_composite(Image.merge("RGBA", (Image.new("L", img.size, TAXI[0]), Image.new("L", img.size, TAXI[1]),
+                                             Image.new("L", img.size, TAXI[2]), tip)))
+    img.resize((S, S), Image.LANCZOS).save(out("materials", "nyrp", "cursor", "arrow.png"))
 
+    # иконочные курсоры: толстый тёмный контур + белая линия
+    base = os.path.join(NM, "@tabler", "icons", "icons", "outline")
+    for name, tab in CURSOR_ICONS.items():
+        svg = open(os.path.join(base, tab + ".svg")).read()
+        layers = []
+        for col, wdt in (("#0c0e16", "5.2"), ("#f5f6fa", "2")):
+            s = svg.replace('stroke="currentColor"', f'stroke="{col}"').replace('stroke-width="2"', f'stroke-width="{wdt}"')
+            s = s.replace('width="24"', 'width="28"').replace('height="24"', 'height="28"').replace('viewBox="0 0 24 24"', 'viewBox="-2 -2 28 28"')
+            png = cairosvg.svg2png(bytestring=s.encode(), output_width=S * k, output_height=S * k)
+            import io
+            layers.append(Image.open(io.BytesIO(png)).convert("RGBA"))
+        img = Image.new("RGBA", (S * k, S * k), (0, 0, 0, 0))
+        shadow(img, layers[0].split()[3], blur=2)
+        img.alpha_composite(layers[0])
+        img.alpha_composite(layers[1])
+        if name in ("hand", "grab"):
+            # жёлтая метка на кончике пальца / в ладони
+            px, py = (9.5, 3.2) if name == "hand" else (12, 13)
+            X, Y = (px + 2) / 28 * S * k, (py + 2) / 28 * S * k
+            ImageDraw.Draw(img).ellipse([X - 2.2 * k, Y - 2.2 * k, X + 2.2 * k, Y + 2.2 * k], fill=TAXI + (255,))
+        if name == "no":
+            tint = Image.new("RGBA", img.size, (214, 70, 64, 255))
+            img = Image.composite(tint, img, layers[1].split()[3].point(lambda v: v))
+        img.resize((S, S), Image.LANCZOS).save(out("materials", "nyrp", "cursor", name + ".png"))
+
+    # текст: I-образный
     img = Image.new("RGBA", (S * k, S * k), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    for col, wdt in (((14, 16, 26, 255), 9), ((245, 246, 250, 255), 4)):
-        d.line([(32 * k, 10 * k), (32 * k, 54 * k)], fill=col, width=wdt * k // 2)
-        d.line([(24 * k, 10 * k), (40 * k, 10 * k)], fill=col, width=wdt * k // 2)
-        d.line([(24 * k, 54 * k), (40 * k, 54 * k)], fill=col, width=wdt * k // 2)
+    for col, wdt in ((dark, 9), (white, 4)):
+        d.line([(32 * k, 12 * k), (32 * k, 52 * k)], fill=col, width=wdt * k // 2)
+        d.line([(25 * k, 12 * k), (39 * k, 12 * k)], fill=col, width=wdt * k // 2)
+        d.line([(25 * k, 52 * k), (39 * k, 52 * k)], fill=col, width=wdt * k // 2)
+    d.ellipse([30 * k, 30 * k, 34 * k, 34 * k], fill=TAXI + (255,))
     img.resize((S, S), Image.LANCZOS).save(out("materials", "nyrp", "cursor", "text.png"))
     print("cursors ok")
 

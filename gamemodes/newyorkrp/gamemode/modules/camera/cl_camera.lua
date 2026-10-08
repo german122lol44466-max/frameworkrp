@@ -24,8 +24,16 @@ function Cam.IsThirdPerson()
 	return GetConVar("nyrp_thirdperson"):GetBool()
 end
 
+-- Тело от первого лица видно всегда (без настройки).
 function Cam.BodyEnabled()
-	return GetConVar("nyrp_body"):GetBool()
+	return true
+end
+
+-- Головокружение (ранение, сотрясение): медленное «плавание» взгляда, сила — Cam.Dizzy (0..1).
+function Cam.DizzyAngle()
+	local t, d = RealTime(), Cam.Dizzy or 0
+	return Angle(math.sin(t * 0.73) * 1.8 * d + math.sin(t * 1.9) * 0.4 * d, math.sin(t * 0.51) * 1.4 * d,
+		math.sin(t * 0.87 + 1) * 3.2 * d)
 end
 
 local function setHeadHidden(ply, hidden)
@@ -98,6 +106,7 @@ local function bodyView(ply, origin, angles, fov)
 
 	local ang = Angle(angles.p, angles.y, angles.r + roll)
 	if Cam.ExtraAngle then ang = ang + Cam.ExtraAngle end
+	if (Cam.Dizzy or 0) > 0 then ang = ang + Cam.DizzyAngle() end
 	if Cam.LookBlend and Cam.LookBlend > 0 then
 		ang.p = Lerp(Cam.LookBlend, ang.p, Cam.LookPitch or 60)
 		ang.y = ang.y + (Cam.LookYaw or 0) * Cam.LookBlend
@@ -119,6 +128,7 @@ local function thirdView(ply, origin, angles, fov)
 	tpPos = tpPos and LerpVector(1 - math.exp(-smooth * FrameTime()), tpPos, want) or want
 	local ang = Angle(angles.p, angles.y, angles.r)
 	if Cam.ExtraAngle then ang = ang + Cam.ExtraAngle end
+	if (Cam.Dizzy or 0) > 0 then ang = ang + Cam.DizzyAngle() end
 	return { origin = ply:GetPos() + tpPos, angles = ang, fov = fov, drawviewer = true }
 end
 
@@ -179,9 +189,9 @@ end
 function Cam.ToggleThirdPerson()
 	if Cam.Switching then return end
 	Cam.Switching = true
-	UI.Fade(0.3, 0.35, 0.35, function()
+	UI.Fade(0.12, 0.06, 0.16, function()
 		RunConsoleCommand("nyrp_thirdperson", Cam.IsThirdPerson() and "0" or "1")
-		timer.Simple(0.1, function() Cam.Switching = false end)
+		timer.Simple(0.05, function() Cam.Switching = false end)
 	end)
 end
 concommand.Add("nyrp_toggle_thirdperson", Cam.ToggleThirdPerson)

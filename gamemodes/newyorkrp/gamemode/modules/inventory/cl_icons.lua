@@ -28,17 +28,20 @@ local function render3D(def, size)
 	local radius = (mx - mn):Length() / 2
 	local ang = def.icon and def.icon.ang or Angle(28, 220, 0)
 	local fov = 26
-	local dist = radius / math.sin(math.rad(fov / 2)) / (def.icon and def.icon.zoom or 1)
+	-- чуть крупнее, чтобы предмет заполнял ячейку
+	local dist = radius / math.sin(math.rad(fov / 2)) / ((def.icon and def.icon.zoom or 1) * 1.18)
 	local pos = center - ang:Forward() * dist
 
 	cam.Start3D(pos, ang, fov, 0, 0, size, size, 1, dist * 4)
 	render.SuppressEngineLighting(true)
 	render.SetLightingOrigin(center)
-	render.ResetModelLighting(0.28, 0.29, 0.33)
-	render.SetModelLighting(BOX_TOP, 1.25, 1.2, 1.1)
-	render.SetModelLighting(BOX_FRONT, 0.75, 0.75, 0.8)
-	render.SetModelLighting(BOX_RIGHT, 0.55, 0.6, 0.75)
-	render.SetModelLighting(BOX_LEFT, 0.45, 0.42, 0.4)
+	-- светлее, чем раньше: тёмные модели терялись на тёмном фоне ячеек
+	render.ResetModelLighting(0.52, 0.53, 0.58)
+	render.SetModelLighting(BOX_TOP, 1.7, 1.65, 1.55)
+	render.SetModelLighting(BOX_FRONT, 1.2, 1.2, 1.25)
+	render.SetModelLighting(BOX_BACK, 0.9, 0.95, 1.1)
+	render.SetModelLighting(BOX_RIGHT, 0.95, 1.0, 1.15)
+	render.SetModelLighting(BOX_LEFT, 0.85, 0.82, 0.8)
 	render.SetColorModulation(1, 1, 1)
 	render.SetBlend(1)
 	ent:SetupBones()

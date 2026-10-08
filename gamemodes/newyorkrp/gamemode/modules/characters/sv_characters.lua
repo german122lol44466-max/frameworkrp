@@ -128,11 +128,6 @@ function Chars.Load(ply, id)
 	net.Start("nyrp.char.loaded")
 	net.WriteString(c.gender)
 	net.Send(ply)
-	timer.Simple(1.7, function()
-		if IsValid(ply) and ply.nyrpChar == c then
-			ply:EmitSound("nyrp/fx/yawn_" .. (c.gender == "female" and "female" or "male") .. ".wav", 62, math.random(96, 104), 0.9)
-		end
-	end)
 	hook.Run("NYRP.CharacterLoaded", ply, c)
 	return true
 end

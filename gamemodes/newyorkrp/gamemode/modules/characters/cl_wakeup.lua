@@ -1,6 +1,6 @@
 --[[
 	Появление персонажа: после затемнения он «открывает глаза» (веки, моргание, размытие)
-	и зевает (звук зевка играет сервер, его слышат и окружающие).
+	шорох одежды и глубокий вдох (реальная запись, sound/nyrp/fx/wake.wav).
 ]]
 
 local UI = NYRP.UI
@@ -18,18 +18,21 @@ local function openness(t)
 	return 1
 end
 
-function NYRP.Wakeup(gender)
+function NYRP.Wakeup(gender, silent)
 	NYRP.Chars.HoldBlack = false
 	timer.Remove("nyrp.holdblack")
 	wake = { start = RealTime() }
 	UI.Sound("spawn")
-	timer.Simple(0.5, function() surface.PlaySound("nyrp/fx/inhale.wav") end)
+	local pitch = gender == "female" and 112 or 100
+	if not silent then timer.Simple(0.45, function()
+		if IsValid(LocalPlayer()) then LocalPlayer():EmitSound("nyrp/fx/wake.wav", 60, pitch, 0.8, CHAN_STATIC) end
+	end) end
 end
 
 hook.Add("Think", "nyrp.wakeup", function()
 	if not wake then return end
 	local t = RealTime() - wake.start
-	-- зевок: голова чуть запрокидывается
+	-- глубокий вдох: голова чуть запрокидывается
 	local yawn = math.Clamp((t - 1.6) / 0.8, 0, 1) * (1 - math.Clamp((t - 3.4) / 0.9, 0, 1))
 	NYRP.Camera.ExtraAngle = Angle(-9 * UI.EaseInOut(yawn) + math.sin(t * 1.3) * 1.5 * (1 - math.Clamp(t / 5, 0, 1)), 0,
 		math.sin(t * 0.9) * 2 * (1 - math.Clamp(t / 5, 0, 1)))

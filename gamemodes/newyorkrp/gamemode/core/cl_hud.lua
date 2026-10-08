@@ -28,15 +28,14 @@ function GM:HUDWeaponPickedUp() end
 function GM:DrawDeathNotice() end
 function GM:AddDeathNotice() end
 
--- Небольшая виньетка поверх мира (до остального HUD).
+-- Виньетка поверх мира (до остального HUD). Не отключается.
 hook.Add("HUDPaintBackground", "nyrp.vignette", function()
-	if not GetConVar("nyrp_vignette"):GetBool() then return end
-	UI.Vignette(-UI.S(40), -UI.S(40), ScrW() + UI.S(80), ScrH() + UI.S(80), 150)
+	UI.Vignette(-UI.S(20), -UI.S(20), ScrW() + UI.S(40), ScrH() + UI.S(40), 225)
 end)
 
 -- Водяной знак в правом нижнем углу.
 hook.Add("HUDPaint", "nyrp.watermark", function()
-	if NYRP.HUDHidden() or not GetConVar("nyrp_watermark"):GetBool() then return end
+	if NYRP.HUDHidden() then return end -- водяной знак не отключается
 	local w = UI.S(300)
 	local h = w * 120 / 600
 	surface.SetMaterial(UI.Mat("nyrp/watermark.png"))

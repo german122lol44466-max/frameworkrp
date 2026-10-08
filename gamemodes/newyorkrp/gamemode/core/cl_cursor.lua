@@ -38,18 +38,34 @@ hook.Add("InitPostEntity", "nyrp.cursor", function()
 	hide(vgui.GetWorldPanel())
 end)
 
+-- Курсор панели (SetCursor) -> наш вид. Картинки: materials/nyrp/cursor/<вид>.png
 local kinds = {
-	hand = "hand", sizeall = "hand", sizewe = "hand", sizens = "hand", sizenwse = "hand", sizenesw = "hand",
-	beam = "text", ibeam = "text",
+	hand = "hand", sizeall = "move", sizewe = "resize_h", sizens = "resize_v",
+	sizenwse = "resize_d2", sizenesw = "resize_d1", beam = "text", ibeam = "text",
+	no = "no", hourglass = "wait", waitarrow = "wait", crosshair = "zoom",
 }
+-- Размер (доля от базового) и «острие» (куда указывает курсор) в долях картинки.
+local shapes = {
+	arrow = { size = 1.0, hx = 4 / 64, hy = 3.5 / 64 },
+	hand = { size = 0.84, hx = 0.41, hy = 0.19 },
+	grab = { size = 0.84, hx = 0.5, hy = 0.5 },
+	text = { size = 0.8, hx = 0.5, hy = 0.5 },
+}
+local DEFAULT_SHAPE = { size = 0.8, hx = 0.5, hy = 0.5 }
 
 local function cursorKind()
+	-- тащим предмет / держим нажатой «руку» — сжатая ладонь
+	if NYRP.Inventory and NYRP.Inventory.Drag then return "grab" end
 	local pnl = vgui.GetHoveredPanel()
 	while IsValid(pnl) do
-		if pnl.NYRPCursor and pnl.NYRPCursor ~= "arrow" and pnl.NYRPCursor ~= "none" then
-			return kinds[pnl.NYRPCursor] or "arrow"
+		local c = pnl.NYRPCursor
+		if c and c ~= "arrow" and c ~= "none" and c ~= "blank" then
+			local k = kinds[c] or "arrow"
+			if k == "hand" and input.IsMouseDown(MOUSE_LEFT) then return "grab" end
+			if not pnl:IsEnabled() and k == "hand" then return "no" end
+			return k
 		end
-		if pnl.NYRPCursor == "arrow" then return "arrow" end
+		if c == "arrow" then return "arrow" end
 		pnl = pnl:GetParent()
 	end
 	return "arrow"
@@ -61,14 +77,11 @@ hook.Add("DrawOverlay", "nyrp.cursor", function()
 	if not vgui.CursorVisible() or gui.IsGameUIVisible() then return end
 	local x, y = input.GetCursorPos()
 	local kind = cursorKind()
-	if kind ~= lastKind then scale = 0.82 lastKind = kind end
-	scale = NYRP.UI.Approach(scale, input.IsMouseDown(MOUSE_LEFT) and 0.88 or 1, 18)
-	local size = math.Round(NYRP.UI.S(30) * scale)
+	if kind ~= lastKind then scale = 0.8 lastKind = kind end
+	scale = NYRP.UI.Approach(scale, input.IsMouseDown(MOUSE_LEFT) and 0.9 or 1, 18)
+	local sh = shapes[kind] or DEFAULT_SHAPE
+	local size = math.Round(NYRP.UI.S(29) * sh.size * scale)
 	surface.SetMaterial(NYRP.UI.Mat("nyrp/cursor/" .. kind .. ".png"))
 	surface.SetDrawColor(255, 255, 255, 255)
-	if kind == "text" then
-		surface.DrawTexturedRect(x - size / 2, y - size / 2, size, size)
-	else
-		surface.DrawTexturedRect(x - size * 0.06, y - size * 0.04, size, size)
-	end
+	surface.DrawTexturedRect(x - size * sh.hx, y - size * sh.hy, size, size)
 end)

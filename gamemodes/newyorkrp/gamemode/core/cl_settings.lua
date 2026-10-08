@@ -43,15 +43,8 @@ function UI.BuildSettings(parent)
 		p:SetConVar("nyrp_inv_combined")
 		p.OnChange = function() if NYRP.Inventory and NYRP.Inventory.Rebuild then NYRP.Inventory.Rebuild() end end
 	end)
-	add("NYRP.Toggle", function(p) p:SetLabel("Виньетка") p:SetConVar("nyrp_vignette") end)
-	add("NYRP.Toggle", function(p) p:SetLabel("Водяной знак") p:SetConVar("nyrp_watermark") end)
 
 	section("Камера")
-	add("NYRP.Toggle", function(p)
-		p:SetLabel("Тело от первого лица")
-		p:SetDescription("Видеть своё тело, камера из глаз")
-		p:SetConVar("nyrp_body")
-	end)
 	add("NYRP.Toggle", function(p) p:SetLabel("Третье лицо") p:SetConVar("nyrp_thirdperson") end)
 	return scroll
 end

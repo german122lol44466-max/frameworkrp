@@ -66,6 +66,7 @@ function Chars.OpenCreate(spot)
 
 		-- превью
 		local prev = vgui.Create("DModelPanel", pnl)
+		prev:SetCursor("sizewe") -- модель крутится перетаскиванием
 		prev:SetSize(ScrW() * 0.36, ScrH() * 0.86)
 		prev:SetPos(ScrW() * 0.3 - prev:GetWide() / 2, ScrH() * 0.06)
 		prev:SetFOV(32)

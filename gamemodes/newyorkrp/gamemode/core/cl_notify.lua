@@ -40,7 +40,8 @@ hook.Add("DrawOverlay", "nyrp.notify", function()
 	local now = RealTime()
 	local w = UI.S(340)
 	local x0 = ScrW() - UI.S(24)
-	local y = UI.S(24)
+	-- ниже полоски выносливости и иконок состояний (modules/condition)
+	local y = UI.S(24) + (NYRP.Cond and NYRP.Cond.HUDHeight or 0)
 	local font = NYRP.Font("medium", 16)
 	for i = #list, 1, -1 do
 		local n = list[i]

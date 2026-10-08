@@ -41,9 +41,9 @@ C.HiddenHUD = {
 
 -- Движение (единицы Source в секунду).
 C.Movement = {
-	Walk = 110,          -- обычный шаг
+	Walk = 92,           -- обычный шаг
 	Run = 225,           -- бег (Shift)
-	SlowWalk = 70,       -- медленный шаг (Alt)
+	SlowWalk = 58,       -- медленный шаг (Alt)
 	CrouchFactor = 0.45, -- множитель скорости в приседе
 	Jump = 195,          -- сила прыжка
 	JumpCooldown = 0.5,  -- пауза между прыжками (против распрыжки)
@@ -110,10 +110,7 @@ C.DrawTargetID = false
 if CLIENT then
 	CreateClientConVar("nyrp_music_volume", "0.25", true, false, "Громкость фоновой музыки", 0, 1)
 	CreateClientConVar("nyrp_ui_sounds", "1", true, false, "Звуки интерфейса")
-	CreateClientConVar("nyrp_vignette", "1", true, false, "Виньетка")
-	CreateClientConVar("nyrp_watermark", "1", true, false, "Водяной знак «Работа в процессе»")
 	CreateClientConVar("nyrp_inv_combined", "0", true, false, "Инвентарь на одной странице")
-	CreateClientConVar("nyrp_body", "1", true, false, "Видеть своё тело от первого лица")
 	CreateClientConVar("nyrp_thirdperson", "0", true, false, "Третье лицо")
 	CreateClientConVar("nyrp_tp_dist", "75", true, false, "Третье лицо: дистанция", 30, 160)
 	CreateClientConVar("nyrp_tp_right", "18", true, false, "Третье лицо: смещение вправо", -40, 40)

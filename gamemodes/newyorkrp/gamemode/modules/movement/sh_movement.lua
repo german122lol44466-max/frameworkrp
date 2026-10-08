@@ -33,6 +33,16 @@ hook.Add("SetupMove", "nyrp.movement", function(ply, mv, cmd)
 	if ply:GetMoveType() ~= MOVETYPE_WALK then return end
 
 	local max = mv:GetMaxClientSpeed()
+	local Cond = NYRP.Cond
+
+	-- выдохся / перелом — бежать нельзя; травмы замедляют
+	if Cond and Cond.SpeedFactor then
+		if mv:KeyDown(IN_SPEED) and not Cond.CanSprint(ply) then
+			max = math.min(max, ply:GetWalkSpeed())
+		end
+		max = max * Cond.SpeedFactor(ply)
+		if Cond.KO(ply) then max = 0 end
+	end
 
 	-- бег спиной и боком
 	if mv:KeyDown(IN_SPEED) and mv:GetForwardSpeed() <= 0 then
