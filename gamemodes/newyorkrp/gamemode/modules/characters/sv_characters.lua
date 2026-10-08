@@ -74,7 +74,7 @@ function Chars.Save(ply)
 		E(util.TableToJSON(inv)), E(util.TableToJSON(eq)),
 		ply:GetNW2Float("nyrp.hunger", 100), ply:GetNW2Float("nyrp.thirst", 100),
 		ply:Alive() and ply:Health() or 100,
-		E(util.TableToJSON(table.GetKeys(ply.nyrpRecog or {}))), E(util.TableToJSON(c.flags or {})), c.id))
+		E(util.TableToJSON(NYRP.Recog.Export and NYRP.Recog.Export(ply) or {})), E(util.TableToJSON(c.flags or {})), c.id))
 end
 
 local function savePlaytime(ply)
@@ -120,8 +120,14 @@ function Chars.Load(ply, id)
 	ply:SetNW2Int("nyrp.height", c.height)
 	ply:SetNW2Float("nyrp.hunger", c.hunger)
 	ply:SetNW2Float("nyrp.thirst", c.thirst)
+	-- знакомые: { [id персонажа] = когда виделись (os.time) }; старый формат — просто список id
 	ply.nyrpRecog = {}
-	for _, cid in ipairs(c.recognized or {}) do ply.nyrpRecog[tonumber(cid)] = true end
+	local rec = c.recognized or {}
+	if rec[1] ~= nil then
+		for _, cid in ipairs(rec) do ply.nyrpRecog[tonumber(cid)] = os.time() end
+	else
+		for cid, ts in pairs(rec) do if tonumber(cid) then ply.nyrpRecog[tonumber(cid)] = tonumber(ts) or os.time() end end
+	end
 	if NYRP.Recog then NYRP.Recog.Sync(ply) end
 	if NYRP.Inv then NYRP.Inv.Import(ply, c.inventory, c.equipment) end
 	issueID(ply, c)

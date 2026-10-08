@@ -25,8 +25,15 @@ local function deathTime() return LocalPlayer():GetNW2Float("nyrp.deathTime", 0)
 local camPos
 hook.Add("NYRP.CalcView", "nyrp.death", function(ply, origin, angles, fov)
 	if ply:Alive() or NYRP.State ~= "playing" then camPos = nil return end
-	local rag = ply:GetRagdollEntity()
+	local rag = ply:GetNW2Entity("nyrp.deathRag")
+	if not IsValid(rag) then rag = ply:GetRagdollEntity() end
 	if not IsValid(rag) then return end
+	-- своя голова не закрывает камеру в первые секунды (вид из глаз тела)
+	local hb = rag:LookupBone("ValveBiped.Bip01_Head1")
+	if hb then
+		local t0 = CurTime() - deathTime()
+		rag:ManipulateBoneScale(hb, t0 < 2.2 and Vector(0.001, 0.001, 0.001) or Vector(1, 1, 1))
+	end
 	local t = CurTime() - deathTime()
 	local att = rag:LookupAttachment("eyes")
 	local eyes = att > 0 and rag:GetAttachment(att)

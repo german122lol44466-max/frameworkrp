@@ -7,6 +7,7 @@ local S = NYRP.Config.Stamina
 local F = NYRP.Config.Fall
 local U = NYRP.Config.Unconscious
 local cleanupKO -- ниже
+local bodyOk -- ниже
 
 local function setUntil(ply, key, secs)
 	local cur = ply:GetNW2Float("nyrp." .. key .. "Until", 0)
@@ -106,10 +107,8 @@ local function ragdollCenter(rag)
 	return pos or rag:GetPos()
 end
 
-function Cond.KnockOut(ply, critical)
-	if Cond.KO(ply) or not ply:Alive() then return end
-	if NYRP.CancelAction then NYRP.CancelAction(ply) end
-
+-- Серверный рэгдолл по позе игрока (для потери сознания и трупа — его можно тащить руками).
+function Cond.MakeRagdoll(ply)
 	local rag = ents.Create("prop_ragdoll")
 	if not IsValid(rag) then return end
 	rag:SetModel(ply:GetModel())
@@ -138,6 +137,14 @@ function Cond.KnockOut(ply, critical)
 			phys:SetVelocity(vel * 0.5)
 		end
 	end
+	return rag
+end
+
+function Cond.KnockOut(ply, critical)
+	if Cond.KO(ply) or not ply:Alive() then return end
+	if NYRP.CancelAction then NYRP.CancelAction(ply) end
+	local rag = Cond.MakeRagdoll(ply)
+	if not IsValid(rag) then return end
 
 	rag.nyrpOwner = ply
 	rag:SetNW2Entity("nyrp.koOwner", ply)
@@ -223,9 +230,8 @@ hook.Add("Think", "nyrp.condition.ko", function()
 		end
 		-- помощь: держит E, смотрит на тело
 		local help = ply.nyrpHelping
-		if help then
-			local tr = ply:GetEyeTrace()
-			if not IsValid(help) or not ply:KeyDown(IN_USE) or tr.Entity ~= help or tr.HitPos:Distance(ply:EyePos()) > 110 then
+		if help and ply.nyrpAction then
+			if not bodyOk(ply, help) then
 				ply.nyrpHelping = nil
 				if NYRP.CancelAction then NYRP.CancelAction(ply) end
 			end
@@ -233,22 +239,95 @@ hook.Add("Think", "nyrp.condition.ko", function()
 	end
 end)
 
-hook.Add("KeyPress", "nyrp.condition.help", function(ply, key)
-	if key ~= IN_USE or not ply:Alive() or Cond.KO(ply) then return end
-	local tr = ply:GetEyeTrace()
-	local rag = tr.Entity
-	if not IsValid(rag) or not IsValid(rag.nyrpOwner) or tr.HitPos:Distance(ply:EyePos()) > 110 then return end
+-- ------------------------------------------------- меню тела (E по телу) --
+-- Проверить пульс (точность — навык «Медицина»), помочь встать (без сознания),
+-- оказать первую помощь (критическое состояние, нужна аптечка или обезболивающее).
+local function medSkill(ply)
+	return ply.nyrpChar and ply.nyrpChar.skills and ply.nyrpChar.skills.medicine or 0
+end
+
+local function meAction(ply, text)
+	local T = NYRP.Chat.Types
+	local range = NYRP.Chat.Range(T.ME)
+	local rec = {}
+	for _, p in ipairs(player.GetAll()) do if p:GetPos():DistToSqr(ply:GetPos()) <= range * range then rec[#rec + 1] = p end end
+	NYRP.Chat.Send(rec, T.ME, ply, text)
+end
+
+local function pulseText(rag, med)
 	local owner = rag.nyrpOwner
-	if not Cond.KO(owner) then return end
+	local roll = math.random()
+	if rag:GetNW2Bool("nyrp.corpse") then
+		if med < 2 and roll < 0.25 then return "Пульс не прощупывается... кажется, его нет совсем." end
+		return med >= 3 and "Пульса нет, зрачки не реагируют. Человек мёртв." or "Пульса нет. Похоже, человек мёртв."
+	end
+	if not IsValid(owner) then return "Не получается нащупать пульс." end
+	local crit = owner:GetNW2Bool("nyrp.koCritical")
+	local hp = owner:Health()
+	local out
+	if crit then
+		if med == 0 and roll < 0.35 then out = "Не могу понять... кажется, пульс есть, но очень слабый."
+		elseif med < 3 then out = "Пульс слабый. Ему очень плохо — нужна помощь."
+		else out = string.format("Пульс нитевидный, ~%d уд/мин. Тяжёлые травмы — нужна аптечка.", math.random(120, 145)) end
+	else
+		if med < 3 then out = "Пульс есть. Человек без сознания, но дышит."
+		else out = string.format("Пульс ровный, ~%d уд/мин. Скоро придёт в себя.", math.random(64, 84)) end
+	end
+	if med >= 4 then out = out .. " Состояние: ~" .. math.Clamp(hp + math.random(-8, 8), 1, 100) .. "%." end
+	return out
+end
+
+local function findMed(ply)
+	local inv = NYRP.Inv.Get(ply)
+	for slot, it in pairs(inv.slots) do if it.id == "medkit" then return slot, it end end
+	for slot, it in pairs(inv.slots) do if it.id == "painkillers" then return slot, it end end
+end
+
+function bodyOk(ply, rag)
+	return IsValid(rag) and ply:Alive() and not Cond.KO(ply) and rag:NearestPoint(ply:EyePos()):Distance(ply:EyePos()) <= 130
+end
+
+net.Receive("nyrp.body.act", function(_, ply)
+	if (ply.nyrpBodyNext or 0) > CurTime() then return end
+	ply.nyrpBodyNext = CurTime() + 0.5
+	local act, rag = net.ReadString(), net.ReadEntity()
+	if not bodyOk(ply, rag) or not rag:IsRagdoll() then return end
+	local owner = rag.nyrpOwner
+	local med = medSkill(ply)
 	ply.nyrpHelping = rag
-	NYRP.Action(ply, "Оказываю помощь...", U.HelpTime, function()
-		ply.nyrpHelping = nil
-		if IsValid(owner) and Cond.KO(owner) and owner.nyrpKO and owner.nyrpKO.rag == rag then
-			Cond.WakeUp(owner, U.HelpHP)
-			NYRP.Notify(owner, "Вам помогли прийти в себя", "success")
-			NYRP.Notify(ply, "Вы помогли человеку прийти в себя", "success")
-		end
-	end, "medkit")
+	if act == "pulse" then
+		meAction(ply, "наклоняется и нащупывает пульс на шее человека")
+		NYRP.Action(ply, "Нащупываю пульс...", math.max(1.5, 3 - med * 0.25), function()
+			ply.nyrpHelping = nil
+			if IsValid(rag) then NYRP.Notify(ply, pulseText(rag, med), "info", 9) end
+		end, "heart")
+	elseif act == "lift" then
+		if not IsValid(owner) or not Cond.KO(owner) or owner:GetNW2Bool("nyrp.koCritical") then return end
+		meAction(ply, "подхватывает человека под руки и помогает подняться")
+		NYRP.Action(ply, "Помогаю подняться...", 4, function()
+			ply.nyrpHelping = nil
+			if IsValid(owner) and Cond.KO(owner) and owner.nyrpKO and owner.nyrpKO.rag == rag then
+				Cond.WakeUp(owner)
+				NYRP.Notify(owner, "Вам помогли подняться", "success")
+			end
+		end, "user")
+	elseif act == "treat" then
+		if not IsValid(owner) or not Cond.KO(owner) then return end
+		local slot, it = findMed(ply)
+		if not slot then NYRP.Notify(ply, "Нужна аптечка или обезболивающее", "warning") return end
+		meAction(ply, "достаёт " .. (it.id == "medkit" and "аптечку" or "шприц") .. " и оказывает первую помощь")
+		NYRP.Action(ply, "Оказываю первую помощь...", math.max(3, 8 - med * 0.8), function()
+			ply.nyrpHelping = nil
+			if not (IsValid(owner) and Cond.KO(owner) and owner.nyrpKO and owner.nyrpKO.rag == rag) then return end
+			local inv = NYRP.Inv.Get(ply)
+			if not inv.slots[slot] or inv.slots[slot].id ~= it.id then return end
+			NYRP.Inv.Take(ply, slot, 1)
+			local hp = (it.id == "medkit" and 30 or 18) + med * 6
+			Cond.WakeUp(owner, hp)
+			NYRP.Notify(owner, "Вам оказали первую помощь", "success")
+			NYRP.Notify(ply, "Вы оказали первую помощь", "success")
+		end, "medkit")
+	end
 end)
 
 -- Удары по телу достаются хозяину.

@@ -41,9 +41,42 @@ function GM:PlayerDeathThink(ply)
 	return false
 end
 
--- Тело падает мягче: игрок «доносит» скорость до рэгдолла (клиент делает остальное).
+-- Труп — серверный рэгдолл: его видят все, его можно тащить руками и осмотреть (пульс).
+-- Если человек умер без сознания — тело остаётся тем же.
+local corpses = {}
 function GM:DoPlayerDeath(ply, attacker, dmg)
-	ply:CreateRagdoll()
+	local rag
+	if ply.nyrpKO and IsValid(ply.nyrpKO.rag) then
+		rag = ply.nyrpKO.rag
+		ply.nyrpKO.rag = nil
+	else
+		rag = NYRP.Cond.MakeRagdoll(ply)
+		if IsValid(rag) then
+			local force = dmg and dmg:GetDamageForce() or vector_origin
+			for i = 0, rag:GetPhysicsObjectCount() - 1 do
+				local p = rag:GetPhysicsObjectNum(i)
+				if IsValid(p) then p:ApplyForceCenter(force * 0.04) end
+			end
+			rag:EmitSound("nyrp/fx/body_fall.wav", 72, math.random(95, 105))
+		end
+	end
+	if IsValid(rag) then
+		rag.nyrpOwner = nil
+		rag.nyrpCorpseOf = ply
+		rag:SetNW2Bool("nyrp.corpse", true)
+		rag:SetNW2Bool("nyrp.koCritical", false)
+		rag:SetNW2Entity("nyrp.koOwner", NULL)
+		rag:SetNW2Entity("nyrp.corpseOwner", ply)
+		rag:SetNW2Float("nyrp.corpseTime", CurTime())
+		ply:SetNW2Entity("nyrp.deathRag", rag)
+		corpses[#corpses + 1] = rag
+		-- не больше 12 тел на карте; каждое исчезает через 10 минут
+		while #corpses > 12 do
+			local old = table.remove(corpses, 1)
+			if IsValid(old) then old:Remove() end
+		end
+		timer.Simple(600, function() if IsValid(rag) then rag:Remove() end end)
+	end
 	ply:AddDeaths(1)
 	if IsValid(attacker) and attacker:IsPlayer() and attacker ~= ply then attacker:AddFrags(1) end
 end

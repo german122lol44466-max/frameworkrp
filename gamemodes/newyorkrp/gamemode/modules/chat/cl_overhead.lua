@@ -103,24 +103,44 @@ end
 -- Ник над головой: Exo 2 с обводкой, слева — что в руках (оружие или ладонь).
 -- Появляется плавно: поднимается, проявляется, обводка «нарастает», иконка выезжает слева.
 local NAME_COL = Color(222, 224, 230)
+-- Табличка: имя (Exo 2 с обводкой) + иконка слева, под именем — описание (до 2 строк).
+-- Нижний край — y; возвращает высоту. Используется и для NPC (modules/npc).
+function O.DrawTag(y, a, text, bold, icon, desc)
+	local font = NYRP.FontRaw(bold and "tagbold" or "tag", 58)
+	local tw, th = size(text, font)
+	local col = Color(NAME_COL.r, NAME_COL.g, NAME_COL.b, 255 * a)
+	local stroke = 2.5 * a
+	-- описание снизу
+	local dh = 0
+	if desc and desc ~= "" then
+		local dfont = NYRP.FontRaw("tag", 30)
+		local lines = UI.Wrap(desc, dfont, 640)
+		if #lines > 2 then lines = { lines[1], lines[2] .. "…" } end
+		local lh = 34
+		dh = #lines * lh + 6
+		for i, l in ipairs(lines) do
+			strokeText(l, dfont, -size(l, dfont) / 2, y - dh + 6 + (i - 1) * lh + (1 - a) * 10,
+				Color(185, 188, 196, 230 * a), 2 * a, 170 * a)
+		end
+	end
+	local isz = icon and th * 0.92 or 0
+	local gap = icon and 22 or 0
+	local w = tw + isz + gap
+	local x = -w / 2
+	local by = y - dh - th + (1 - a) * 18
+	if icon then
+		local ia = UI.Ease(math.Clamp(a * 1.6 - 0.4, 0, 1))
+		strokeIcon(UI.Mat("nyrp/status/" .. icon .. ".png"), x - (1 - ia) * 20, by + (th - isz) / 2, isz,
+			Color(col.r, col.g, col.b, 240 * ia), stroke, 200 * ia)
+	end
+	strokeText(text, font, x + isz + gap, by, col, stroke, 200 * a)
+	return th + dh
+end
+
 local function nameTag(ply, y, a)
 	local known = NYRP.Recog and NYRP.Recog.Knows(ply)
 	local text = known and NYRP.CharName(ply) or "НЕИЗВЕСТНЫЙ"
-	local font = NYRP.FontRaw(known and "tag" or "tagbold", 58)
-	local tw, th = size(text, font)
-	local icon = weaponIcon(ply)
-	local isz = th * 0.92
-	local gap = 22
-	local w = tw + isz + gap
-	local x = -w / 2
-	local by = y - th + (1 - a) * 18
-	local col = Color(NAME_COL.r, NAME_COL.g, NAME_COL.b, 255 * a)
-	local stroke = 2.5 * a
-	local ia = UI.Ease(math.Clamp(a * 1.6 - 0.4, 0, 1))
-	strokeIcon(UI.Mat("nyrp/status/" .. icon .. ".png"), x - (1 - ia) * 20, by + (th - isz) / 2, isz,
-		Color(col.r, col.g, col.b, 240 * ia), stroke, 200 * ia)
-	strokeText(text, font, x + isz + gap, by, col, stroke, 200 * a)
-	return th
+	return O.DrawTag(y, a, text, not known, weaponIcon(ply), ply:GetNW2String("nyrp.desc", ""))
 end
 
 local function drawPlayer(ply, me, eye, look, now)

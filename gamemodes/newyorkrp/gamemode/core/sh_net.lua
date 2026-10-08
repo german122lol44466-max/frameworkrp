@@ -29,6 +29,8 @@ NYRP.NetMessages = {
 	"nyrp.voice.mode",
 	-- запрос «показать удостоверение»
 	"nyrp.id.request", "nyrp.id.answer",
+	-- меню тела
+	"nyrp.body.act",
 	-- время суток
 	"nyrp.time.light",
 	-- контейнеры

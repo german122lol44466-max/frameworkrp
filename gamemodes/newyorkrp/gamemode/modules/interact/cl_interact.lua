@@ -19,15 +19,24 @@ local function playerTarget(ent)
 end
 I.IsPlayerTarget = playerTarget
 
+-- Тело: без сознания или труп — меню тела (cl_body.lua).
+local function isBody(ent)
+	if not ent:IsRagdoll() then return false end
+	return ent:GetNW2Bool("nyrp.corpse") or IsValid(ent:GetNW2Entity("nyrp.koOwner"))
+end
+I.IsBody = isBody
+
 function I.IsInteractable(ent)
 	if not IsValid(ent) then return false end
 	if ent:IsPlayer() then return playerTarget(ent) end
+	if isBody(ent) then return ent:GetNW2Entity("nyrp.koOwner") ~= LocalPlayer() end
 	if doorClasses[ent:GetClass()] then return true end
 	return ent.NYRPInteract == true
 end
 
 local function info(ent)
 	if ent:IsPlayer() then return "E", "Взаимодействовать" end
+	if isBody(ent) then return "E", "Осмотреть тело" end
 	if doorClasses[ent:GetClass()] then return "door", "Открыть дверь" end
 	local text = ent.GetInteractText and ent:GetInteractText() or ("Взаимодействовать с: " .. (ent.PrintName or ent:GetClass()))
 	return ent.NYRPIcon or "interact", text
@@ -36,7 +45,7 @@ end
 -- Точка иконки: у двери — ручка, у остальных — центр чуть выше.
 local function anchor(ent)
 	local ply = LocalPlayer()
-	if ent:IsPlayer() then
+	if ent:IsPlayer() or ent:IsRagdoll() then
 		local b = ent:LookupBone("ValveBiped.Bip01_Spine2")
 		local p = b and ent:GetBonePosition(b)
 		return (p or ent:WorldSpaceCenter()) + ent:GetForward() * 6
@@ -128,6 +137,10 @@ hook.Add("PlayerBindPress", "nyrp.interact", function(ply, bind, pressed)
 	if not pressed or not string.find(bind, "+use", 1, true) then return end
 	if IsValid(I.Target) and I.Target:IsPlayer() then
 		if I.OpenPlayerMenu then I.OpenPlayerMenu(I.Target) end
+		return true
+	end
+	if IsValid(I.Target) and isBody(I.Target) then
+		if I.OpenBodyMenu then I.OpenBodyMenu(I.Target) end
 		return true
 	end
 	if IsValid(I.Target) and not I.TraceHit then

@@ -96,7 +96,8 @@ C.Skills = {
 	{ id = "strength", name = "Сила", icon = "bolt", desc = "Урон в ближнем бою" },
 	{ id = "stamina", name = "Выносливость", icon = "run", desc = "+2% к скорости бега за очко" },
 	{ id = "agility", name = "Ловкость", icon = "walk", desc = "+3% к силе прыжка за очко" },
-	{ id = "intellect", name = "Интеллект", icon = "info", desc = "Пригодится в работе" },
+	{ id = "intellect", name = "Интеллект", icon = "info", desc = "Дольше помните имена знакомых" },
+	{ id = "medicine", name = "Медицина", icon = "medkit", desc = "Точнее пульс, быстрее первая помощь" },
 }
 C.SkillPoints = 10
 C.SkillMax = 5

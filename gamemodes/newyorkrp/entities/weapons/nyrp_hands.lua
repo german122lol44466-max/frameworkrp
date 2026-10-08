@@ -1,8 +1,10 @@
 --[[
 	Руки — выдаются всем. Вьюмодель не рисуется (руки видно у тела).
-	ЛКМ (удерживать) по предмету, телу или любому незакреплённому объекту — тащить его:
-	от руки к точке захвата тянется линия, объект следует за взглядом. Отпустить — отпустить ЛКМ.
-	Колесо мыши при захвате — ближе/дальше. Слишком тяжёлое не поднять.
+	Перенос как в ix_hands (Helix): ПКМ по предмету, телу или любому незакреплённому объекту — взять,
+	объект держится перед вами (тело — ниже, волочится); ПКМ + мышь — повернуть,
+	ЛКМ — бросить (тело — просто отпустить), R — отпустить.
+	Пока держите — справа панель с названием, от неё к точке захвата тонкая линия с квадратом
+	(как у подсказок Helix), линия «дорисовывается» при захвате.
 ]]
 
 AddCSLuaFile()
@@ -21,181 +23,271 @@ SWEP.HoldType = "normal"
 
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
-SWEP.Primary.Automatic = true
+SWEP.Primary.Automatic = false
 SWEP.Primary.Ammo = "none"
 SWEP.Secondary.ClipSize = -1
 SWEP.Secondary.DefaultClip = -1
 SWEP.Secondary.Automatic = false
 SWEP.Secondary.Ammo = "none"
 
-local REACH = 95          -- откуда можно схватить
-local MAX_MASS = 120      -- тяжелее (кроме тел) — не поднять
-local BREAK = 150         -- дальше — выскальзывает
+SWEP.holdDistance = 60
+SWEP.maxHoldDistance = 100   -- дальше — выскальзывает
+SWEP.maxHoldStress = 4000
+SWEP.maxMass = 120           -- тяжелее (кроме тел) — не поднять
+SWEP.throwForce = 700
 
 function SWEP:SetupDataTables()
 	self:NetworkVar("Entity", 0, "GrabEnt")
 	self:NetworkVar("Int", 0, "GrabBone")
 	self:NetworkVar("Vector", 0, "GrabLocal")
-	self:NetworkVar("Float", 0, "GrabDist")
+	self:NetworkVar("Float", 0, "GrabTime")
 end
 
 function SWEP:Initialize()
 	self:SetHoldType(self.HoldType)
+	self.heldAngle = Angle()
 end
 
 function SWEP:IsGrabbing() return IsValid(self:GetGrabEnt()) end
 
--- Точка захвата в мире (по физ. кости и локальному смещению).
+-- Точка захвата в мире.
 function SWEP:GrabPoint()
 	local ent = self:GetGrabEnt()
 	if not IsValid(ent) then return end
 	local bone = self:GetGrabBone()
-	if ent:GetClass() == "prop_ragdoll" and bone >= 0 then
+	if bone >= 0 and ent:IsRagdoll() then
 		if SERVER then
-			-- на сервере — по физическому объекту кости (матрицы костей там не обновляются)
 			local phys = ent:GetPhysicsObjectNum(bone)
-			if IsValid(phys) then return LocalToWorld(self:GetGrabLocal(), Angle(), phys:GetPos(), phys:GetAngles()) end
-			return
+			return IsValid(phys) and LocalToWorld(self:GetGrabLocal(), Angle(), phys:GetPos(), phys:GetAngles()) or nil
 		end
-		local b = ent:TranslatePhysBoneToBone(bone)
-		local m = b and ent:GetBoneMatrix(b)
+		local m = ent:GetBoneMatrix(ent:TranslatePhysBoneToBone(bone))
 		if m then return LocalToWorld(self:GetGrabLocal(), Angle(), m:GetTranslation(), m:GetAngles()) end
+		return ent:GetPos()
 	end
 	return ent:LocalToWorld(self:GetGrabLocal())
 end
 
-local function canGrab(ent, phys)
+local function canHold(ent, phys, isBody, maxMass)
 	if not IsValid(ent) or ent:IsPlayer() or ent:IsNPC() or ent:IsVehicle() then return false end
 	if not IsValid(phys) or not phys:IsMoveable() or not phys:IsMotionEnabled() then return false end
-	if ent:GetClass() == "nyrp_container" or ent:GetClass() == "nyrp_vending" then return false end
-	return true
+	local cls = ent:GetClass()
+	if cls == "nyrp_container" or cls == "nyrp_vending" or cls == "nyrp_npc" then return false end
+	if ent.nyrpHeldBy and IsValid(ent.nyrpHeldBy) then return false end
+	return isBody or phys:GetMass() <= maxMass
+end
+
+if SERVER then
+	function SWEP:Pickup(ent, tr)
+		local isBody = ent:IsRagdoll()
+		local bone = isBody and (tr.PhysicsBone or 0) or 0
+		local phys = ent:GetPhysicsObjectNum(bone)
+		if not canHold(ent, phys, isBody, self.maxMass) then
+			if IsValid(phys) and not isBody and phys:GetMass() > self.maxMass and IsValid(ent) and not ent:IsPlayer() then
+				NYRP.Notify(self:GetOwner(), "Слишком тяжело", "warning", 2)
+			end
+			return
+		end
+		local ply = self:GetOwner()
+		ent.nyrpHeldBy = ply
+		ent.nyrpOldGroup = ent:GetCollisionGroup()
+		ent:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		phys:AddGameFlag(FVPHYSICS_PLAYER_HELD)
+		if not isBody then phys:EnableGravity(false) end
+
+		-- невидимая «рука», к которой приварен предмет; её ведём ComputeShadowControl
+		local hold = ents.Create("prop_physics")
+		hold:SetModel("models/weapons/w_bugbait.mdl")
+		hold:SetPos(isBody and phys:GetPos() or ent:LocalToWorld(ent:OBBCenter()))
+		hold:SetAngles(isBody and phys:GetAngles() or ent:GetAngles())
+		hold:SetOwner(ply)
+		hold:SetNoDraw(true)
+		hold:SetNotSolid(true)
+		hold:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+		hold:DrawShadow(false)
+		hold:Spawn()
+		local hp = hold:GetPhysicsObject()
+		if IsValid(hp) then
+			hp:SetMass(2048)
+			hp:SetDamping(0, 1000)
+			hp:EnableGravity(false)
+			hp:EnableCollisions(false)
+			hp:EnableMotion(false)
+		end
+		self.hold = hold
+		self.weld = constraint.Weld(hold, ent, 0, bone, 0, true, true)
+		self.heldAngle = isBody and phys:GetAngles() or ent:GetAngles()
+		self.lastYaw = ply:EyeAngles().y
+
+		self:SetGrabEnt(ent)
+		self:SetGrabBone(isBody and bone or -1)
+		self:SetGrabLocal(isBody and WorldToLocal(tr.HitPos, Angle(), phys:GetPos(), phys:GetAngles()) or ent:WorldToLocal(tr.HitPos))
+		self:SetGrabTime(CurTime())
+		ply:SetNW2Bool("nyrp.dragging", isBody)
+		ply:EmitSound(isBody and "physics/body/body_medium_impact_soft" .. math.random(1, 7) .. ".wav" or "Flesh.ImpactSoft", 60)
+	end
+
+	function SWEP:Drop(throw)
+		local ent = self:GetGrabEnt()
+		local ply = self:GetOwner()
+		if IsValid(self.weld) then self.weld:Remove() end
+		if IsValid(self.hold) then self.hold:Remove() end
+		self.weld, self.hold = nil, nil
+		if IsValid(ply) then ply:SetNW2Bool("nyrp.dragging", false) end
+		self:SetGrabEnt(NULL)
+		if not IsValid(ent) then return end
+		ent.nyrpHeldBy = nil
+		ent:SetCollisionGroup(ent.nyrpOldGroup or COLLISION_GROUP_NONE)
+		for i = 0, ent:GetPhysicsObjectCount() - 1 do
+			local p = ent:GetPhysicsObjectNum(i)
+			if IsValid(p) then
+				p:EnableGravity(true)
+				p:ClearGameFlag(FVPHYSICS_PLAYER_HELD)
+				p:Wake()
+			end
+		end
+		if throw and IsValid(ply) and not ent:IsRagdoll() then
+			timer.Simple(0, function()
+				local p = IsValid(ent) and ent:GetPhysicsObject()
+				if IsValid(p) and IsValid(ply) then
+					p:AddGameFlag(FVPHYSICS_WAS_THROWN)
+					p:ApplyForceCenter(ply:GetAimVector() * math.min(self.throwForce * p:GetMass() / 10, 9000))
+				end
+			end)
+		end
+	end
 end
 
 function SWEP:PrimaryAttack()
+	if CLIENT or not self:IsGrabbing() then return end
+	self:Drop(true)
+	self:SetNextPrimaryFire(CurTime() + 0.5)
+	self:SetNextSecondaryFire(CurTime() + 0.5)
+end
+
+function SWEP:SecondaryAttack()
 	if CLIENT or self:IsGrabbing() then return end
 	local ply = self:GetOwner()
 	if not IsValid(ply) or (NYRP.Cond and NYRP.Cond.KO(ply)) then return end
-	local tr = util.TraceLine({ start = ply:EyePos(), endpos = ply:EyePos() + ply:GetAimVector() * REACH, filter = ply })
-	local ent = tr.Entity
-	local physBone = tr.PhysicsBone or 0
-	local phys = IsValid(ent) and ent:GetPhysicsObjectNum(physBone)
-	if not canGrab(ent, phys) then return end
-	local isBody = ent:GetClass() == "prop_ragdoll"
-	if not isBody and phys:GetMass() > MAX_MASS then
-		if (self.nextHeavy or 0) < CurTime() then
-			self.nextHeavy = CurTime() + 2
-			NYRP.Notify(ply, "Слишком тяжело", "warning", 2)
-		end
-		return
-	end
-	local localPos
-	if isBody then
-		localPos = WorldToLocal(tr.HitPos, Angle(), phys:GetPos(), phys:GetAngles())
-	else
-		localPos = ent:WorldToLocal(tr.HitPos)
-	end
-	self:SetGrabEnt(ent)
-	self:SetGrabBone(isBody and physBone or -1)
-	self:SetGrabLocal(localPos)
-	self:SetGrabDist(math.Clamp(tr.HitPos:Distance(ply:EyePos()), 40, REACH))
-	ply:SetNW2Bool("nyrp.dragging", isBody)
-	ent:EmitSound("physics/body/body_medium_impact_soft" .. math.random(1, 7) .. ".wav", 55, 110)
+	local tr = util.TraceLine({ start = ply:GetShootPos(), endpos = ply:GetShootPos() + ply:GetAimVector() * 84, filter = { self, ply } })
+	if IsValid(tr.Entity) then self:Pickup(tr.Entity, tr) end
+	self:SetNextSecondaryFire(CurTime() + 0.4)
 end
 
-function SWEP:Release()
-	local ply = self:GetOwner()
-	if IsValid(ply) then ply:SetNW2Bool("nyrp.dragging", false) end
-	self:SetGrabEnt(NULL)
+function SWEP:Reload()
+	if SERVER and self:IsGrabbing() then self:Drop(false) end
 end
 
-function SWEP:SecondaryAttack() end
-function SWEP:Holster() if SERVER then self:Release() end return true end
-function SWEP:OnRemove() if SERVER then self:Release() end end
-function SWEP:OnDrop() if SERVER then self:Release() end end
+function SWEP:Holster() if SERVER then self:Drop(false) end return true end
+function SWEP:OnRemove() if SERVER then self:Drop(false) end end
+function SWEP:OnDrop() if SERVER then self:Drop(false) end end
+function SWEP:OwnerChanged() if SERVER then self:Drop(false) end end
 
 function SWEP:Think()
 	if CLIENT or not self:IsGrabbing() then return end
 	local ply = self:GetOwner()
 	local ent = self:GetGrabEnt()
-	if not IsValid(ply) or not ply:Alive() or not ply:KeyDown(IN_ATTACK) or (NYRP.Cond and NYRP.Cond.KO(ply)) then
-		self:Release()
+	if not IsValid(ply) or not ply:Alive() or not IsValid(self.hold) or (NYRP.Cond and NYRP.Cond.KO(ply)) then
+		self:Drop(false)
 		return
 	end
-	local point = self:GrabPoint()
-	if not point or point:Distance(ply:EyePos()) > BREAK then self:Release() return end
-	local isBody = ent:GetClass() == "prop_ragdoll"
-	local phys = ent:GetPhysicsObjectNum(isBody and self:GetGrabBone() or 0)
-	if not IsValid(phys) then self:Release() return end
+	local isBody = ent:IsRagdoll()
+	local dist = isBody and self.holdDistance * 0.6 or self.holdDistance
+	local target = ply:GetShootPos() + ply:GetAimVector() * dist
+	if isBody then target.z = math.min(target.z, ply:GetShootPos().z - 32) end
 
-	-- точка, куда тянем: перед глазами на сохранённой дистанции (тела — ниже, у земли)
-	local aim = ply:GetAimVector()
-	local target = ply:EyePos() + aim * self:GetGrabDist()
-	if isBody then target.z = math.min(target.z, ply:GetPos().z + 40) end
-	local delta = target - point
-	local vel = delta * (isBody and 8 or 12)
-	local maxV = isBody and 260 or 420
-	if vel:Length() > maxV then vel = vel:GetNormalized() * maxV end
-	-- гасим собственную скорость и вращение, чтобы не болталось
-	phys:SetVelocity(phys:GetVelocity() * 0.5 + vel)
-	if not isBody then phys:AddAngleVelocity(-phys:GetAngleVelocity() * 0.25) end
-	phys:Wake()
+	local phys = ent:GetPhysicsObjectNum(isBody and self:GetGrabBone() or 0)
+	if not IsValid(phys) or phys:GetPos():DistToSqr(target) > self.maxHoldDistance ^ 2 or phys:GetStress() > self.maxHoldStress then
+		self:Drop(false)
+		return
+	end
+	-- ПКМ + мышь — вращение; поворот головы — вращает предмет вместе с вами
+	local eye = ply:EyeAngles()
+	if ply:KeyDown(IN_ATTACK2) and not isBody then
+		local cmd = ply:GetCurrentCommand()
+		self.heldAngle:RotateAroundAxis(eye:Forward(), cmd:GetMouseX() / 15)
+		self.heldAngle:RotateAroundAxis(eye:Right(), cmd:GetMouseY() / 15)
+	end
+	self.heldAngle.y = self.heldAngle.y - math.AngleDifference(self.lastYaw or eye.y, eye.y)
+	self.lastYaw = eye.y
+
+	local hp = self.hold:GetPhysicsObject()
+	if not IsValid(hp) then self:Drop(false) return end
+	hp:Wake()
+	hp:ComputeShadowControl({
+		secondstoarrive = 0.01, pos = target, angle = self.heldAngle,
+		maxangular = 256, maxangulardamp = 10000, maxspeed = isBody and 180 or 256, maxspeeddamp = 10000,
+		dampfactor = 0.8, teleportdistance = self.maxHoldDistance * 0.75, deltatime = FrameTime(),
+	})
 end
 
--- Колесо мыши — ближе/дальше, пока держим.
-hook.Add("PlayerBindPress", "nyrp.hands.dist", function(ply, bind, pressed)
-	local w = ply:GetActiveWeapon()
-	if not IsValid(w) or w:GetClass() ~= "nyrp_hands" or not w:IsGrabbing() then return end
-	if bind == "invnext" or bind == "invprev" then
-		net.Start("nyrp.hands.dist")
-		net.WriteBool(bind == "invnext")
-		net.SendToServer()
-		return true
-	end
-end)
-
-if SERVER then
-	util.AddNetworkString("nyrp.hands.dist")
-	net.Receive("nyrp.hands.dist", function(_, ply)
+-- ПКМ + мышь: пока вращаем предмет, камера стоит на месте.
+if CLIENT then
+	hook.Add("CreateMove", "nyrp.hands.rotate", function(cmd)
+		local ply = LocalPlayer()
 		local w = ply:GetActiveWeapon()
-		if not IsValid(w) or w:GetClass() ~= "nyrp_hands" or not w:IsGrabbing() then return end
-		w:SetGrabDist(math.Clamp(w:GetGrabDist() + (net.ReadBool() and -8 or 8), 35, REACH + 20))
+		if IsValid(w) and w:GetClass() == "nyrp_hands" and w:IsGrabbing() and cmd:KeyDown(IN_ATTACK2)
+			and not w:GetGrabEnt():IsRagdoll() then
+			cmd:ClearMovement()
+			local a = RenderAngles()
+			a.z = 0
+			cmd:SetViewAngles(a)
+		end
 	end)
 end
 
 function SWEP:DrawWorldModel() end
 function SWEP:ShouldDrawViewModel() return false end
 
+-- ---------------------------------------------------------------- линия --
 if CLIENT then
-	-- Линия от руки к точке захвата — видна всем.
-	local mat = Material("cable/rope")
-	local white = Material("sprites/light_glow02_add")
-	hook.Add("PostDrawTranslucentRenderables", "nyrp.hands.line", function(depth, sky)
-		if sky then return end
-		for _, ply in ipairs(player.GetAll()) do
-			local w = IsValid(ply) and ply:GetActiveWeapon()
-			if IsValid(w) and w:GetClass() == "nyrp_hands" and w.IsGrabbing and w:IsGrabbing() then
-				local point = w:GrabPoint()
-				local hb = ply:LookupBone("ValveBiped.Bip01_R_Hand")
-				local hand = hb and ply:GetBonePosition(hb)
-				if ply == LocalPlayer() and not NYRP.Camera.IsThirdPerson() then
-					-- от первого лица — из-под камеры справа, чтобы линию было видно
-					hand = EyePos() + EyeAngles():Right() * 6 - EyeAngles():Up() * 7 + EyeAngles():Forward() * 10
-				end
-				if point and hand then
-					render.SetMaterial(mat)
-					local segs = 10
-					local sag = math.min(point:Distance(hand) * 0.08, 6)
-					render.StartBeam(segs + 1)
-					for i = 0, segs do
-						local t = i / segs
-						local p = LerpVector(t, hand, point) - Vector(0, 0, math.sin(t * math.pi) * sag)
-						render.AddBeam(p, 0.8, t * 3, Color(255, 255, 255))
-					end
-					render.EndBeam()
-					render.SetMaterial(white)
-					render.DrawSprite(point, 5, 5, Color(247, 198, 0, 200))
-				end
-			end
+	local UI = NYRP.UI
+
+	local function nameOf(ent)
+		if ent:IsRagdoll() then
+			local owner = ent:GetNW2Entity("nyrp.koOwner")
+			if IsValid(owner) and NYRP.Cond and NYRP.Cond.KO(owner) then return "Человек без сознания", "Тело" end
+			if ent:GetNW2Bool("nyrp.corpse") then return "Тело", "Без признаков жизни" end
+			return "Тело", "Тяжёлое"
 		end
+		if ent:GetClass() == "nyrp_item" and ent.GetDef then
+			local def = ent:GetDef()
+			if def then return def.name, "Предмет" end
+		end
+		return language.GetPhrase(ent.PrintName or "") ~= "" and ent.PrintName or "Предмет", "Объект"
+	end
+
+	-- Как ixTooltip: панель справа от центра, к объекту — линия 1px и квадрат 4×4, «вырастает» за 0.3 с.
+	hook.Add("HUDPaint", "nyrp.hands.line", function()
+		local ply = LocalPlayer()
+		local w = IsValid(ply) and ply:GetActiveWeapon()
+		if not IsValid(w) or w:GetClass() ~= "nyrp_hands" or not w.IsGrabbing or not w:IsGrabbing() then return end
+		local ent = w:GetGrabEnt()
+		local point = w:GrabPoint()
+		if not point then return end
+		local frac = UI.Ease(math.Clamp((CurTime() - w:GetGrabTime()) / 0.3, 0, 1))
+		local title, sub = nameOf(ent)
+		local isBody = ent:IsRagdoll()
+		local hint = isBody and "R — отпустить" or "ЛКМ — бросить · R — отпустить · ПКМ+мышь — повернуть"
+		local fontT, fontS = NYRP.Font("bold", 16), NYRP.Font("regular", 12)
+		local pw = math.max(UI.TextSize(title, fontT), UI.TextSize(hint, fontS)) + UI.S(28)
+		local ph = UI.S(62)
+		local px, py = ScrW() / 2 + UI.S(90), ScrH() / 2 - ph / 2
+		local sc = point:ToScreen()
+		local ax, ay = math.Clamp(sc.x, 0, ScrW()), math.Clamp(sc.y, 0, ScrH())
+		-- линия от левого края панели к точке захвата
+		surface.SetDrawColor(255, 255, 255, 200)
+		local lx, ly = px + (ax - px) * frac, py + (ay - py) * frac
+		surface.DrawLine(px, py, lx, ly)
+		surface.DrawRect(lx - 2, ly - 2, 4, 4)
+		-- панель (раскрывается по ширине вместе с линией)
+		render.SetScissorRect(px, py, px + pw * frac, py + ph, true)
+		surface.SetDrawColor(10, 11, 16, 220)
+		surface.DrawRect(px, py, pw, ph)
+		surface.SetDrawColor(255, 255, 255, 230)
+		surface.DrawRect(px, py, pw, UI.S(24))
+		draw.SimpleText(title, fontT, px + UI.S(10), py + UI.S(12), Color(14, 14, 18), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		draw.SimpleText(sub, fontS, px + pw - UI.S(10), py + UI.S(12), Color(60, 62, 70), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+		draw.SimpleText(hint, fontS, px + UI.S(10), py + UI.S(43), UI.Col.dim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		render.SetScissorRect(0, 0, 0, 0, false)
 	end)
 end

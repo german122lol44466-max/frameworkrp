@@ -1,6 +1,6 @@
 --[[
 	Без сознания: камера из глаз тела (рэгдолл от первого лица), экран «ВЫ БЕЗ СОЗНАНИЯ»
-	с состоянием под ним; в критическом — ждём помощи других игроков (удерживать E у тела).
+	с состоянием под ним; в критическом — ждём помощи других игроков (осмотр тела по E и первая помощь).
 	После пробуждения — эффект открывания глаз (NYRP.Wakeup).
 ]]
 
@@ -90,7 +90,7 @@ hook.Add("HUDPaintBackground", "nyrp.unconscious", function()
 
 	local sub
 	if crit then
-		sub = "Вы тяжело ранены и не можете встать сами. Нужна помощь других игроков — им нужно подойти и удерживать E."
+		sub = "Вы тяжело ранены и не можете встать сами. Нужна помощь: другой человек должен осмотреть вас (E) и оказать первую помощь аптечкой."
 	else
 		sub = "Вы придёте в себя через " .. math.max(1, math.ceil(left)) .. " с."
 	end
@@ -114,25 +114,4 @@ hook.Add("HUDShouldDraw", "nyrp.unconscious", function(name)
 	if IsValid(ply) and Cond.KO(ply) and (name == "CHudWeaponSelection" or name == "CHudCrosshair") then return false end
 end)
 
--- Другим: подсказка у тела «Удерживайте E — помочь».
-hook.Add("HUDPaint", "nyrp.unconscious.help", function()
-	local ply = LocalPlayer()
-	if not IsValid(ply) or not ply:Alive() or Cond.KO(ply) or NYRP.HUDHidden() then return end
-	local tr = ply:GetEyeTrace()
-	local ent = tr.Entity
-	if not IsValid(ent) or ent:GetClass() ~= "prop_ragdoll" then return end
-	local owner = ent:GetNW2Entity("nyrp.koOwner")
-	if not IsValid(owner) or not Cond.KO(owner) or tr.HitPos:Distance(ply:EyePos()) > 140 then return end
-	local crit = ent:GetNW2Bool("nyrp.koCritical")
-	local sp = tr.HitPos:ToScreen()
-	local text = crit and "Удерживайте E — оказать помощь" or "Человек без сознания"
-	local font = NYRP.Font("semibold", 16)
-	local tw = UI.TextSize(text, font) + UI.S(56)
-	local x, y = sp.x - tw / 2, sp.y + UI.S(26)
-	UI.RoundedRect(UI.S(14), x, y, tw, UI.S(32), Color(10, 11, 16, 220))
-	UI.Outline(UI.S(14), x, y, tw, UI.S(32), crit and Color(226, 80, 70, 140) or Color(255, 255, 255, 30), 1)
-	surface.SetMaterial(UI.Mat("nyrp/status/" .. (crit and "critical" or "unconscious") .. ".png"))
-	surface.SetDrawColor(crit and Color(226, 80, 70) or Color(214, 178, 140))
-	surface.DrawTexturedRect(x + UI.S(12), y + UI.S(6), UI.S(20), UI.S(20))
-	draw.SimpleText(text, font, x + UI.S(40), y + UI.S(16), UI.Col.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-end)
+-- Другим игрокам у тела показывается значок «E» (меню тела — modules/interact/cl_body.lua).
