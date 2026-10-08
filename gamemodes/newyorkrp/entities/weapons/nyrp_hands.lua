@@ -1,8 +1,8 @@
 --[[
 	Руки — выдаются всем. Вьюмодель не рисуется (руки видно у тела).
 	Перенос как в ix_hands (Helix): ПКМ по предмету, телу или любому незакреплённому объекту — взять,
-	объект держится перед вами (тело — ниже, волочится); ПКМ + мышь — повернуть,
-	ЛКМ — бросить (тело — просто отпустить), R — отпустить.
+	ещё раз ПКМ — отпустить. Объект держится перед вами (тело — ниже, волочится);
+	ЛКМ — бросить предмет, R + мышь — повернуть.
 	Пока держите — справа панель с названием, от неё к точке захвата тонкая линия с квадратом
 	(как у подсказок Helix), линия «дорисовывается» при захвате.
 ]]
@@ -165,7 +165,13 @@ function SWEP:PrimaryAttack()
 end
 
 function SWEP:SecondaryAttack()
-	if CLIENT or self:IsGrabbing() then return end
+	if CLIENT then return end
+	-- ПКМ: взять, ещё раз ПКМ — отпустить
+	if self:IsGrabbing() then
+		self:Drop(false)
+		self:SetNextSecondaryFire(CurTime() + 0.3)
+		return
+	end
 	local ply = self:GetOwner()
 	if not IsValid(ply) or (NYRP.Cond and NYRP.Cond.KO(ply)) then return end
 	local tr = util.TraceLine({ start = ply:GetShootPos(), endpos = ply:GetShootPos() + ply:GetAimVector() * 84, filter = { self, ply } })
@@ -173,9 +179,7 @@ function SWEP:SecondaryAttack()
 	self:SetNextSecondaryFire(CurTime() + 0.4)
 end
 
-function SWEP:Reload()
-	if SERVER and self:IsGrabbing() then self:Drop(false) end
-end
+function SWEP:Reload() end -- R занят вращением
 
 function SWEP:Holster() if SERVER then self:Drop(false) end return true end
 function SWEP:OnRemove() if SERVER then self:Drop(false) end end
@@ -202,7 +206,7 @@ function SWEP:Think()
 	end
 	-- ПКМ + мышь — вращение; поворот головы — вращает предмет вместе с вами
 	local eye = ply:EyeAngles()
-	if ply:KeyDown(IN_ATTACK2) and not isBody then
+	if ply:KeyDown(IN_RELOAD) and not isBody then
 		local cmd = ply:GetCurrentCommand()
 		self.heldAngle:RotateAroundAxis(eye:Forward(), cmd:GetMouseX() / 15)
 		self.heldAngle:RotateAroundAxis(eye:Right(), cmd:GetMouseY() / 15)
@@ -220,12 +224,12 @@ function SWEP:Think()
 	})
 end
 
--- ПКМ + мышь: пока вращаем предмет, камера стоит на месте.
+-- R + мышь: пока вращаем предмет, камера стоит на месте.
 if CLIENT then
 	hook.Add("CreateMove", "nyrp.hands.rotate", function(cmd)
 		local ply = LocalPlayer()
 		local w = ply:GetActiveWeapon()
-		if IsValid(w) and w:GetClass() == "nyrp_hands" and w:IsGrabbing() and cmd:KeyDown(IN_ATTACK2)
+		if IsValid(w) and w:GetClass() == "nyrp_hands" and w.IsGrabbing and w:IsGrabbing() and cmd:KeyDown(IN_RELOAD)
 			and not w:GetGrabEnt():IsRagdoll() then
 			cmd:ClearMovement()
 			local a = RenderAngles()
@@ -267,7 +271,7 @@ if CLIENT then
 		local frac = UI.Ease(math.Clamp((CurTime() - w:GetGrabTime()) / 0.3, 0, 1))
 		local title, sub = nameOf(ent)
 		local isBody = ent:IsRagdoll()
-		local hint = isBody and "R — отпустить" or "ЛКМ — бросить · R — отпустить · ПКМ+мышь — повернуть"
+		local hint = isBody and "ПКМ — отпустить" or "ПКМ — отпустить · ЛКМ — бросить · R+мышь — повернуть"
 		local fontT, fontS = NYRP.Font("bold", 16), NYRP.Font("regular", 12)
 		local pw = math.max(UI.TextSize(title, fontT), UI.TextSize(hint, fontS)) + UI.S(28)
 		local ph = UI.S(62)

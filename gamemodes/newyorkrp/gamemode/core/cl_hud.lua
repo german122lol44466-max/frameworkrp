@@ -30,9 +30,9 @@ function GM:AddDeathNotice() end
 
 -- Виньетка поверх мира (до остального HUD). Не отключается.
 hook.Add("HUDPaintBackground", "nyrp.vignette", function()
-	-- плотная, как при пробуждении: края заметно темнее
+	-- плотная, но без видимых границ: только мягкая текстура на весь экран (дважды — темнее края)
 	UI.Vignette(0, 0, ScrW(), ScrH(), 255)
-	UI.Vignette(UI.S(40), UI.S(30), ScrW() - UI.S(80), ScrH() - UI.S(60), 110)
+	UI.Vignette(-UI.S(60), -UI.S(60), ScrW() + UI.S(120), ScrH() + UI.S(120), 150)
 end)
 
 -- Водяной знак в правом нижнем углу.

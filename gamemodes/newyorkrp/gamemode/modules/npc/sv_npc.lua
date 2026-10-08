@@ -317,6 +317,7 @@ net.Receive("nyrp.npc.save", function(len, ply)
 	if data.moveHere then
 		ent:SetPos(ply:GetPos())
 		ent:SetAngles(Angle(0, ply:EyeAngles().y, 0))
+		NYRP.SnapToFloor(ent)
 	end
 	N.SaveAll()
 	NYRP.Notify(ply, "NPC «" .. d.name .. "» сохранён", "success")

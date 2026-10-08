@@ -1,7 +1,7 @@
 --[[
 	Диалог с NPC: панель слева от NPC — белая шапка с именем, тёмное тело с репликой (печатается)
 	и ответами, выбранный — на оранжевой скошенной плашке; от NPC к панели тянутся тонкие линии.
-	Курсора нет: выбор — мышь вверх/вниз или колесо, E/ЛКМ — ответить, ПКМ — уйти.
+	Курсор свободен: наведите на ответ и кликните (или колесо + E), ПКМ — уйти.
 ]]
 
 local UI = NYRP.UI
@@ -13,6 +13,7 @@ local ORANGE = Color(245, 158, 12)
 local function close(silent, fromServer)
 	if D and not D.closing then
 		D.closing = RealTime()
+		gui.EnableScreenClicker(false)
 		if not silent then UI.Sound("close") end
 		-- сервер должен знать, что разговор окончен
 		if not fromServer and IsValid(D.ent) then
@@ -35,6 +36,7 @@ net.Receive("nyrp.npc.node", function()
 	D = { ent = ent, text = text, opts = opts, sel = 1, acc = 0, typed = 0,
 		born = fresh and RealTime() or D.born, nodeBorn = RealTime(), hover = {} }
 	UI.Sound(fresh and "open" or "swipe")
+	if fresh then gui.EnableScreenClicker(true) end
 end)
 
 local function choose()
@@ -56,13 +58,20 @@ local function move(dir)
 	UI.Sound("hover")
 end
 
-hook.Add("InputMouseApply", "nyrp.npc.dialog", function(cmd, x, y)
+-- Мышь: наведение выбирает ответ, ЛКМ — ответить, ПКМ — уйти.
+local function optionAt(mx, my)
+	for i, r in pairs(D and D.rects or {}) do
+		if mx >= r[1] and mx <= r[1] + r[3] and my >= r[2] and my <= r[2] + r[4] then return i end
+	end
+end
+
+hook.Add("GUIMousePressed", "nyrp.npc.dialog", function(code)
 	if not N.InDialog() then return end
-	D.acc = D.acc + y * 0.012
-	if D.acc > 1 then D.acc = 0 move(1) elseif D.acc < -1 then D.acc = 0 move(-1) end
-	cmd:SetMouseX(0)
-	cmd:SetMouseY(0)
-	return true
+	if code == MOUSE_RIGHT then close() return end
+	if code == MOUSE_LEFT then
+		local i = optionAt(gui.MousePos())
+		if i then D.sel = i choose() end
+	end
 end)
 
 hook.Add("PlayerBindPress", "nyrp.npc.dialog", function(ply, bind, pressed)
@@ -82,6 +91,8 @@ hook.Add("Think", "nyrp.npc.dialog", function()
 	end
 	if not IsValid(D.ent) or not LocalPlayer():Alive() or D.ent:GetPos():Distance(LocalPlayer():GetPos()) > 180 then close() return end
 	D.typed = math.min(utf8.len(D.text) or 0, D.typed + FrameTime() * 55)
+	local i = optionAt(gui.MousePos())
+	if i and i ~= D.sel then D.sel = i UI.Sound("hover") end
 end)
 
 local function anchor(ent)
@@ -152,10 +163,12 @@ hook.Add("HUDPaint", "nyrp.npc.dialog", function()
 	y = y + #allLines * UI.S(24) + UI.S(14)
 	-- ответы
 	local done = D.typed >= (utf8.len(D.text) or 0)
+	D.rects = {}
 	for i, o in ipairs(D.opts) do
 		D.hover[i] = UI.Approach(D.hover[i] or 0, D.sel == i and 1 or 0, 18)
 		local hv = D.hover[i]
 		local oy = y + (i - 1) * optH
+		D.rects[i] = { px, oy, pw, optH }
 		local oa = done and 1 or 0.35
 		if hv > 0.01 then
 			local w = (pw - UI.S(40)) * (0.75 + 0.25 * hv)
@@ -182,7 +195,7 @@ hook.Add("HUDPaint", "nyrp.npc.dialog", function()
 	UI.Outline(UI.S(4), kx, ky - UI.S(14), UI.S(28), UI.S(28), Color(255, 255, 255, 220), 1)
 	draw.SimpleText("E", NYRP.Font("bold", 15), kx + UI.S(14), ky, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	draw.SimpleText("ВЫБРАТЬ", NYRP.Font("title", 18), kx - UI.S(12), ky, color_white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-	draw.SimpleText("мышь / колесо — выбор · ПКМ — уйти", NYRP.Font("regular", 12), kx + UI.S(28), ky + UI.S(26), UI.Col.dim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+	draw.SimpleText("клик или колесо + E — ответ · ПКМ — уйти", NYRP.Font("regular", 12), kx + UI.S(28), ky + UI.S(26), UI.Col.dim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
 	surface.SetAlphaMultiplier(1)
 end)
 

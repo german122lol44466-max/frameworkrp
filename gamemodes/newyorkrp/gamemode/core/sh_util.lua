@@ -32,3 +32,24 @@ function NYRP.CleanText(str, maxLen)
 end
 
 NYRP.Print("New-York Roleplay v" .. NYRP.Version .. " загружается (" .. (SERVER and "server" or "client") .. ")")
+
+if SERVER then
+	-- Поставить энтити на пол под ней (низ модели касается поверхности).
+	function NYRP.SnapToFloor(ent)
+		if not IsValid(ent) then return end
+		local pos = ent:GetPos()
+		local tr = util.TraceLine({ start = pos + Vector(0, 0, 24), endpos = pos - Vector(0, 0, 4096), filter = ent, mask = MASK_SOLID_BRUSHONLY })
+		if not tr.Hit then return end
+		local mins = ent:OBBMins()
+		ent:SetPos(Vector(pos.x, pos.y, tr.HitPos.z - mins.z))
+		local phys = ent:GetPhysicsObject()
+		if IsValid(phys) then phys:Wake() end
+	end
+
+	-- Всё, что ставится из спавн-меню, и наши энтити — сразу на пол.
+	local snapClasses = { nyrp_container = true, nyrp_npc = true, nyrp_vending = true }
+	hook.Add("PlayerSpawnedSENT", "nyrp.snap", function(ply, ent) timer.Simple(0, function() NYRP.SnapToFloor(ent) end) end)
+	hook.Add("OnEntityCreated", "nyrp.snap", function(ent)
+		if snapClasses[ent:GetClass()] then timer.Simple(0, function() NYRP.SnapToFloor(ent) end) end
+	end)
+end
