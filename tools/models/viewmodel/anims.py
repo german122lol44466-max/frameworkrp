@@ -347,3 +347,119 @@ PHONE_SEQS = [
     ("close", phone_open, 12, False, True),
     ("holster", phone_holster, 16, False, False),
 ]
+
+
+# ------------------------------------------------------------------ банкомат
+# Камера во время ввода PIN стоит перед банкоматом (modules/bank/cl_atm.lua, ATM_CAM_PIN):
+# в координатах банкомата (лицом в +X) точка (26.2, 1.5, 44), взгляд в -X с наклоном вниз 25°.
+# Все точки ниже пересчитаны из геометрии build_atm.py в пространство этой камеры.
+ATM_CAM = {"pos": np.array((26.2, 1.5, 44.0)), "pitch": 25.0}
+
+
+def atm_to_cam(p):
+    """Точка банкомата -> пространство камеры (X вперёд, Y влево, Z вверх)."""
+    c, pitch = ATM_CAM["pos"], math.radians(ATM_CAM["pitch"])
+    f = np.array((-math.cos(pitch), 0, -math.sin(pitch)))
+    left = np.array((0, -1.0, 0))
+    up = np.array((-math.sin(pitch), 0, math.cos(pitch)))
+    d = np.array(p, float) - c
+    return np.array((d @ f, d @ left, d @ up))
+
+
+def atm_dir(v):
+    pitch = math.radians(ATM_CAM["pitch"])
+    f = np.array((-math.cos(pitch), 0, -math.sin(pitch)))
+    up = np.array((-math.sin(pitch), 0, math.cos(pitch)))
+    v = np.array(v, float)
+    return np.array((v @ f, -v[1], v @ up))
+
+
+SLOT = atm_to_cam((9.8, 7.6, 34.0))               # щель картоприёмника
+INSERT = atm_dir((-1, 0, 0))                       # направление «внутрь»
+CARD_N = atm_dir((0, 0, 1))                        # нормаль карты (лежит плашмя)
+KEYPAD = atm_to_cam((12.0, -1.2, 31.6))
+KEY_N = atm_dir((math.sin(math.radians(18)), 0, math.cos(math.radians(18))))
+KEY_U = atm_dir((0, 1, 0))                         # вправо по клавиатуре
+KEY_V = np.cross(KEY_N, KEY_U)                      # к экрану (от пользователя)
+VOLUMES["atm"] = []
+
+
+def _card_matrix(center):
+    m = _basis(INSERT, CARD_N)
+    m[:3, 3] = center
+    return m
+
+
+CARD_L = 3.37
+CARD_LOW = np.array((11.0, -9.0, -19.0))                 # карта в опущенной руке (вне кадра)
+CARD_OUT = SLOT - INSERT * (CARD_L / 2 + 0.25)           # перед щелью
+CARD_IN = SLOT + INSERT * (CARD_L / 2 - 0.9)             # вставлена (снаружи торчит край)
+
+
+def _card_grip():
+    # щипок за задний край: большой палец сверху, указательный снизу
+    e = os.environ
+    return Grip("card", (-CARD_L / 2 + float(e.get("CG_X", "0.3")), float(e.get("CG_Y", "-0.9")), 0.0),
+                tuple(float(v) for v in e.get("CG_P", "0,-1,0").split(",")), tuple(float(v) for v in e.get("CG_F", "1,0,0.1").split(",")),
+                reach=float(e.get("CG_R", "3.0")), lift=float(e.get("CG_L", "0.4")), curl=float(e.get("CG_C", "0.6")), thumb=float(e.get("CG_T", "0.7")))
+
+
+def atm_insert(f):
+    """0–12 рука с картой поднимается к щели, 12–22 вставляет, 22–34 отпускает и опускается."""
+    c = channel({0: tuple(CARD_LOW), 12: tuple(CARD_OUT), 22: tuple(CARD_IN)}, f)
+    parts = {"card": _card_matrix(np.array(c))}
+    held = _card_grip().world(parts)
+    away = blend_hand(held, rest_hand("R"), (f - 22) / 12)
+    return parts, {"R": held if f <= 22 else away, "L": rest_hand("L")}, {}
+
+
+def _point_hand(tip, press_dir):
+    """Указательный палец вытянут, кончик — в tip, палец смотрит вдоль press_dir (к клавише)."""
+    fdir = vmlib.norm(press_dir + np.array((0.0, 0.25, 0.0)))
+    palm = vmlib.norm(-KEY_N * 0.7 + np.array((0, 0, -0.3)))
+    Rh = vmlib.hand_basis(fdir, palm)
+    tip_local = np.array((7.2, -0.6, -1.3))    # кончик вытянутого указательного в осях кисти
+    wrist = tip - Rh @ tip_local
+    curl = np.array((0.0, 0.0, 0.85, 0.9, 0.95))  # указательный прямой, остальные поджаты
+    return wrist, Rh, curl, 0.7
+
+
+KEYS = [(-1.6, 0.9), (0.0, 0.9), (-0.8, 0.0), (0.8, -0.9), (-1.6, -0.9), (0.0, 0.0), (1.4, -1.6)]
+
+
+def atm_type(f):
+    """Цикл 48 кадров: палец нажимает клавиши (6 нажатий по 8 кадров)."""
+    parts = {"card": _card_matrix(CARD_IN)}
+    i = int(f // 8) % len(KEYS)
+    t = (f % 8) / 8
+    du, dv = KEYS[i]
+    du2, dv2 = KEYS[(i + 1) % len(KEYS)]
+    # нажатие: 0–0.35 вниз, 0.35–0.55 вверх, 0.55–1 переход к следующей клавише
+    depth = 1.3 - 1.2 * (smooth(t / 0.35) if t < 0.35 else 1 - smooth((t - 0.35) / 0.2) if t < 0.55 else 0)
+    k = smooth((t - 0.55) / 0.45) if t > 0.55 else 0
+    u, v = du + (du2 - du) * k, dv + (dv2 - dv) * k
+    tip = KEYPAD + KEY_U * u + KEY_V * v + KEY_N * (0.15 + depth)
+    press = -KEY_N * 0.85 + KEY_V * 0.5
+    return parts, {"R": _point_hand(tip, press), "L": rest_hand("L")}, {}
+
+
+def atm_menu(f):
+    """Руки опущены, карта в банкомате."""
+    return {"card": _card_matrix(CARD_IN)}, {"R": rest_hand("R"), "L": rest_hand("L")}, {}
+
+
+def atm_reach(f):
+    """Переход от опущенной руки к клавиатуре (12 кадров)."""
+    parts, hands, extra = atm_type(0)
+    hands["R"] = blend_hand(rest_hand("R"), hands["R"], f / 12)
+    return parts, hands, extra
+
+
+# последовательности вьюмодели банкомата: (имя, функция, кадров, цикл, обратно)
+ATM_SEQS = [
+    ("insert", atm_insert, 34, False, False),
+    ("reach", atm_reach, 12, False, False),
+    ("type", atm_type, 48, True, False),
+    ("menu", atm_menu, 2, True, False),
+    ("take", atm_insert, 34, False, True),
+]

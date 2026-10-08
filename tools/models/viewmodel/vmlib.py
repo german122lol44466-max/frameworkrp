@@ -260,7 +260,10 @@ class Rig:
         for f in range(5):
             for k, suffix in enumerate(("", "1", "2")):
                 c = thumb if f == 0 else curl
-                amount = float(c[k]) if np.ndim(c) else c  # можно задать сгиб по фалангам (c0, c1, c2)
+                # curl: число; (c0, c1, c2) — по фалангам; 5 значений — по пальцам (0 — большой, не используется)
+                if np.ndim(c) and len(c) == 5:
+                    c = c[f] if f else thumb
+                amount = float(c[k]) if np.ndim(c) else c
                 i = self.idx.get(f"ValveBiped.Bip01_{s}_Finger{f}{suffix}")
                 if i is None:
                     continue

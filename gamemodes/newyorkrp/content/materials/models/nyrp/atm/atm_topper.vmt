@@ -1,0 +1,5 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models/nyrp/atm/atm_topper"
+	"$selfillum" "1"
+}

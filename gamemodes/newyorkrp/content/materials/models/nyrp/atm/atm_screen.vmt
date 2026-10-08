@@ -1,0 +1,9 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models/nyrp/atm/atm_screen"
+	"$phong" "1"
+	"$phongexponent" "24"
+	"$phongboost" "2"
+	"$phongfresnelranges" "[0.3 0.6 1]"
+	"$selfillum" "1"
+}
