@@ -64,15 +64,23 @@ function Cam.EyePos(ply)
 end
 
 local function bodyView(ply, origin, angles, fov)
-	local eye = Cam.EyePos(ply)
-	local offset = eye - ply:GetPos()
-	smoothOffset = smoothOffset and LerpVector(1 - math.exp(-28 * FrameTime()), smoothOffset, offset) or offset
-	-- не уводим камеру слишком далеко от «настоящих» глаз (кувырки анимаций)
-	if smoothOffset:DistToSqr(ply:EyePos() - ply:GetPos()) > 24 * 24 then smoothOffset = ply:EyePos() - ply:GetPos() end
-	local pos = ply:GetPos() + smoothOffset + angles:Forward() * 2.5
+	-- Основа — точка обзора движка (присед, прыжок, лестницы — без задержек).
+	-- Сверху — покачивание головы из анимации: ограничено, сглажено и гаснет,
+	-- когда смотрим сильно вниз/вверх (там анимация прицеливания дёргает голову).
+	local base = ply:EyePos()
+	local off = Cam.EyePos(ply) - base
+	local len = off:Length()
+	if len > 7 then off = off * (7 / len) end
+	local calm = 1 - math.Clamp((math.abs(angles.p) - 30) / 35, 0, 1)
+	off = off * calm
+	smoothOffset = smoothOffset and LerpVector(1 - math.exp(-14 * FrameTime()), smoothOffset, off) or off
+
+	-- камеру чуть вперёд по горизонтали, сильнее при взгляде вниз — чтобы не видеть грудь изнутри
+	local flat = Angle(0, angles.y, 0):Forward()
+	local pos = base + smoothOffset + flat * (2 + math.max(angles.p, 0) / 89 * 5)
 
 	-- не заглядываем сквозь стены
-	local tr = util.TraceHull({ start = ply:EyePos(), endpos = pos, mins = Vector(-2, -2, -2), maxs = Vector(2, 2, 2), filter = ply, mask = MASK_SOLID })
+	local tr = util.TraceHull({ start = base, endpos = pos, mins = Vector(-2, -2, -2), maxs = Vector(2, 2, 2), filter = ply, mask = MASK_SOLID })
 	pos = tr.HitPos
 
 	-- приземление

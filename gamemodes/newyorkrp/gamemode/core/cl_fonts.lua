@@ -40,3 +40,15 @@ hook.Add("OnScreenSizeChanged", "nyrp.fonts", function()
 		create(name, def[1], def[2])
 	end
 end)
+
+-- Шрифт фиксированного размера в пикселях (для 3D2D-текста в мире — не зависит от разрешения).
+local raw = {}
+function NYRP.FontRaw(style, size)
+	local name = "nyrp.raw." .. style .. "." .. size
+	if not raw[name] then
+		local fam = families[style] or families.regular
+		surface.CreateFont(name, { font = fam[1], weight = fam[2], size = size, extended = true, antialias = true })
+		raw[name] = true
+	end
+	return name
+end

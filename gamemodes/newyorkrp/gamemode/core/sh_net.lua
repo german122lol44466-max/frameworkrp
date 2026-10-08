@@ -20,6 +20,7 @@ NYRP.NetMessages = {
 	"nyrp.death.respawn",
 	-- знакомства
 	"nyrp.recog.sync", "nyrp.recog.introduce",
+	"nyrp.interact.use",
 }
 
 if SERVER then

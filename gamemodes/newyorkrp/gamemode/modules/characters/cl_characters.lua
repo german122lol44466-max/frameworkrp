@@ -272,6 +272,8 @@ end
 Chars.Scene = Chars.Scene or {}
 
 function Chars.ClearScene()
+	if IsValid(Chars.Card) then Chars.Card:Remove() end
+	Chars.Selected, Chars.Hovered = nil, nil
 	for _, s in ipairs(Chars.Scene) do
 		if IsValid(s.ent) then s.ent:Remove() end
 		if IsValid(s.panel) then s.panel:Remove() end
@@ -315,14 +317,13 @@ function Chars.BuildScene()
 			s.ent = spawnModel(NYRP.Config.Models.male[1], pos, ang, true)
 		end
 		Chars.Scene[#Chars.Scene + 1] = s
-		if c and IsValid(Chars.SelectPanel) then s.panel = Chars.MakeCharCard(s) end
 	end
 end
 
 -- Карточка над персонажем.
 function Chars.MakeCharCard(s)
 	local card = vgui.Create("DPanel", Chars.SelectPanel)
-	card:SetSize(UI.S(290), UI.S(168))
+	card:SetSize(UI.S(330), UI.S(176))
 	card.Born = RealTime()
 	card.Paint = function(p, w, h)
 		local t = UI.Ease((RealTime() - p.Born) / 0.4)
@@ -338,20 +339,25 @@ function Chars.MakeCharCard(s)
 			if i == 3 and #lines > 3 then l = l .. "…" end
 			draw.SimpleText(l, NYRP.Font("regular", 14), UI.S(16), UI.S(50) + (i - 1) * UI.S(18), UI.Col.dim)
 		end
-		-- стрелка к персонажу
-		draw.NoTexture()
-		surface.SetDrawColor(10, 12, 20, 215)
-		surface.DrawPoly({ { x = w / 2 - UI.S(8), y = h }, { x = w / 2 + UI.S(8), y = h }, { x = w / 2, y = h + UI.S(8) } })
+		if Chars.Selected ~= s then
+			draw.SimpleText("Нажмите на персонажа, чтобы выбрать", NYRP.Font("regular", 12), w - UI.S(14), UI.S(29), UI.Col.faint, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+		end
 	end
+	-- карточка — панель интерфейса сбоку от персонажа на экране
 	card.Think = function(p)
 		if not IsValid(s.ent) then return end
-		local head = s.ent:GetPos() + Vector(0, 0, 84 * s.ent:GetModelScale())
-		local sc = head:ToScreen()
-		p:SetPos(sc.x - p:GetWide() / 2, sc.y - p:GetTall() - UI.S(18))
+		local sc = (s.ent:GetPos() + Vector(0, 0, 48 * s.ent:GetModelScale())):ToScreen()
+		local x = sc.x + UI.S(110)
+		if x + p:GetWide() > ScrW() - UI.S(20) then x = sc.x - UI.S(110) - p:GetWide() end
+		local tx = math.Clamp(x, UI.S(20), ScrW() - p:GetWide() - UI.S(20))
+		local ty = math.Clamp(sc.y - p:GetTall() / 2, UI.S(120), ScrH() - p:GetTall() - UI.S(120))
+		local cx, cy = p:GetPos()
+		if not p.Placed then cx, cy = tx, ty p.Placed = true end
+		p:SetPos(UI.Approach(cx, tx, 18), UI.Approach(cy, ty, 18))
 	end
 	local take = vgui.Create("NYRP.Button", card)
 	take:SetPos(UI.S(16), card:GetTall() - UI.S(54))
-	take:SetSize(UI.S(160), UI.S(40))
+	take:SetSize(UI.S(200), UI.S(40))
 	take:SetLabel("ВЗЯТЬ")
 	take:SetIcon("play")
 	take:SetStyle("solid")
@@ -367,7 +373,7 @@ function Chars.MakeCharCard(s)
 		end)
 	end
 	local del = vgui.Create("NYRP.Button", card)
-	del:SetPos(UI.S(186), card:GetTall() - UI.S(54))
+	del:SetPos(UI.S(226), card:GetTall() - UI.S(54))
 	del:SetSize(UI.S(88), UI.S(40))
 	del:SetLabel("")
 	del:SetIcon("trash")
@@ -419,13 +425,14 @@ function Chars.OpenSelect()
 			end
 		end
 		pnl.Think = function()
+			pnl.UpdateCard()
 			Chars.Hovered = nil
 			if vgui.GetHoveredPanel() ~= pnl then return end
 			local pos, ang = Chars.ViewPos()
 			local dir = Chars.ScreenRay(ang, 70, gui.MouseX(), gui.MouseY())
 			local best, bestD
 			for _, s in ipairs(Chars.Scene) do
-				if IsValid(s.ent) and not s.char then
+				if IsValid(s.ent) then
 					local mn, mx = s.ent:GetModelBounds()
 					local hit = util.IntersectRayWithOBB(pos, dir * 4000, s.ent:GetPos(), s.ent:GetAngles(), mn, mx)
 					if hit and (not bestD or hit:DistToSqr(pos) < bestD) then best, bestD = s, hit:DistToSqr(pos) end
@@ -436,10 +443,29 @@ function Chars.OpenSelect()
 			Chars.Hovered = best
 			pnl:SetCursor(best and "hand" or "arrow")
 		end
+		pnl.UpdateCard = function()
+			local card = Chars.Card
+			local target = Chars.Hovered and Chars.Hovered.char and Chars.Hovered or nil
+			if IsValid(card) and (card:IsHovered() or card:IsChildHovered()) then target = card.Spot end
+			target = target or Chars.Selected
+			if target == (IsValid(card) and card.Spot or nil) then return end
+			if IsValid(card) then card:Remove() end
+			if target then
+				Chars.Card = Chars.MakeCharCard(target)
+				Chars.Card.Spot = target
+			end
+		end
 		pnl.OnMousePressed = function(_, code)
-			if code == MOUSE_LEFT and Chars.Hovered then
+			if code ~= MOUSE_LEFT then return end
+			local h = Chars.Hovered
+			if h and h.char then
+				Chars.Selected = h
+				UI.Sound("click")
+			elseif h then
 				UI.Sound("expand")
-				Chars.OpenCreate(Chars.Hovered)
+				Chars.OpenCreate(h)
+			else
+				Chars.Selected = nil
 			end
 		end
 
@@ -457,10 +483,10 @@ function Chars.OpenSelect()
 end
 
 hook.Add("PreDrawHalos", "nyrp.chars", function()
-	local s = Chars.Hovered
-	if NYRP.State == "select" and s and IsValid(s.ent) then
-		halo.Add({ s.ent }, Color(255, 255, 255), 2, 2, 2, true, false)
-	end
+	if NYRP.State ~= "select" then return end
+	local h, sel = Chars.Hovered, Chars.Selected
+	if sel and IsValid(sel.ent) then halo.Add({ sel.ent }, UI.Col.accent, 2, 2, 2, true, false) end
+	if h and h ~= sel and IsValid(h.ent) then halo.Add({ h.ent }, Color(255, 255, 255), 2, 2, 2, true, false) end
 end)
 
 -- Анимация моделей сцены.

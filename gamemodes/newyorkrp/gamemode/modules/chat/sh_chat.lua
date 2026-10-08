@@ -5,7 +5,7 @@
 NYRP.Chat = NYRP.Chat or {}
 local Chat = NYRP.Chat
 
-Chat.Types = { IC = 1, WHISPER = 2, YELL = 3, OOC = 4, LOOC = 5, ME = 6, SYSTEM = 7 }
+Chat.Types = { IC = 1, WHISPER = 2, YELL = 3, OOC = 4, LOOC = 5, ME = 6, SYSTEM = 7, IT = 8 }
 
 local prefixes = {
 	{ "//", Chat.Types.OOC }, { "/ooc ", Chat.Types.OOC }, { "/оос ", Chat.Types.OOC },
@@ -13,6 +13,7 @@ local prefixes = {
 	{ "/w ", Chat.Types.WHISPER }, { "/ш ", Chat.Types.WHISPER },
 	{ "/y ", Chat.Types.YELL }, { "/к ", Chat.Types.YELL },
 	{ "/me ", Chat.Types.ME }, { "/я ", Chat.Types.ME },
+	{ "/it ", Chat.Types.IT }, { "/IT ", Chat.Types.IT },
 	{ "/W ", Chat.Types.WHISPER }, { "/Ш ", Chat.Types.WHISPER }, { "/Y ", Chat.Types.YELL }, { "/К ", Chat.Types.YELL },
 	{ "/OOC ", Chat.Types.OOC }, { "/LOOC ", Chat.Types.LOOC }, { "/ME ", Chat.Types.ME },
 }

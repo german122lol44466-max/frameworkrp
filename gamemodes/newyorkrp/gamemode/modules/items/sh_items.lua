@@ -146,7 +146,7 @@ weapon("baton", "melee", "weapon_stunstick", "Дубинка", "Полицейс
 -- --------------------------------------------------------------- документы --
 Items.Register("idcard", {
 	name = "Удостоверение личности", desc = "Пластиковая карточка штата Нью-Йорк с фотографией и данными владельца.",
-	model = "models/nyrp/clothes/idcard.mdl", category = "document", stack = 1, noDrop = true,
+	model = "models/nyrp/clothes/idcard.mdl", category = "document", stack = 1,
 	buffs = { { "Подтверждает личность", true } }, useText = "Посмотреть",
 	icon = { ang = Angle(70, 180, 0), zoom = 0.9 },
 })

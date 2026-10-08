@@ -73,6 +73,31 @@ function NYRP.ItemIconMat(id)
 	return c.mat
 end
 
+-- Иконка по пути модели (оружие и т.п.). key — уникальное имя кэша.
+function NYRP.ModelIconMat(path, ang, zoom)
+	if not path or path == "" then return end
+	local key = "mdl_" .. util.CRC(path)
+	local c = cache[key]
+	if c and c.ready then return c.mat end
+	if not c then
+		local rt = GetRenderTargetEx("nyrp_icon_" .. key, 256, 256, RT_SIZE_LITERAL, MATERIAL_RT_DEPTH_SEPARATE,
+			bit.bor(4, 8, 256), 0, IMAGE_FORMAT_RGBA8888)
+		local mat = CreateMaterial("nyrp_iconmat_" .. key, "UnlitGeneric", {
+			["$basetexture"] = rt:GetName(), ["$translucent"] = 1, ["$vertexcolor"] = 1, ["$vertexalpha"] = 1,
+		})
+		c = { rt = rt, mat = mat }
+		cache[key] = c
+	end
+	render.PushRenderTarget(c.rt)
+	render.OverrideAlphaWriteEnable(true, true)
+	render.ClearDepth()
+	render.Clear(0, 0, 0, 0)
+	c.ready = render3D({ model = path, icon = { ang = ang or Angle(8, 90, 0), zoom = zoom or 1.05 } }, 256)
+	render.OverrideAlphaWriteEnable(false)
+	render.PopRenderTarget()
+	return c.mat
+end
+
 -- Нарисовать иконку предмета в прямоугольнике.
 function NYRP.DrawItemIcon(id, x, y, w, h, alpha)
 	local mat = NYRP.ItemIconMat(id)

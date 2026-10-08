@@ -23,8 +23,14 @@ local function rowToChar(r)
 	}
 end
 
+-- Ключ владельца: SteamID64, у ботов — отдельный ключ по нику (их персонажи не смешиваются с игроками).
+function Chars.Key(ply)
+	if ply:IsBot() then return "BOT:" .. ply:Nick() end
+	return ply:SteamID64() or ply:SteamID()
+end
+
 function Chars.List(ply)
-	local rows = Q("SELECT * FROM nyrp_characters WHERE steamid = " .. E(ply:SteamID64()) .. " ORDER BY id ASC") or {}
+	local rows = Q("SELECT * FROM nyrp_characters WHERE steamid = " .. E(Chars.Key(ply)) .. " ORDER BY id ASC") or {}
 	local out = {}
 	for _, r in ipairs(rows) do out[#out + 1] = rowToChar(r) end
 	return out
@@ -55,7 +61,7 @@ end
 function Chars.Insert(ply, d)
 	Q(string.format([[INSERT INTO nyrp_characters (steamid, name, description, gender, model, height, skills, bag, inventory, equipment, created, flags)
 		VALUES (%s, %s, %s, %s, %s, %d, %s, %s, '[]', '{}', %d, '{}')]],
-		E(ply:SteamID64()), E(d.name), E(d.description), E(d.gender), E(d.model), d.height, E(util.TableToJSON(d.skills)), E(d.bag), os.time()))
+		E(Chars.Key(ply)), E(d.name), E(d.description), E(d.gender), E(d.model), d.height, E(util.TableToJSON(d.skills)), E(d.bag), os.time()))
 	return tonumber(sql.QueryValue("SELECT last_insert_rowid()"))
 end
 
@@ -75,7 +81,7 @@ local function savePlaytime(ply)
 	if not ply.nyrpJoined then return end
 	local total = (ply.nyrpPlaytime or 0) + math.floor(CurTime() - ply.nyrpJoined)
 	Q(string.format("REPLACE INTO nyrp_players (steamid, playtime, last_char) VALUES (%s, %d, %d)",
-		E(ply:SteamID64()), total, ply.nyrpChar and ply.nyrpChar.id or (ply.nyrpLastChar or 0)))
+		E(Chars.Key(ply)), total, ply.nyrpChar and ply.nyrpChar.id or (ply.nyrpLastChar or 0)))
 end
 
 -- Удостоверение личности выдаётся один раз — при первом входе персонажа.
@@ -94,7 +100,7 @@ local function issueID(ply, c)
 end
 
 function Chars.Load(ply, id)
-	local r = Q("SELECT * FROM nyrp_characters WHERE id = " .. tonumber(id) .. " AND steamid = " .. E(ply:SteamID64()))
+	local r = Q("SELECT * FROM nyrp_characters WHERE id = " .. tonumber(id) .. " AND steamid = " .. E(Chars.Key(ply)))
 	if not r or not r[1] then return false end
 	if ply.nyrpChar then Chars.Save(ply) end
 
@@ -199,7 +205,7 @@ net.Receive("nyrp.char.delete", function(_, ply)
 		NYRP.Notify(ply, "Нельзя удалить персонажа, за которого вы играете", "error")
 		return
 	end
-	Q("DELETE FROM nyrp_characters WHERE id = " .. id .. " AND steamid = " .. E(ply:SteamID64()))
+	Q("DELETE FROM nyrp_characters WHERE id = " .. id .. " AND steamid = " .. E(Chars.Key(ply)))
 	Chars.SendList(ply)
 	NYRP.Notify(ply, "Персонаж удалён", "success")
 end)
@@ -216,12 +222,21 @@ end)
 
 -- ---------------------------------------------------------------- хуки --
 hook.Add("PlayerInitialSpawn", "nyrp.chars", function(ply)
-	local row = Q("SELECT * FROM nyrp_players WHERE steamid = " .. E(ply:SteamID64()))
+	local row = Q("SELECT * FROM nyrp_players WHERE steamid = " .. E(Chars.Key(ply)))
 	ply.nyrpPlaytime = row and row[1] and tonumber(row[1].playtime) or 0
 	ply.nyrpLastChar = row and row[1] and tonumber(row[1].last_char) or 0
 	ply.nyrpJoined = CurTime()
 	ply:SetNW2Int("nyrp.playtime", ply.nyrpPlaytime)
 	ply:SetNW2Float("nyrp.joined", CurTime())
+
+	-- Бот заходит «впервые»: сразу новый случайный персонаж.
+	if ply:IsBot() then
+		timer.Simple(0.5, function()
+			if not IsValid(ply) then return end
+			Q("DELETE FROM nyrp_characters WHERE steamid = " .. E(Chars.Key(ply)))
+			Chars.Load(ply, Chars.Insert(ply, Chars.RandomData()))
+		end)
+	end
 end)
 
 function GM:PlayerSpawn(ply, transition)
@@ -280,6 +295,10 @@ function GM:PlayerLoadout(ply)
 end
 
 hook.Add("PlayerDisconnected", "nyrp.chars", function(ply)
+	if ply:IsBot() then
+		Q("DELETE FROM nyrp_characters WHERE steamid = " .. E(Chars.Key(ply)))
+		return
+	end
 	Chars.Save(ply)
 	savePlaytime(ply)
 end)

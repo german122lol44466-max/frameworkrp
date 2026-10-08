@@ -48,29 +48,49 @@ local function anchor(ent)
 	return c + Vector(0, 0, math.min(ent:OBBMaxs().z - ent:OBBCenter().z, 30) + 4)
 end
 
+I.Anchor = anchor
+
+-- Цель — то, на что смотрит луч, или ближайшая к центру экрана иконка в небольшом конусе.
+local CONE = math.cos(math.rad(11))
+
 hook.Add("Think", "nyrp.interact", function()
 	local ply = LocalPlayer()
 	if not IsValid(ply) then return end
 	I.Target = nil
 	if NYRP.State ~= "playing" or not ply:Alive() then return end
 
-	local tr = util.TraceLine({ start = ply:EyePos(), endpos = ply:EyePos() + ply:GetAimVector() * NYRP.Config.Ranges.Interact, filter = ply })
-	if I.IsInteractable(tr.Entity) then I.Target = tr.Entity end
+	local eye, aim = ply:EyePos(), ply:GetAimVector()
+	local range = NYRP.Config.Ranges.Interact
+	local tr = util.TraceLine({ start = eye, endpos = eye + aim * range, filter = ply })
 
 	if RealTime() > scanAt then
-		scanAt = RealTime() + 0.2
-		local eye = ply:EyePos()
+		scanAt = RealTime() + 0.15
 		for _, ent in ipairs(ents.FindInSphere(eye, NYRP.Config.Ranges.Hint)) do
 			if I.IsInteractable(ent) then
 				local st = states[ent] or { a = 0, t = 0 }
 				states[ent] = st
 				local pos = anchor(ent)
 				local vis = util.TraceLine({ start = eye, endpos = pos, filter = { ply, ent }, mask = MASK_VISIBLE }).Fraction > 0.97
-				st.visible = vis and (pos - eye):GetNormalized():Dot(ply:GetAimVector()) > 0.3
+				st.visible = vis and (pos - eye):GetNormalized():Dot(aim) > 0.3
 				st.seen = RealTime()
 			end
 		end
 	end
+
+	local best, bestDot
+	if I.IsInteractable(tr.Entity) then best, bestDot = tr.Entity, 2 end
+	for ent, st in pairs(states) do
+		if IsValid(ent) and st.visible and ent ~= best then
+			local pos = anchor(ent)
+			local to = pos - eye
+			local dist = to:Length()
+			local dot = to:GetNormalized():Dot(aim)
+			if dist <= range + 25 and dot > CONE and (not bestDot or dot > bestDot) then best, bestDot = ent, dot end
+		end
+	end
+	I.Target = best
+	I.TraceHit = best ~= nil and tr.Entity == best
+
 	for ent, st in pairs(states) do
 		if not IsValid(ent) then states[ent] = nil
 		else
@@ -79,6 +99,24 @@ hook.Add("Think", "nyrp.interact", function()
 			st.t = UI.Approach(st.t, ent == I.Target and 1 or 0, 12)
 			if st.a < 0.01 and not inRange then states[ent] = nil end
 		end
+	end
+end)
+
+-- Экранная точка цели — к ней «тянется» прицел.
+function I.TargetScreenPos()
+	if not IsValid(I.Target) then return end
+	local sc = anchor(I.Target):ToScreen()
+	if sc.visible then return sc.x, sc.y end
+end
+
+-- E по цели, даже если луч прошёл чуть мимо: просим сервер нажать за нас.
+hook.Add("PlayerBindPress", "nyrp.interact", function(ply, bind, pressed)
+	if not pressed or not string.find(bind, "+use", 1, true) then return end
+	if IsValid(I.Target) and not I.TraceHit then
+		net.Start("nyrp.interact.use")
+		net.WriteEntity(I.Target)
+		net.SendToServer()
+		return true
 	end
 end)
 
