@@ -23,6 +23,10 @@ NYRP.NetMessages = {
 	"nyrp.interact.use",
 	-- жесты
 	"nyrp.gesture.play",
+	-- взаимодействие с игроком, деньги
+	"nyrp.player.act", "nyrp.money.give",
+	-- контейнеры
+	"nyrp.cont.progress", "nyrp.cont.open", "nyrp.cont.sync", "nyrp.cont.close",
 }
 
 if SERVER then

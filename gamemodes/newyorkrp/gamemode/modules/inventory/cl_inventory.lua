@@ -27,6 +27,7 @@ end
 
 local function itemAt(kind, key)
 	if kind == "eq" then return Inv.Data.equip[key] end
+	if kind == "cont" then return Inv.Container and Inv.Container.slots[tonumber(key) or -1] end
 	return Inv.Data.slots[tonumber(key) or -1]
 end
 
@@ -81,6 +82,17 @@ function Inv.ContextMenu(kind, key)
 				func = function() Inv.Equip(tonumber(key)) end }
 		end
 	end
+	-- контейнер открыт: перенос одним кликом
+	if kind == "cont" then
+		UI.Menu({
+			{ text = "Забрать в сумку", icon = "arrow_left", func = function() Inv.Move("cont", key, "inv", "") end },
+			{ text = "Осмотреть", icon = "eye", func = function() Inv.ShowDetail(kind, key) end },
+		})
+		return
+	end
+	if kind == "inv" and Inv.Container then
+		opts[#opts + 1] = { text = "Положить в контейнер", icon = "box", func = function() Inv.Move("inv", key, "cont", "") end }
+	end
 	opts[#opts + 1] = { text = "Осмотреть", icon = "eye", func = function() Inv.ShowDetail(kind, key) end }
 	if not def.noDrop then
 		opts[#opts + 1] = { divider = true }
@@ -118,7 +130,7 @@ end
 -- Наведение на предмет — сразу осмотр (панель слева), без клика.
 function SLOTP:Think()
 	if not self:IsHovered() or Inv.Drag or not self.HoverSince or RealTime() - self.HoverSince < 0.2 then return end
-	if not self:GetItem() or self.Kind == "cont" then return end
+	if not self:GetItem() then return end
 	local ref = Inv.DetailRef
 	if ref and ref.kind == self.Kind and tostring(ref.key) == tostring(self.Key) then return end
 	Inv.DetailRef = { kind = self.Kind, key = self.Key }
@@ -137,6 +149,8 @@ end
 
 function SLOTP:Accepts(dragKind, dragKey, item)
 	if self.Kind == "invlist" then return dragKind == "eq" end
+	if self.Kind == "cont" then return dragKind == "inv" or dragKind == "cont" end
+	if self.Kind == "inv" and dragKind == "cont" then return true end
 	if self.Kind == "eq" then
 		return dragKind == "inv" and Items.EquipTarget(Items.Get(item.id)) == self.Key
 	end
@@ -243,7 +257,7 @@ local function dragThink()
 		elseif Inv.DropZone and overPanel(Inv.DropZone) and drag.kind == "eq" then
 			Inv.Move("eq", drag.key, "inv", "")
 			UI.Sound("drop")
-		elseif not overPanel(Inv.Frame) and not overPanel(Inv.Detail) and not overPanel(Inv.Settings) then
+		elseif not overPanel(Inv.Frame) and not overPanel(Inv.Detail) and not overPanel(Inv.Settings) and not overPanel(Inv.ContFrame) and drag.kind ~= "cont" then
 			local def = Items.Get(drag.item.id)
 			if def and not def.noDrop then
 				Inv.Drop(drag.kind, drag.key, false)
@@ -617,6 +631,7 @@ function Inv.BuildFrame()
 	local top = UI.S(100)
 	local combined = GetConVar("nyrp_inv_combined"):GetBool()
 	local page = combined and "combined" or Inv.Page
+	if Inv.Container then page = "bag" end -- рядом с контейнером — только сумка
 
 	local frame = vgui.Create("DPanel", root)
 	Inv.Frame = frame
@@ -633,6 +648,11 @@ function Inv.BuildFrame()
 	end
 	frame:SetSize(w, h)
 	frame.HomeX = ScrW() / 2 - w / 2
+	if Inv.Container and Inv.ContainerWidth then
+		-- сумка слева, контейнер справа
+		local cw = Inv.ContainerWidth()
+		frame.HomeX = ScrW() / 2 - (w + cw + UI.S(24)) / 2
+	end
 	frame:SetPos(frame.HomeX, ScrH() / 2 - h / 2)
 	frame.Paint = function(s, pw, ph)
 		local t = UI.Ease((RealTime() - s.Born) / 0.3)
@@ -645,6 +665,10 @@ function Inv.BuildFrame()
 			draw.SimpleText("Перетащите предмет за пределы сумки, чтобы выбросить · ПКМ — действия", NYRP.Font("regular", 13),
 				pad, ph - UI.S(26), Color(255, 255, 255, 60), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 		end
+		-- наличные
+		if NYRP.Money then
+			draw.SimpleText(NYRP.Money.Format(NYRP.Money.Get(LocalPlayer())), NYRP.Font("bold", 16), pw - pad, ph - UI.S(26), UI.Col.accent, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+		end
 	end
 	frame.Think = function(s)
 		local x, y = s:GetPos()
@@ -656,7 +680,7 @@ function Inv.BuildFrame()
 	if page == "bag" or page == "combined" then
 		statBars(frame, pad, top, gridH)
 		bagGrid(frame, pad + UI.S(76), top)
-		if page == "bag" then
+		if page == "bag" and not Inv.Container then
 			-- стрелка «к снаряжению» у правого верхнего угла сетки
 			local arrow = vgui.Create("NYRP.IconButton", frame)
 			arrow:SetIcon("arrow_right")
@@ -707,6 +731,7 @@ function Inv.BuildFrame()
 		end
 	end
 	if Inv.DetailRef then Inv.BuildDetail(true) end
+	if Inv.Container and Inv.BuildContainer then Inv.BuildContainer() end
 end
 
 function Inv.ToggleSettings()
@@ -771,7 +796,7 @@ function Inv.Open()
 	end
 	root.Think = dragThink
 	root.OnKeyCodePressed = function(_, key)
-		if key == KEY_Q or key == KEY_TAB or key == KEY_I then Inv.Close() end
+		if key == KEY_Q or key == KEY_TAB or key == KEY_I or (key == KEY_E and Inv.Container) then Inv.Close() end
 	end
 	Inv.SettingsOpen = false
 	Inv.BuildFrame()
@@ -787,6 +812,10 @@ function Inv.Close()
 	end
 	if IsValid(UI.ActiveMenu) then UI.ActiveMenu:Remove() end
 	if NYRP.Bags.FPClose then NYRP.Bags.FPClose() end
+	if Inv.Container then
+		Inv.Container = nil
+		net.Start("nyrp.cont.close") net.SendToServer()
+	end
 	Inv.Press, Inv.Drag, Inv.DropZone = nil, nil, nil
 	Inv.Opening = false
 end

@@ -12,13 +12,22 @@ local doorClasses = { prop_door_rotating = true, func_door = true, func_door_rot
 local states = {}
 local scanAt = 0
 
+-- Другие игроки: значок «E» на груди, по E — круговое меню (cl_player.lua).
+local function playerTarget(ent)
+	return ent:IsPlayer() and ent ~= LocalPlayer() and ent:Alive() and not ent:GetNoDraw() and NYRP.HasCharacter(ent)
+		and not (NYRP.Cond and NYRP.Cond.KO(ent))
+end
+I.IsPlayerTarget = playerTarget
+
 function I.IsInteractable(ent)
-	if not IsValid(ent) or ent:IsPlayer() then return false end
+	if not IsValid(ent) then return false end
+	if ent:IsPlayer() then return playerTarget(ent) end
 	if doorClasses[ent:GetClass()] then return true end
 	return ent.NYRPInteract == true
 end
 
 local function info(ent)
+	if ent:IsPlayer() then return "E", "Взаимодействовать" end
 	if doorClasses[ent:GetClass()] then return "door", "Открыть дверь" end
 	local text = ent.GetInteractText and ent:GetInteractText() or ("Взаимодействовать с: " .. (ent.PrintName or ent:GetClass()))
 	return ent.NYRPIcon or "interact", text
@@ -27,6 +36,11 @@ end
 -- Точка иконки: у двери — ручка, у остальных — центр чуть выше.
 local function anchor(ent)
 	local ply = LocalPlayer()
+	if ent:IsPlayer() then
+		local b = ent:LookupBone("ValveBiped.Bip01_Spine2")
+		local p = b and ent:GetBonePosition(b)
+		return (p or ent:WorldSpaceCenter()) + ent:GetForward() * 6
+	end
 	if ent:GetClass() == "prop_door_rotating" then
 		local mn, mx = ent:OBBMins(), ent:OBBMaxs()
 		local ext = mx - mn
@@ -112,6 +126,10 @@ end
 -- E по цели, даже если луч прошёл чуть мимо: просим сервер нажать за нас.
 hook.Add("PlayerBindPress", "nyrp.interact", function(ply, bind, pressed)
 	if not pressed or not string.find(bind, "+use", 1, true) then return end
+	if IsValid(I.Target) and I.Target:IsPlayer() then
+		if I.OpenPlayerMenu then I.OpenPlayerMenu(I.Target) end
+		return true
+	end
 	if IsValid(I.Target) and not I.TraceHit then
 		net.Start("nyrp.interact.use")
 		net.WriteEntity(I.Target)
@@ -143,7 +161,11 @@ hook.Add("HUDPaint", "nyrp.interact", function()
 				local a = st.a * (0.9 + st.t * 0.1) -- иконки почти непрозрачные — их хорошо видно
 				UI.Circle(sc.x, sc.y + UI.S(2), r + UI.S(3), Color(0, 0, 0, 70 * a))
 				UI.Circle(sc.x, sc.y, r, Color(255, 255, 255, 245 * a))
-				UI.DrawIcon(icon, sc.x, sc.y, r * 1.15, Color(12, 14, 20, 255 * a))
+				if icon == "E" then
+					draw.SimpleText("E", NYRP.Font("bold", r > UI.S(15) and 22 or 15), sc.x, sc.y, Color(12, 14, 20, 255 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				else
+					UI.DrawIcon(icon, sc.x, sc.y, r * 1.15, Color(12, 14, 20, 255 * a))
+				end
 				if st.t > 0.02 then
 					local ta = st.t * st.a
 					local font = NYRP.Font("semibold", 17)

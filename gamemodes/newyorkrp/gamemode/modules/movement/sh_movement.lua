@@ -42,6 +42,8 @@ hook.Add("SetupMove", "nyrp.movement", function(ply, mv, cmd)
 		end
 		max = max * Cond.SpeedFactor(ply)
 		if Cond.KO(ply) then max = 0 end
+		-- тащит тело: медленно и без бега
+		if ply:GetNW2Bool("nyrp.dragging") then max = math.min(max, ply:GetWalkSpeed() * 0.6) end
 	end
 
 	-- бег спиной и боком

@@ -246,6 +246,10 @@ end
 net.Receive("nyrp.inv.move", function(_, ply)
 	if limited(ply) then return end
 	local fk, fkey, tk, tkey = net.ReadString(), net.ReadString(), net.ReadString(), net.ReadString()
+	if (fk == "cont" or tk == "cont") and NYRP.Containers and NYRP.Containers.Move then
+		NYRP.Containers.Move(ply, fk, fkey, tk, tkey)
+		return
+	end
 	local inv = Inv.Get(ply)
 	local size = Inv.Size(ply)
 	if fk == "inv" and tk == "inv" then
