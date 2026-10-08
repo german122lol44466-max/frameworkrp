@@ -44,6 +44,12 @@ function UI.BuildSettings(parent)
 		p.OnChange = function() if NYRP.Inventory and NYRP.Inventory.Rebuild then NYRP.Inventory.Rebuild() end end
 	end)
 
+	add("NYRP.Toggle", function(p)
+		p:SetLabel("Подсказка при перетаскивании")
+		p:SetDescription("Панель с названием предмета и линия к нему, пока держите его руками")
+		p:SetConVar("nyrp_drag_hint")
+	end)
+
 	section("Камера")
 	add("NYRP.Toggle", function(p) p:SetLabel("Третье лицо") p:SetConVar("nyrp_thirdperson") end)
 	return scroll

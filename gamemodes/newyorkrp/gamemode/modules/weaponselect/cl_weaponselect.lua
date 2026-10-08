@@ -93,67 +93,66 @@ hook.Add("PlayerBindPress", "nyrp.weaponselect", function(ply, bind, pressed)
 	if open and string.find(bind, "+attack", 1, true) then confirm() return true end
 end)
 
-local function card(x, y, w, h, wep, sel, a)
-	local r = UI.S(9)
-	UI.RoundedRect(r, x, y, w, h, sel and Color(20, 22, 30, 235) or Color(10, 12, 18, 190))
-	if sel then
-		UI.Outline(r, x, y, w, h, UI.Col.accent, 1)
-		UI.RoundedRect(UI.S(2), x + w * 0.3, y + h - UI.S(3), w * 0.4, UI.S(3), UI.Col.accent)
-	else
-		UI.Outline(r, x, y, w, h, Color(255, 255, 255, 14), 1)
-	end
-	local model = wep.WorldModel or (wep.GetWeaponWorldModel and wep:GetWeaponWorldModel())
-	local mat = model and model ~= "" and NYRP.ModelIconMat(model)
-	local iconH = h - UI.S(26)
-	if mat then
-		surface.SetMaterial(mat)
-		surface.SetDrawColor(255, 255, 255, (sel and 255 or 150) * a)
-		local s = math.min(w - UI.S(10), iconH)
-		surface.DrawTexturedRect(x + w / 2 - s / 2, y + UI.S(3) + (iconH - s) / 2, s, s)
-	else
-		UI.DrawIcon(wep:GetClass() == "nyrp_hands" and "hand" or "crosshair", x + w / 2, y + UI.S(3) + iconH / 2, iconH * 0.42,
-			Color(255, 255, 255, (sel and 220 or 110) * a))
-	end
-	local name = nameOf(wep)
-	surface.SetFont(NYRP.Font("semibold", 12))
-	while #name > 3 and surface.GetTextSize(name) > w - UI.S(10) do name = string.sub(name, 1, -2) end
-	draw.SimpleText(name, NYRP.Font("semibold", 12), x + w / 2, y + h - UI.S(13),
-		Color(236, 237, 242, (sel and 255 or 140) * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-	if sel then
-		local clip, ammo = wep:Clip1(), LocalPlayer():GetAmmoCount(wep:GetPrimaryAmmoType())
-		if clip >= 0 or wep:GetPrimaryAmmoType() >= 0 then
-			local ammoText = clip >= 0 and (clip .. "/" .. ammo) or tostring(ammo)
-			draw.SimpleText(ammoText, NYRP.Font("bold", 11), x + w - UI.S(7), y + UI.S(9), UI.Col.accent, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-		end
-	end
-	draw.SimpleText(wep:GetSlot() + 1, NYRP.Font("bold", 11), x + UI.S(8), y + UI.S(9), sel and UI.Col.accent or UI.Col.faint, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+-- Отрисовка как в Helix: названия по дуге справа от центра экрана, выбранное — жёлтым и крупнее,
+-- чем дальше от выбранного — тем мельче и прозрачнее; под списком — подсказка оружия (Instructions).
+local alpha, delta = 0, 1
+local infoA = 0
+local matScale = Vector(1, 1, 0)
+
+local function instructions(w)
+	local t = w.Instructions or ""
+	if w:GetClass() == "nyrp_hands" then t = "ПКМ — взять / отпустить предмет или тело\nЛКМ — бросить · R + мышь — повернуть" end
+	return string.Trim(t)
 end
 
-local alpha = 0
 hook.Add("HUDPaint", "nyrp.weaponselect", function()
-	if open and RealTime() - lastInput > 2.5 then open = false end
+	if open and RealTime() - lastInput > 3 then open = false end
 	if open then
 		for i = #list, 1, -1 do if not IsValid(list[i]) then refresh() break end end
 	end
-	alpha = UI.Approach(alpha, open and 1 or 0, open and 16 or 10)
+	local ft = FrameTime()
+	alpha = Lerp(ft * 10, alpha, open and 1 or 0)
 	if alpha < 0.01 or #list == 0 then return end
+	delta = Lerp(ft * 12, delta, index)
 
-	-- компактная лента: маленькие карточки, выбранная чуть шире
-	local w, h, gap = UI.S(84), UI.S(72), UI.S(6)
-	local wSel = UI.S(108)
-	local total = (#list - 1) * (w + gap) + wSel
-	local x0 = ScrW() / 2 - total / 2
-	local y = ScrH() - UI.S(176) + (1 - UI.Ease(alpha)) * UI.S(24) -- над полоской выносливости
-	surface.SetAlphaMultiplier(alpha)
-	UI.BlurRect(x0 - UI.S(8), y - UI.S(8), total + UI.S(16), h + UI.S(16), 3, 255 * alpha)
-	UI.RoundedRect(UI.S(12), x0 - UI.S(8), y - UI.S(8), total + UI.S(16), h + UI.S(16), Color(6, 8, 14, 150))
-	local x = x0
-	for i, wep in ipairs(list) do
-		local sel = i == index
-		local cw = sel and wSel or w
-		cardX[i] = cardX[i] and UI.Approach(cardX[i], x, 18) or x
-		card(cardX[i], y, cw, h, wep, sel, alpha)
-		x = x + cw + gap
+	local x, y = ScrW() * 0.5, ScrH() * 0.5
+	local spacing = math.pi * 0.85
+	local radius = UI.S(240) * alpha
+	local shiftX = ScrW() * 0.02
+	local font = NYRP.Font("title", 34)
+	for i, w in ipairs(list) do
+		local theta = (i - delta) * 0.1
+		local fade = math.Clamp(1 - math.abs(theta * 3), 0, 1)
+		if fade > 0 then
+			local sel = i == index
+			local col = sel and UI.Col.accent or Color(240, 241, 245)
+			local name = utf8.upper and utf8.upper(nameOf(w)) or string.upper(nameOf(w))
+			surface.SetFont(font)
+			local _, th = surface.GetTextSize(name)
+			local scale = math.max(0.2, 1 - math.abs(theta * 2))
+			local m = Matrix()
+			m:Translate(Vector(shiftX + x + math.cos(theta * spacing + math.pi) * radius + radius,
+				y + math.sin(theta * spacing + math.pi) * radius - th / 2, 1))
+			m:Scale(matScale * scale)
+			cam.PushModelMatrix(m)
+			draw.SimpleText(name, font, 3, th / 2 + 3, Color(0, 0, 0, 160 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			draw.SimpleText(name, font, 0, th / 2, Color(col.r, col.g, col.b, 255 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			cam.PopModelMatrix()
+		end
 	end
-	surface.SetAlphaMultiplier(1)
+	-- подсказка выбранного оружия
+	local w = list[index]
+	local info = IsValid(w) and instructions(w) or ""
+	infoA = Lerp(ft * 4, infoA, info ~= "" and 1 or 0)
+	if info ~= "" and infoA > 0.01 then
+		local ix, iy = x + shiftX + UI.S(8), y + UI.S(36)
+		draw.SimpleText("УПРАВЛЕНИЕ", NYRP.Font("bold", 13), ix, iy, UI.Alpha(UI.Col.accent, 255 * infoA * alpha))
+		local ly = iy + UI.S(18)
+		for _, line in ipairs(string.Explode("\n", info)) do
+			for _, l in ipairs(UI.Wrap(line, NYRP.Font("regular", 14), ScrW() * 0.3)) do
+				draw.SimpleText(l, NYRP.Font("regular", 14), ix, ly, Color(220, 222, 230, 230 * infoA * alpha))
+				ly = ly + UI.S(18)
+			end
+		end
+	end
 end)

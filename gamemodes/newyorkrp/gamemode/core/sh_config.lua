@@ -112,6 +112,7 @@ if CLIENT then
 	CreateClientConVar("nyrp_music_volume", "0.25", true, false, "Громкость фоновой музыки", 0, 1)
 	CreateClientConVar("nyrp_ui_sounds", "1", true, false, "Звуки интерфейса")
 	CreateClientConVar("nyrp_inv_combined", "0", true, false, "Инвентарь на одной странице")
+	CreateClientConVar("nyrp_drag_hint", "1", true, false, "Панель-подсказка при перетаскивании предметов и тел")
 	CreateClientConVar("nyrp_thirdperson", "0", true, false, "Третье лицо")
 	CreateClientConVar("nyrp_tp_dist", "75", true, false, "Третье лицо: дистанция", 30, 160)
 	CreateClientConVar("nyrp_tp_right", "18", true, false, "Третье лицо: смещение вправо", -40, 40)

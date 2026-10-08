@@ -265,6 +265,7 @@ if CLIENT then
 		local ply = LocalPlayer()
 		local w = IsValid(ply) and ply:GetActiveWeapon()
 		if not IsValid(w) or w:GetClass() ~= "nyrp_hands" or not w.IsGrabbing or not w:IsGrabbing() then return end
+		if not GetConVar("nyrp_drag_hint"):GetBool() then return end -- выключено в настройках
 		local ent = w:GetGrabEnt()
 		local point = w:GrabPoint()
 		if not point then return end
