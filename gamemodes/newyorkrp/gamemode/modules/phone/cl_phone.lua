@@ -147,14 +147,31 @@ end
 -- Регистрирует кнопку текущего кадра. Возвращает фокус (bool) и «наведение мышью».
 function P.Btn(id, x, y, w, h, act, opts)
 	local b = { id = id, x = x, y = y, w = w, h = h, act = act, opts = opts }
-	P.Btns[#P.Btns + 1] = b
+	-- попадание мышью запоминаем сейчас (с учётом обрезки прокруткой), а фокус выбираем в конце кадра —
+	-- верхняя из перекрывающихся кнопок (иначе фокус «прыгал» между ними каждый кадр)
 	if P.Mouse then
 		local mx, my = gui.MousePos()
-		if mx >= x and mx <= x + w and my >= y and my <= y + h and P.ClipOk(my) then
-			if P.Focus ~= id then P.Focus = id surface.PlaySound("nyrp/phone/key.wav") end
+		b.hover = mx >= x and mx <= x + w and my >= y and my <= y + h and P.ClipOk(my)
+	end
+	P.Btns[#P.Btns + 1] = b
+	return P.Focus == id
+end
+
+function P.ResolveHover()
+	if not P.Mouse then return end
+	for i = #P.Btns, 1, -1 do
+		local b = P.Btns[i]
+		if b.hover then
+			if P.Focus ~= b.id then
+				P.Focus = b.id
+				if (P.LastHoverSound or 0) + 0.05 < RealTime() then
+					P.LastHoverSound = RealTime()
+					surface.PlaySound("nyrp/phone/key.wav")
+				end
+			end
+			return
 		end
 	end
-	return P.Focus == id
 end
 
 -- кнопки, обрезанные прокруткой, не должны ловить мышь
@@ -205,33 +222,55 @@ end
 function P.Ask(title, default, opts, cb)
 	if P.Prompt then P.CancelPrompt() end
 	opts = opts or {}
-	local e = vgui.Create("DTextEntry")
-	e:SetSize(1, 1)
-	e:SetPos(-10, -10)
+	-- настоящее поле ввода поверх окошка на экране телефона (фон и заголовок рисует HUDPaint)
+	local x, y, w, h = P.Rect()
+	local bz = UI.S(9)
+	local sx, sw, sh = x + bz, w - bz * 2, h - bz * 2
+	local py = y + bz + sh - UI.S(150)
+	local frame = vgui.Create("EditablePanel")
+	frame:SetPos(sx + UI.S(18), py + UI.S(34))
+	frame:SetSize(sw - UI.S(36), UI.S(70))
+	frame:MakePopup()
+	frame.Paint = function() end
+	local e = vgui.Create("DTextEntry", frame)
+	e:Dock(FILL)
+	e:SetMultiline(not opts.numeric)
+	e:SetFont(NYRP.Font("medium", 14))
 	e:SetText(default or "")
-	e:SetAlpha(0)
-	e:MakePopup()
-	e:SetMouseInputEnabled(false)
-	e:SetKeyboardInputEnabled(true)
-	e:RequestFocus()
-	e:SetCaretPos(#(default or ""))
-	e.AllowInput = function(_, ch)
-		if opts.numeric and not ch:match(opts.pattern or "[%d]") then return true end
-		if utf8.len(e:GetValue()) >= (opts.max or 120) then return true end
+	e:SetUpdateOnType(true)
+	e:SetDrawLanguageID(false)
+	e:SetCursor("beam")
+	e.Paint = function(pnl, pw, ph)
+		if pnl:GetValue() == "" and opts.hint then
+			draw.SimpleText(opts.hint, NYRP.Font("medium", 14), UI.S(4), UI.S(4), FAINT)
+		end
+		pnl:DrawTextEntryText(WHITE, Color(247, 198, 0, 120), YELLOW)
 	end
-	e.OnEnter = function()
-		local v = e:GetValue()
+	e.AllowInput = function(_, ch)
+		if opts.numeric and not ch:match(opts.pattern or "%d") then return true end
+		if (utf8.len(e:GetValue()) or 0) >= (opts.max or 120) then return true end
+	end
+	local function submit()
+		local v = string.Trim((string.gsub(e:GetValue(), "\n", " ")))
 		P.CancelPrompt()
 		if cb then cb(v) end
 	end
+	e.OnEnter = submit
 	e.OnKeyCodeTyped = function(_, k)
+		if k == KEY_ENTER or k == KEY_PAD_ENTER then submit() return true end
 		if k == KEY_ESCAPE then
 			P.CancelPrompt()
 			timer.Simple(0, function() if gui.IsGameUIVisible() then gui.HideGameUI() end end)
+			return true
 		end
 	end
-	P.Prompt = { entry = e, title = title, hint = opts.hint, born = RealTime() }
-	gui.EnableScreenClicker(true)
+	timer.Simple(0, function()
+		if IsValid(e) then
+			e:RequestFocus()
+			e:SetCaretPos(utf8.len(e:GetValue()) or 0)
+		end
+	end)
+	P.Prompt = { entry = e, frame = frame, title = title, hint = opts.hint, born = RealTime() }
 end
 
 -- F2: свободная мышь. Курсор сразу ставим на экран телефона.
@@ -246,15 +285,9 @@ function P.ToggleMouse(on)
 	surface.PlaySound("nyrp/phone/key.wav")
 end
 
--- мышь могла «отобрать» другая часть интерфейса — пока режим мыши включён, держим курсор
-hook.Add("Think", "nyrp.phone.mouse", function()
-	if (P.Open and P.Mouse or P.Prompt) and not vgui.CursorVisible() then gui.EnableScreenClicker(true) end
-end)
-
 function P.CancelPrompt()
-	if P.Prompt and IsValid(P.Prompt.entry) then P.Prompt.entry:Remove() end
+	if P.Prompt and IsValid(P.Prompt.frame) then P.Prompt.frame:Remove() end
 	P.Prompt = nil
-	if not P.Mouse then gui.EnableScreenClicker(false) end
 	P.SkipKeys = RealTime() + 0.15
 end
 
@@ -308,7 +341,7 @@ hook.Add("PlayerBindPress", "nyrp.phone", function(_, bind, down)
 end)
 
 hook.Add("GUIMousePressed", "nyrp.phone", function(code)
-	if not P.Open or not P.Mouse then return end
+	if not P.Open or not P.Mouse or P.Prompt then return end
 	if code == MOUSE_RIGHT then
 		P.CloseUI()
 		P.RaiseWeapon(false)
@@ -455,6 +488,42 @@ function P.Wallpaper(x, y, w, h, dim)
 end
 
 -- ------------------------------------------------------- экран блокировки --
+-- нажатие на клавиатуре кода (экранной или цифрами с клавиатуры)
+function P.LockPress(k)
+	local s = P.Settings()
+	local st = P.LockState
+	if not s.pin or not st or P.Unlocked then return end
+	st.code = st.code or ""
+	if k == "<" then st.code = st.code:sub(1, -2) return end
+	surface.PlaySound("nyrp/phone/dtmf_" .. k .. ".wav")
+	st.code = st.code .. k
+	if #st.code >= #s.pin then
+		if st.code == s.pin then
+			P.Unlocked = true
+			P.LockState = nil
+			surface.PlaySound("nyrp/phone/unlock.wav")
+		else
+			st.wrong = RealTime()
+			st.code = ""
+			surface.PlaySound("nyrp/phone/busy.wav")
+		end
+	end
+end
+
+-- цифры и Backspace с клавиатуры на экране блокировки
+local lockKeys = {}
+hook.Add("Think", "nyrp.phone.lockkeys", function()
+	if not P.Open or P.Unlocked or P.Call or P.Alarm or P.Prompt or not P.LockState then return end
+	for d = 0, 9 do
+		local down = input.IsKeyDown(KEY_0 + d) or input.IsKeyDown(KEY_PAD_0 + d)
+		if down and not lockKeys[d] then P.LockPress(tostring(d)) end
+		lockKeys[d] = down
+	end
+	local bs = input.IsKeyDown(KEY_BACKSPACE)
+	if bs and not lockKeys.bs then P.LockPress("<") end
+	lockKeys.bs = bs
+end)
+
 local function drawLock(x, y, w, h)
 	P.Wallpaper(x, y, w, h, 60)
 	local s = P.Settings()
@@ -508,22 +577,7 @@ local function drawLock(x, y, w, h)
 		if k ~= "" then
 			local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
 			local bx, by = gx + col * (bs + UI.S(8)), y + UI.S(236) + row * (bs + UI.S(8))
-			local f = P.Btn("lock." .. k, bx, by, bs, bs, function()
-				if k == "<" then st.code = st.code:sub(1, -2) return end
-				surface.PlaySound("nyrp/phone/dtmf_" .. k .. ".wav")
-				st.code = st.code .. k
-				if #st.code >= n then
-					if st.code == s.pin then
-						P.Unlocked = true
-						P.LockState = nil
-						surface.PlaySound("nyrp/phone/unlock.wav")
-					else
-						st.wrong = RealTime()
-						st.code = ""
-						surface.PlaySound("nyrp/phone/busy.wav")
-					end
-				end
-			end)
+			local f = P.Btn("lock." .. k, bx, by, bs, bs, function() P.LockPress(k) end)
 			UI.Circle(bx + bs / 2, by + bs / 2, bs / 2, f and Color(255, 255, 255, 70) or Color(255, 255, 255, 26))
 			if k == "<" then P.Icon("p_back", bx + bs / 2, by + bs / 2, UI.S(20), WHITE)
 			else P.Text(k, "titlemed", 26, bx + bs / 2, by + bs / 2, WHITE, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER) end
@@ -698,16 +752,8 @@ hook.Add("HUDPaint", "nyrp.phone", function()
 		surface.DrawRect(sx, sy, sw, sh)
 		UI.RoundedRect(UI.S(16), sx + UI.S(10), py, sw - UI.S(20), UI.S(130), Color(28, 30, 40))
 		P.Text(P.Prompt.title, "bold", 14, sx + UI.S(24), py + UI.S(14), YELLOW)
-		local txt = P.Prompt.entry:GetValue()
-		local lines = UI.Wrap(txt == "" and (P.Prompt.hint or "") or txt, NYRP.Font("medium", 14), sw - UI.S(60))
-		local shown = { lines[#lines - 1], lines[#lines] }
-		for i, l in ipairs(shown) do P.Text(l, "medium", 14, sx + UI.S(24), py + UI.S(30) + i * UI.S(18), txt == "" and FAINT or WHITE) end
-		if math.floor(RealTime() * 2) % 2 == 0 then
-			surface.SetFont(NYRP.Font("medium", 14))
-			local tw = surface.GetTextSize(lines[#lines] or "")
-			surface.SetDrawColor(YELLOW)
-			surface.DrawRect(sx + UI.S(24) + (txt == "" and 0 or tw) + UI.S(1), py + UI.S(30) + #shown * UI.S(18), UI.S(2), UI.S(16))
-		end
+		UI.RoundedRect(UI.S(10), sx + UI.S(16), py + UI.S(32), sw - UI.S(32), UI.S(74), Color(14, 15, 22))
+		if IsValid(P.Prompt.entry) and P.Prompt.entry:HasFocus() then UI.Outline(UI.S(10), sx + UI.S(16), py + UI.S(32), sw - UI.S(32), UI.S(74), UI.Alpha(YELLOW, 160), UI.S(1)) end
 		P.Text("Enter — готово  ·  Esc — отмена", "regular", 11, sx + sw / 2, py + UI.S(112), FAINT, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 
@@ -735,6 +781,8 @@ hook.Add("HUDPaint", "nyrp.phone", function()
 	end, { noNav = true })
 	UI.RoundedRect(UI.S(3), x + w / 2 - UI.S(hb and 56 or 50), y + h - bz - UI.S(hb and 11 or 10), UI.S(hb and 112 or 100), UI.S(hb and 6 or 4),
 		hb and YELLOW or Color(255, 255, 255, 140))
+
+	P.ResolveHover()
 
 	-- подсказки управления под телефоном
 	if P.Open then
@@ -765,4 +813,9 @@ end)
 
 hook.Add("HUDShouldDraw", "nyrp.phone", function(name)
 	if P.Open and name == "CHudWeaponSelection" then return false end
+end)
+
+-- телефон переложили в слот — закрываем инвентарь, сервер затем даст телефон в руку
+net.Receive("nyrp.phone.ui", function()
+	if NYRP.Inventory and NYRP.Inventory.IsOpen and NYRP.Inventory.IsOpen() then NYRP.Inventory.Close() end
 end)

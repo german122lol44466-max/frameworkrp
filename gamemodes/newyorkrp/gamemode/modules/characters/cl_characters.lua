@@ -513,3 +513,19 @@ hook.Add("PostRenderVGUI", "nyrp.chars.hold", function()
 		surface.DrawRect(0, 0, ScrW(), ScrH())
 	end
 end)
+
+-- Страховка: если модели сцены выбора пропали (их удалила очистка карты / другая часть
+-- интерфейса) или сцена не построилась — пересобираем её.
+hook.Add("Think", "nyrp.chars.scene", function()
+	if NYRP.State ~= "select" then return end
+	local spots = NYRP.ClientPoints.spots or {}
+	if #spots == 0 then return end
+	local broken = #Chars.Scene == 0
+	for _, s in ipairs(Chars.Scene) do
+		if (s.char or s.index <= (Chars.Max or 0)) and not IsValid(s.ent) then broken = true break end
+	end
+	if broken and (Chars.NextRebuild or 0) < RealTime() then
+		Chars.NextRebuild = RealTime() + 1
+		Chars.BuildScene()
+	end
+end)

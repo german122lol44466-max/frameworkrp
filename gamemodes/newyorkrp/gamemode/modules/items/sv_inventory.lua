@@ -217,14 +217,22 @@ function Inv.Equip(ply, slot, target)
 		return
 	end
 	local isWeapon = def.category == "weapon"
-	local text = def.weaponSlot == "phone" and "Убираю телефон в карман..." or (isWeapon and "Достаю оружие..." or "Одеваю...")
+	local text = def.weaponSlot == "phone" and "Беру телефон..." or (isWeapon and "Достаю оружие..." or "Одеваю...")
 	NYRP.Action(ply, text, isWeapon and 0.9 or 1.2, function()
 		if inv.slots[slot] ~= it then return end -- предмет успели переложить
 		local prev = inv.equip[target]
 		if prev then takeWeapon(ply, prev) end
 		inv.equip[target] = it
 		inv.slots[slot] = prev
-		if isWeapon then
+		if def.weaponSlot == "phone" then
+			-- телефон: сначала закрывается инвентарь (с анимацией сумки), потом телефон в руке
+			giveWeapon(ply, it)
+			net.Start("nyrp.phone.ui")
+			net.Send(ply)
+			timer.Simple(0.9, function()
+				if IsValid(ply) and ply:Alive() and ply:HasWeapon(def.class) and Inv.Get(ply).equip[target] == it then ply:SelectWeapon(def.class) end
+			end)
+		elseif isWeapon then
 			giveWeapon(ply, it)
 			ply:SelectWeapon(def.class)
 			ply:EmitSound("nyrp/fx/weapon_draw.wav", 62, math.random(96, 104))

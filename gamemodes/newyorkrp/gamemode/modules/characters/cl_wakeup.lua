@@ -36,7 +36,7 @@ hook.Add("Think", "nyrp.wakeup", function()
 	local yawn = math.Clamp((t - 1.6) / 0.8, 0, 1) * (1 - math.Clamp((t - 3.4) / 0.9, 0, 1))
 	NYRP.Camera.ExtraAngle = Angle(-9 * UI.EaseInOut(yawn) + math.sin(t * 1.3) * 1.5 * (1 - math.Clamp(t / 5, 0, 1)), 0,
 		math.sin(t * 0.9) * 2 * (1 - math.Clamp(t / 5, 0, 1)))
-	if t > 5 then
+	if t > 5.6 then
 		wake = nil
 		NYRP.Camera.ExtraAngle = nil
 	end
@@ -61,10 +61,13 @@ hook.Add("PostRenderVGUI", "nyrp.wakeup", function()
 	local w, h = ScrW(), ScrH()
 	if o < 1 then UI.BlurRect(0, 0, w, h, 10 * (1 - o)) end
 	local lid = h / 2 * (1 - o)
-	local soft = h * 0.22
+	-- глаза открылись — тень по краям плавно спадает (уходит за края и тает), а не исчезает рывком
+	local fade = UI.EaseInOut(math.Clamp((t - 3.6) / 1.8, 0, 1))
+	local soft = h * 0.22 * (1 - fade * 0.7)
 	surface.SetDrawColor(0, 0, 0, 255)
 	surface.DrawRect(0, 0, w, lid)
 	surface.DrawRect(0, h - lid, w, lid)
+	surface.SetDrawColor(0, 0, 0, 255 * (1 - fade))
 	surface.SetMaterial(UI.Mat("vgui/gradient-u"))
 	surface.DrawTexturedRect(0, lid, w, soft)
 	surface.SetMaterial(UI.Mat("vgui/gradient-d"))

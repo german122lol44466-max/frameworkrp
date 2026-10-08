@@ -76,7 +76,7 @@ hook.Add("HUDPaint", "nyrp.condition", function()
 	local x = right
 	local any = false
 	local mx, my = gui.MousePos()
-	local canHover = vgui.CursorVisible()
+	local canHover = vgui.CursorVisible() or NYRP.ScreenClicker
 	local newHover
 	for _, def in ipairs(Cond.Statuses) do
 		local on = def.check(ply)

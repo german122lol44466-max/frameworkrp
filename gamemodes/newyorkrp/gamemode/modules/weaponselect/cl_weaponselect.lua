@@ -97,6 +97,7 @@ end)
 -- чем дальше от выбранного — тем мельче и прозрачнее; под списком — подсказка оружия (Instructions).
 local alpha, delta = 0, 1
 local infoA = 0
+local infoH = 0
 local matScale = Vector(1, 1, 0)
 
 local function instructions(w)
@@ -120,6 +121,16 @@ hook.Add("HUDPaint", "nyrp.weaponselect", function()
 	local radius = UI.S(240) * alpha
 	local shiftX = ScrW() * 0.02
 	local font = NYRP.Font("title", 34)
+	-- высота подсказки выбранного оружия: всё, что ниже выбранного, сдвигаем вниз на неё (как в Helix)
+	local selW = list[index]
+	local selInfo = IsValid(selW) and instructions(selW) or ""
+	local infoLines = 0
+	if selInfo ~= "" then
+		for _, line in ipairs(string.Explode("\n", selInfo)) do
+			infoLines = infoLines + #UI.Wrap(line, NYRP.Font("regular", 14), ScrW() * 0.3)
+		end
+	end
+	infoH = Lerp(ft * 10, infoH or 0, selInfo ~= "" and (UI.S(30) + infoLines * UI.S(18)) or 0)
 	for i, w in ipairs(list) do
 		local theta = (i - delta) * 0.1
 		local fade = math.Clamp(1 - math.abs(theta * 3), 0, 1)
@@ -131,8 +142,9 @@ hook.Add("HUDPaint", "nyrp.weaponselect", function()
 			local _, th = surface.GetTextSize(name)
 			local scale = math.max(0.2, 1 - math.abs(theta * 2))
 			local m = Matrix()
+			local push = i > index and infoH * math.Clamp(i - delta, 0, 1) or 0
 			m:Translate(Vector(shiftX + x + math.cos(theta * spacing + math.pi) * radius + radius,
-				y + math.sin(theta * spacing + math.pi) * radius - th / 2, 1))
+				y + math.sin(theta * spacing + math.pi) * radius - th / 2 + push, 1))
 			m:Scale(matScale * scale)
 			cam.PushModelMatrix(m)
 			draw.SimpleText(name, font, 3, th / 2 + 3, Color(0, 0, 0, 160 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)

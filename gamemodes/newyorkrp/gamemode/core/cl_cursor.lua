@@ -30,6 +30,16 @@ function vgui.CreateFromTable(...)
 	return hide(origFromTable(...))
 end
 
+-- gui.EnableScreenClicker возвращает миру системный курсор — снова прячем его (рисуем свой)
+local origClicker = gui.NYRPOrigClicker or gui.EnableScreenClicker
+gui.NYRPOrigClicker = origClicker
+NYRP.ScreenClicker = NYRP.ScreenClicker or false
+function gui.EnableScreenClicker(on)
+	NYRP.ScreenClicker = on and true or false
+	origClicker(on)
+	hide(vgui.GetWorldPanel())
+end
+
 hook.Add("Initialize", "nyrp.cursor", function()
 	hide(vgui.GetWorldPanel())
 	hide(GetHUDPanel and GetHUDPanel())
@@ -74,7 +84,8 @@ end
 local scale = 1
 local lastKind = "arrow"
 hook.Add("DrawOverlay", "nyrp.cursor", function()
-	if not vgui.CursorVisible() or gui.IsGameUIVisible() then return end
+	-- курсор с «пустой» картинкой движок может считать скрытым — учитываем и режим свободной мыши
+	if not (vgui.CursorVisible() or NYRP.ScreenClicker) or gui.IsGameUIVisible() then return end
 	local x, y = input.GetCursorPos()
 	local kind = cursorKind()
 	if kind ~= lastKind then scale = 0.8 lastKind = kind end
