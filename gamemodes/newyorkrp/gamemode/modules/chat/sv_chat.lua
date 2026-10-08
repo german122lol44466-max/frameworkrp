@@ -12,6 +12,9 @@ local commands = {
 	["/представиться"] = function(ply) NYRP.Recog.Introduce(ply) end,
 }
 
+-- Регистрация чат-команды другим модулем: Chat.AddCommand("/cmd", function(ply, raw) ... end)
+function Chat.AddCommand(name, fn) commands[string.lower(name)] = fn end
+
 function Chat.Send(recipients, kind, speaker, text)
 	net.Start("nyrp.chat.msg")
 	net.WriteUInt(kind, 4)

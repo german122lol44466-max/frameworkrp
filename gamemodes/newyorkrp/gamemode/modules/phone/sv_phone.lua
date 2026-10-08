@@ -296,6 +296,7 @@ hook.Add("Think", "nyrp.phone.day", function()
 		SetGlobal2Int("nyrp.day", P.DayIndex() + 1)
 		file.CreateDir("nyrp")
 		file.Write("nyrp/day.txt", tostring(P.DayIndex()))
+		hook.Run("NYRP.NewDay", P.DayIndex()) -- полночь: аренда и т.п.
 	end
 	lastHour = h
 end)

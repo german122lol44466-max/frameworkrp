@@ -41,6 +41,10 @@ NYRP.NetMessages = {
 	-- телефон
 	"nyrp.phone.eject", "nyrp.phone.set", "nyrp.phone.call", "nyrp.phone.answer", "nyrp.phone.hangup", "nyrp.phone.state",
 	"nyrp.phone.alarm", "nyrp.phone.alarmact", "nyrp.phone.bank", "nyrp.phone.bankinfo", "nyrp.phone.ui",
+	-- банкомат
+	"nyrp.atm.open", "nyrp.atm.pin", "nyrp.atm.op", "nyrp.atm.info", "nyrp.atm.close",
+	-- аренда дверей
+	"nyrp.door.list", "nyrp.door.rent", "nyrp.door.act",
 }
 
 if SERVER then

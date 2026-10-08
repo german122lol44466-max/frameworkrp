@@ -57,6 +57,8 @@ function Inv.UseItem(kind, key)
 		if NYRP.ShowPassport then NYRP.ShowPassport(it.data) end
 		return
 	end
+	-- предметы, которые «смотрят» на клиенте (банковская карта и т.п.)
+	if hook.Run("NYRP.ItemView", kind, key, it) then return end
 	if kind == "inv" then Inv.Use(tonumber(key)) end
 end
 
@@ -66,7 +68,7 @@ function Inv.ContextMenu(kind, key)
 	local def = Items.Get(it.id)
 	if not def then return end
 	local opts = {}
-	if def.use or it.id == "idcard" then
+	if def.use or def.clientView or it.id == "idcard" then
 		opts[#opts + 1] = { text = def.useText or "Использовать", icon = it.id == "idcard" and "id" or "check", func = function() Inv.UseItem(kind, key) end }
 	end
 	if it.id == "idcard" and kind == "inv" then
@@ -607,7 +609,7 @@ function Inv.BuildDetail(silent)
 		b.DoClick = fn
 		by = by + UI.S(48)
 	end
-	if def.use or it.id == "idcard" then
+	if def.use or def.clientView or it.id == "idcard" then
 		btn(def.useText or "Использовать", it.id == "idcard" and "id" or "check", "solid", function() Inv.UseItem(ref.kind, ref.key) end)
 	end
 	if Items.EquipTarget(def) then

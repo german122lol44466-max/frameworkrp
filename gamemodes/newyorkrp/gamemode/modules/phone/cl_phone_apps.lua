@@ -18,6 +18,7 @@ P.BaseApps = {
 	{ id = "camera", name = "Камера", icon = "p_camera", color = Color(90, 95, 110) },
 	{ id = "photos", name = "Фото", icon = "p_photos", color = Color(255, 140, 60) },
 	{ id = "store", name = "NY Store", icon = "p_store", color = Color(40, 120, 240) },
+	{ id = "homes", name = "NY Homes", icon = "home", color = Color(46, 160, 100) },
 	{ id = "settings", name = "Настройки", icon = "p_settings", color = Color(120, 124, 136) },
 }
 
