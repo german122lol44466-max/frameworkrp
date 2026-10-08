@@ -11,3 +11,12 @@ concussion.png <- knockout
 stamina.png <- run
 unconscious.png <- knockout
 cold.png <- thermometer-cold
+w_pistol.png <- pistol-gun
+w_smg.png <- mp5
+w_rifle.png <- ak47
+w_shotgun.png <- sawed-off-shotgun
+w_melee.png <- bowie-knife
+w_grenade.png <- grenade
+w_tool.png <- spyglass
+unknown.png <- hooded-figure
+known.png <- person

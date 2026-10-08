@@ -69,6 +69,47 @@ local function pill(y, text, font, icon, col, a, iconCol)
 	return h
 end
 
+-- Что у игрока в руках -> иконка (materials/nyrp/status/w_*.png).
+local holdIcons = {
+	pistol = "w_pistol", revolver = "w_pistol", duel = "w_pistol", smg = "w_smg", ar2 = "w_rifle", rpg = "w_rifle",
+	crossbow = "w_rifle", shotgun = "w_shotgun", melee = "w_melee", melee2 = "w_melee", knife = "w_melee",
+	grenade = "w_grenade", slam = "w_grenade", camera = "w_tool", physgun = "w_tool",
+}
+local function weaponIcon(ply)
+	local wep = ply:GetActiveWeapon()
+	if not IsValid(wep) or wep:GetClass() == "nyrp_hands" or wep:GetNoDraw() then return end
+	local ht = wep.GetHoldType and wep:GetHoldType() or ""
+	if ht == "" or ht == "normal" or ht == "fist" then return end
+	return holdIcons[ht] or "w_pistol"
+end
+
+-- Ник над головой (как в референсе): крупный светлый текст с тенью, слева — оружие в руках.
+local NAME_COL = Color(214, 216, 222)
+local function nameTag(ply, y, a)
+	local known = NYRP.Recog and NYRP.Recog.Knows(ply)
+	local text = known and NYRP.CharName(ply) or "НЕИЗВЕСТНЫЙ"
+	local font = known and NYRP.FontRaw("medium", 46) or NYRP.FontRaw("title", 46)
+	local tw, th = size(text, font)
+	local icon = weaponIcon(ply)
+	local isz = th * 0.95
+	local w = tw + (icon and isz + 22 or 0)
+	local x = -w / 2
+	local by = y - th + (1 - a) * 12
+	local col = known and NAME_COL or Color(232, 232, 236)
+	if icon then
+		local mat = UI.Mat("nyrp/status/" .. icon .. ".png")
+		surface.SetMaterial(mat)
+		surface.SetDrawColor(0, 0, 0, 120 * a)
+		surface.DrawTexturedRect(x + 2, by + (th - isz) / 2 + 3, isz, isz)
+		surface.SetDrawColor(col.r, col.g, col.b, 235 * a)
+		surface.DrawTexturedRect(x, by + (th - isz) / 2, isz, isz)
+		x = x + isz + 22
+	end
+	draw.SimpleText(text, font, x + 2, by + 3, Color(0, 0, 0, 130 * a))
+	draw.SimpleText(text, font, x, by, Color(col.r, col.g, col.b, 255 * a))
+	return th
+end
+
 local function drawPlayer(ply, me, eye, look, now)
 	local dist = eye:Distance(ply:GetPos())
 	local st = state[ply] or { tag = 0, typing = 0, voice = 0, typeKind = T.IC }
@@ -96,14 +137,7 @@ local function drawPlayer(ply, me, eye, look, now)
 	local y, gap = 0, 10
 
 	if st.tag > 0.01 then
-		local a = UI.Ease(st.tag)
-		local known = NYRP.Recog and NYRP.Recog.Knows(ply)
-		local masked = ply:GetNW2Bool("nyrp.masked")
-		local text = known and NYRP.CharName(ply) or "НЕИЗВЕСТНЫЙ"
-		local font = known and NYRP.FontRaw("semibold", 30) or NYRP.FontRaw("title", 32)
-		local icon = known and "user" or (masked and "mask" or "question")
-		local h = pill(y + (1 - a) * 10, text, font, icon, known and UI.Col.nameGreen or UI.Col.text, a, known and UI.Col.nameGreen or UI.Col.accent)
-		y = y - (h + gap) * a
+		y = y - nameTag(ply, y, UI.Ease(st.tag)) - gap * st.tag
 	end
 	if st.voice > 0.01 then
 		local vol = math.Clamp(ply:VoiceVolume() * 3, 0, 1)

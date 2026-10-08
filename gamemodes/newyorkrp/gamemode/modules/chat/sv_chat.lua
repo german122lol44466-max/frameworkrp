@@ -59,6 +59,7 @@ local function handle(ply, raw)
 		end
 	end
 	Chat.Send(recipients, kind, ply, text)
+	hook.Run("NYRP.ChatMessage", ply, kind, text)
 	NYRP.Print(string.format("[чат:%d] %s (%s): %s", kind, ply:Nick(), NYRP.CharName(ply), text))
 end
 

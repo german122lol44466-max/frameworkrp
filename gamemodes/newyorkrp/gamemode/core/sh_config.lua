@@ -120,6 +120,8 @@ if CLIENT then
 	CreateClientConVar("nyrp_chat_y", "0.58", true, false, "Чат: Y (доля экрана)", 0, 1)
 	CreateClientConVar("nyrp_chat_w", "0.32", true, false, "Чат: ширина (доля экрана)", 0.15, 1)
 	CreateClientConVar("nyrp_chat_h", "0.36", true, false, "Чат: высота (доля экрана)", 0.15, 1)
+	CreateClientConVar("nyrp_bind_inventory", tostring(KEY_O), true, false, "Клавиша: инвентарь")
+	CreateClientConVar("nyrp_bind_gestures", tostring(KEY_G), true, false, "Клавиша: меню жестов")
 	CreateClientConVar("nyrp_bind_thirdperson", tostring(KEY_F3), true, false, "Клавиша: третье лицо")
 	CreateClientConVar("nyrp_bind_tpmenu", tostring(KEY_F4), true, false, "Клавиша: меню третьего лица")
 end

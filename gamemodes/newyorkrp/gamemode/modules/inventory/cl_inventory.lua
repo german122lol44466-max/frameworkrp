@@ -800,10 +800,11 @@ function Inv.Toggle()
 	end)
 end
 
--- Q — инвентарь; Shift+Q у админов — стандартное спавн-меню.
+-- Инвентарь — клавиша O (nyrp_bind_inventory). Q у игроков тоже открывает инвентарь,
+-- а у админов Q — обычное спавн-меню (инвентарь им на O, чтобы не перекрывал).
 local spawnMenuOpened = false
 function GM:OnSpawnMenuOpen()
-	if LocalPlayer():IsAdmin() and input.IsKeyDown(KEY_LSHIFT) then
+	if LocalPlayer():IsAdmin() then
 		spawnMenuOpened = true
 		return self.BaseClass.OnSpawnMenuOpen(self)
 	end

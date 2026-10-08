@@ -38,9 +38,17 @@ function P.Close()
 end
 
 -- ---------------------------------------------------------------- бинды --
+-- press — по нажатию; release — по отпусканию (для удерживаемых меню); always — даже при открытом окне
 local binds = {
-	{ cvar = "nyrp_bind_thirdperson", name = "Третье лицо", desc = "Включить/выключить (с затемнением)" },
-	{ cvar = "nyrp_bind_tpmenu", name = "Меню третьего лица", desc = "Дистанция, смещение, плавность" },
+	{ cvar = "nyrp_bind_inventory", name = "Инвентарь", desc = "Открыть/закрыть сумку (у админов Q — меню спавна)", always = true,
+		press = function() if NYRP.Inventory.Toggle then NYRP.Inventory.Toggle() end end },
+	{ cvar = "nyrp_bind_gestures", name = "Меню жестов", desc = "Круговое меню анимаций (удерживайте и отпустите на нужной)",
+		press = function() if NYRP.Gestures then NYRP.Gestures.OpenRadial() end end,
+		release = function() if NYRP.Gestures then NYRP.Gestures.ReleaseRadial() end end, keepCursor = true },
+	{ cvar = "nyrp_bind_thirdperson", name = "Третье лицо", desc = "Включить/выключить (с затемнением)",
+		press = function() NYRP.Camera.ToggleThirdPerson() end },
+	{ cvar = "nyrp_bind_tpmenu", name = "Меню третьего лица", desc = "Дистанция, смещение, плавность",
+		press = function() NYRP.Camera.OpenMenu() end },
 }
 
 local function buildBinds(parent)
@@ -95,15 +103,19 @@ end
 -- Клавиши срабатывают, когда нет открытых окон и не печатаем.
 local down = {}
 hook.Add("Think", "nyrp.binds", function()
-	if NYRP.State ~= "playing" or gui.IsGameUIVisible() or vgui.GetKeyboardFocus() or vgui.CursorVisible() then return end
+	if NYRP.State ~= "playing" or gui.IsGameUIVisible() or vgui.GetKeyboardFocus() then return end
+	local cursor = vgui.CursorVisible()
 	for _, b in ipairs(binds) do
 		local code = GetConVar(b.cvar):GetInt()
 		if code > 0 then
 			local isDown = input.IsKeyDown(code)
-			if isDown and not down[code] then
-				if b.cvar == "nyrp_bind_thirdperson" then NYRP.Camera.ToggleThirdPerson() else NYRP.Camera.OpenMenu() end
+			if isDown and not down[b.cvar] and (not cursor or b.always) then
+				down[b.cvar] = true
+				b.press()
+			elseif not isDown and down[b.cvar] then
+				down[b.cvar] = nil
+				if b.release then b.release() end
 			end
-			down[code] = isDown
 		end
 	end
 end)

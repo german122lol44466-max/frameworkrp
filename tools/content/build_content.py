@@ -68,6 +68,10 @@ ICONS = {
     "run": "run", "walk": "walk", "medkit": "first-aid-kit", "bottle": "bottle", "coffee": "coffee",
     "bandage": "bandage", "burger": "burger", "hourglass": "hourglass", "speaker": "speakerphone",
     "ear": "ear", "pointer": "hand-click", "door_exit": "door-exit", "menu": "menu-2",
+    # жесты (круговое меню G)
+    "g_agree": "thumb-up", "g_disagree": "thumb-down", "g_wave": "hand-move", "g_laugh": "mood-happy",
+    "g_beckon": "hand-finger", "g_halt": "hand-stop", "g_salute": "military-rank", "g_dance": "music",
+    "g_bow": "user-down", "g_forward": "arrow-forward", "g_cheer": "mood-smile", "g_give": "heart-handshake",
 }
 
 

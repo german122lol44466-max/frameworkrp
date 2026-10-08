@@ -1,0 +1,9 @@
+Звуки (tools/content/real_sounds.py):
+breath_run.wav  — freesound.org 609482 «Quick running breathing and panting» (Lashim, CC0),
+                  543243 «vocals panting» (myfreesoundaccount1998, CC0)
+pain1-4.wav     — freesound 464486 (elynch0901), 547209 (MrFossy), 416839 (tonsil5), 347337 (aphexx_) — CC0
+land_hard.wav   — freesound 810885 «Run & Fall - Wooden surface» (Vrymaa, CC0)
+body_fall.wav   — freesound 853591 «A body falling to the ground» (Wigglesworth, CC0)
+wake.wav        — шорох одежды Kenney RPG Audio (CC0) + замедленный вдох из 543243 (CC0)
+heartbeat*.wav  — github.com/e3ntity/react-sounds, sounds/ambient/heartbeat.mp3 (MIT)
+Записи freesound взяты из github.com/hoffspot/conquest (client/sounds, все CC0).

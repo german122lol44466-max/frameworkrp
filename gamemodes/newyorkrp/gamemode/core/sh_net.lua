@@ -21,6 +21,8 @@ NYRP.NetMessages = {
 	-- знакомства
 	"nyrp.recog.sync", "nyrp.recog.introduce",
 	"nyrp.interact.use",
+	-- жесты
+	"nyrp.gesture.play",
 }
 
 if SERVER then

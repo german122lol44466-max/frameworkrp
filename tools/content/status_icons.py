@@ -18,6 +18,10 @@ ICONS = {
     "tired": "lungs", "hunger": "meal", "thirst": "water-drop", "wet": "droplets", "fall": "falling",
     "injured": "bleeding-wound", "critical": "heart-beats", "bruise": "broken-bone", "concussion": "knockout",
     "stamina": "run", "unconscious": "knockout", "cold": "thermometer-cold",
+    # что в руках у игрока (табличка над головой)
+    "w_pistol": "pistol-gun", "w_smg": "mp5", "w_rifle": "ak47", "w_shotgun": "sawed-off-shotgun",
+    "w_melee": "bowie-knife", "w_grenade": "grenade", "w_tool": "spyglass",
+    "unknown": "hooded-figure", "known": "person",
 }
 
 
