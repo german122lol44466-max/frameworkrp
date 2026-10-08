@@ -8,7 +8,7 @@ local UI = NYRP.UI
 local N = NYRP.NPC
 local D
 
-local ORANGE = Color(245, 158, 12)
+local ORANGE = Color(247, 198, 0) -- жёлтый «такси», как в логотипе
 
 local function close(silent, fromServer)
 	if D and not D.closing then
@@ -127,28 +127,39 @@ hook.Add("HUDPaint", "nyrp.npc.dialog", function()
 
 	-- линии от NPC к правым углам панели и точка на NPC
 	local ex, ey = px + pw, py
-	surface.SetDrawColor(220, 230, 255, 170)
+	surface.SetDrawColor(247, 198, 0, 150)
 	surface.DrawLine(sc.x, sc.y, sc.x + (ex - sc.x) * reveal, sc.y + (ey - sc.y) * reveal)
 	surface.DrawLine(sc.x, sc.y, sc.x + (ex - sc.x) * reveal, sc.y + (py + ph - sc.y) * reveal)
-	UI.Glow(sc.x, sc.y, UI.S(22), UI.S(22), Color(150, 210, 255, 200))
-	UI.Circle(sc.x, sc.y, UI.S(3), Color(230, 245, 255))
+	UI.Glow(sc.x, sc.y, UI.S(22), UI.S(22), Color(247, 198, 0, 180))
+	UI.Circle(sc.x, sc.y, UI.S(3), Color(255, 240, 190))
 
 	render.SetScissorRect(px + pw * (1 - reveal), py, px + pw, py + ph, true)
 	-- тело панели
 	UI.BlurRect(px, py, pw, ph, 3)
-	surface.SetDrawColor(34, 38, 62, 210)
+	surface.SetDrawColor(14, 16, 26, 225)
 	surface.DrawRect(px, py, pw, ph)
 	surface.SetMaterial(UI.Mat("vgui/gradient-d"))
-	surface.SetDrawColor(10, 12, 22, 200)
+	surface.SetDrawColor(4, 5, 10, 170)
 	surface.DrawTexturedRect(px, py + headH, pw, ph - headH)
-	-- шапка
-	surface.SetDrawColor(244, 245, 248, 255)
+	-- шапка: тёмная, снизу полоса «шашечек такси»
+	surface.SetDrawColor(8, 9, 14, 245)
 	surface.DrawRect(px, py, pw, headH)
+	local cs = UI.S(6)
+	for i = 0, math.ceil(pw / cs) do
+		for r = 0, 1 do
+			if (i + r) % 2 == 0 then surface.SetDrawColor(247, 198, 0) else surface.SetDrawColor(10, 10, 12) end
+			surface.DrawRect(px + i * cs, py + headH - cs * 2 + r * cs, math.min(cs, px + pw - (px + i * cs)), cs)
+		end
+	end
 	local name = D.ent:GetNW2String("nyrp.npcName", "NPC")
-	draw.SimpleText(name, NYRP.Font("tag", 24), px + UI.S(18), py + headH / 2, Color(20, 22, 30), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-	-- «сигнал» справа, как в референсе
+	local icon = D.ent:GetNW2String("nyrp.npcKind") == "trader" and "npc_trader" or "npc_talk"
+	surface.SetMaterial(UI.Mat("nyrp/status/" .. icon .. ".png"))
+	surface.SetDrawColor(247, 198, 0)
+	surface.DrawTexturedRect(px + UI.S(16), py + UI.S(10), UI.S(26), UI.S(26))
+	draw.SimpleText(name, NYRP.Font("tag", 24), px + UI.S(52), py + (headH - cs * 2) / 2 + UI.S(2), Color(240, 241, 245), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+	-- «сигнал» справа
 	local sx = px + pw - UI.S(60)
-	surface.SetDrawColor(20, 22, 30)
+	surface.SetDrawColor(247, 198, 0)
 	surface.DrawRect(sx, py + UI.S(18), UI.S(10), UI.S(4))
 	surface.DrawRect(sx + UI.S(3), py + UI.S(18), UI.S(4), UI.S(18))
 	for k = 0, 2 do
@@ -179,14 +190,14 @@ hook.Add("HUDPaint", "nyrp.npc.dialog", function()
 				{ x = px + UI.S(14), y = oy + UI.S(2) }, { x = px + UI.S(14) + w, y = oy + UI.S(2) },
 				{ x = px + UI.S(14) + w - slant, y = oy + optH - UI.S(2) }, { x = px + UI.S(14), y = oy + optH - UI.S(2) },
 			})
-			UI.Glow(px + UI.S(14) + w / 2, oy + optH / 2, w * 1.1, optH * 1.6, Color(255, 160, 20, 40 * hv))
+			UI.Glow(px + UI.S(14) + w / 2, oy + optH / 2, w * 1.1, optH * 1.6, Color(247, 198, 0, 30 * hv))
 		end
 		local col = UI.LerpColor(hv, Color(232, 235, 242, 255 * oa), Color(18, 18, 22))
 		local prefix = o.act == "trade" and "» " or (o.act == "quest" and "+ " or (o.act == "turnin" and "• " or ""))
 		draw.SimpleText(prefix .. o.text, optFont, px + UI.S(26), oy + optH / 2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 	end
-	-- светлая кромка снизу
-	surface.SetDrawColor(235, 240, 255, 230)
+	-- жёлтая кромка снизу
+	surface.SetDrawColor(247, 198, 0, 230)
 	surface.DrawRect(px, py + ph - UI.S(3), pw, UI.S(3))
 	render.SetScissorRect(0, 0, 0, 0, false)
 

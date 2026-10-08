@@ -9,7 +9,7 @@ local N = NYRP.NPC
 local Items = NYRP.Items
 
 local E = {}   -- состояние редактора
-local ACCENT = Color(245, 158, 12)
+local ACCENT = Color(247, 198, 0)
 
 -- --------------------------------------------------------- мелкие элементы --
 local function label(parent, text, small)

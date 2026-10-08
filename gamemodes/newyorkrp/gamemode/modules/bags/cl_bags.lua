@@ -22,6 +22,7 @@ local function partModel(path)
 		m = ClientsideModel(path, RENDERGROUP_OPAQUE)
 		if not IsValid(m) then return end
 		m:SetNoDraw(true)
+		m.RenderOverride = function(e) if e.nyrpDraw then e:DrawModel() end end
 		cache[path] = m
 	end
 	return m
@@ -56,7 +57,9 @@ function Bags.DrawAt(bagId, pos, ang, frame, scale)
 			m:SetRenderOrigin(wp)
 			m:SetRenderAngles(wa)
 			m:SetupBones()
+			m.nyrpDraw = true
 			m:DrawModel()
+			m.nyrpDraw = false
 		end
 	end
 end
@@ -145,6 +148,8 @@ local function ensureModels(bag)
 		fpVM = ClientsideModel(path, RENDERGROUP_OPAQUE)
 		if not IsValid(fpVM) then return end
 		fpVM:SetNoDraw(true)
+		-- рисуем только сами, в нужный момент (иначе модель могла остаться висеть в мире)
+		fpVM.RenderOverride = function(e) if e.nyrpDraw then e:DrawModel() end end
 		if IsValid(fpHands) then fpHands:Remove() end
 		fpHands = nil
 	end
@@ -156,6 +161,7 @@ local function ensureModels(bag)
 		fpHands = ClientsideModel(mdl, RENDERGROUP_OPAQUE)
 		if not IsValid(fpHands) then return end
 		fpHands:SetNoDraw(true)
+		fpHands.RenderOverride = function(e) if e.nyrpDraw then e:DrawModel() end end
 		fpHands:SetParent(fpVM)
 		fpHands:AddEffects(EF_BONEMERGE)
 	end
@@ -193,6 +199,14 @@ end
 
 function Bags.FPActive() return fp ~= nil end
 
+-- Анимация кончилась — модели убираем совсем.
+function Bags.FPCleanup()
+	fp = nil
+	if IsValid(fpHands) then fpHands:Remove() end
+	if IsValid(fpVM) then fpVM:Remove() end
+	fpHands, fpVM = nil, nil
+end
+
 local function setupLighting(eye, view)
 	local function light(dir)
 		local c = render.ComputeLighting(eye, dir) + render.ComputeDynamicLighting(eye, dir)
@@ -209,9 +223,9 @@ end
 hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	if not fp then return end
 	local ply = LocalPlayer()
-	if not ply:Alive() then fp = nil return end
+	if not ply:Alive() then Bags.FPCleanup() return end
 	local vm, hands = ensureModels(fp.bag)
-	if not IsValid(vm) or not IsValid(hands) then fp = nil return end
+	if not IsValid(vm) or not IsValid(hands) then Bags.FPCleanup() return end
 
 	local t = RealTime() - fp.start
 	local seqName, cycle
@@ -220,11 +234,11 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 		seqName = cycle >= 1 and "idle_open" or "open"
 	else
 		cycle = fp.from + t * CLOSE_RATE / OPEN_FRAMES
-		if cycle >= 1 then fp = nil return end
+		if cycle >= 1 then Bags.FPCleanup() return end
 		seqName = "close"
 	end
 	local seq = vm:LookupSequence(seqName)
-	if seq < 0 then fp = nil return end
+	if seq < 0 then Bags.FPCleanup() return end
 	if vm:GetSequence() ~= seq then vm:ResetSequence(seq) end
 	vm:SetPlaybackRate(0)
 	vm:SetCycle(math.Clamp(cycle, 0, 0.999))
@@ -243,8 +257,10 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	render.ClearDepth()
 	render.SuppressEngineLighting(true)
 	setupLighting(eye, view)
+	vm.nyrpDraw, hands.nyrpDraw = true, true
 	vm:DrawModel()
 	hands:DrawModel()
+	vm.nyrpDraw, hands.nyrpDraw = false, false
 	render.SuppressEngineLighting(false)
 	cam.End3D()
 end)

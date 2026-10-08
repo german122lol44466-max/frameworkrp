@@ -1,6 +1,6 @@
 --[[
 	Атмосфера и цветокоррекция: кинематографичный грейд (чуть приглушённые цвета, плотнее контраст,
-	тёплые света / холодные тени), мягкое свечение, лёгкая дымка вдали и зерно плёнки.
+	тёплые света / холодные тени), мягкое свечение, лёгкая дымка вдали.
 	Ночью (modules/daynight) дымка темнее и холоднее.
 ]]
 
@@ -35,14 +35,4 @@ end
 hook.Add("SetupWorldFog", "nyrp.atmosphere", function() return fog(1) end)
 hook.Add("SetupSkyboxFog", "nyrp.atmosphere", function(scale) return fog(scale) end)
 
--- Зерно плёнки — едва заметное, «живое» (noclamp — текстура повторяется по экрану).
-local grain = Material("nyrp/ui/grain.png", "noclamp smooth")
-hook.Add("HUDPaintBackground", "nyrp.atmosphere.grain", function()
-	if NYRP.State ~= "playing" then return end
-	local w, h = ScrW(), ScrH()
-	local t = math.floor(RealTime() * 24)
-	local ox, oy = (t * 37) % 256, (t * 91) % 256
-	surface.SetMaterial(grain)
-	surface.SetDrawColor(255, 255, 255, 9)
-	surface.DrawTexturedRectUV(0, 0, w, h, ox / 256, oy / 256, ox / 256 + w / 256, oy / 256 + h / 256)
-end)
+-- Зерна плёнки нет: в темноте оно выглядело как шум.

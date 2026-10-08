@@ -51,13 +51,16 @@ function I.OpenMoneyDialog(target)
 	entry.Paint = function(s, w, h)
 		UI.RoundedRect(UI.S(10), 0, 0, w, h, Color(0, 0, 0, 110))
 		UI.Outline(UI.S(10), 0, 0, w, h, s:HasFocus() and UI.Alpha(UI.Col.accent, 160) or UI.Col.stroke, 1)
-		draw.SimpleText("$", NYRP.Font("bold", 22), UI.S(14), h / 2, UI.Col.accent, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-		if s:GetText() == "" and not s:HasFocus() then
-			draw.SimpleText("Сумма", NYRP.Font("medium", 18), UI.S(34), h / 2, UI.Col.faint, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		-- «$» всегда справа от введённой суммы
+		local tw = UI.TextSize(s:GetText(), NYRP.Font("bold", 22))
+		if s:GetText() == "" then
+			draw.SimpleText(s:HasFocus() and "" or "Сумма", NYRP.Font("medium", 18), UI.S(14), h / 2, UI.Col.faint, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		else
+			draw.SimpleText("$", NYRP.Font("bold", 22), UI.S(14) + tw + UI.S(6), h / 2, UI.Col.accent, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 		end
 		s:DrawTextEntryText(UI.Col.text, UI.Col.accent, UI.Col.text)
 	end
-	entry:SetTextInset(UI.S(34), 0)
+	entry:SetTextInset(UI.S(14), 0)
 	entry:RequestFocus()
 	-- быстрые суммы
 	local quick = { 10, 50, 100, 500 }
