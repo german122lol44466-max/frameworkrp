@@ -60,6 +60,18 @@ function Bags.DrawAt(bagId, pos, ang, frame, scale)
 	end
 end
 
+-- Мировая точка localPoint на части part (root/lid/zipper/flap) при кадре frame.
+function Bags.PartPoint(bagId, pos, ang, frame, scale, part, localPoint)
+	local def = NYRP.BagModels[bagId]
+	local lp, la = Vector(0, 0, 0), Angle(0, 0, 0)
+	if part ~= "root" and def then
+		lp, la = frameData(def, part, frame or 0)
+		if not lp then lp, la = Vector(0, 0, 0), Angle(0, 0, 0) end
+	end
+	local pp, pa = LocalToWorld(lp * (scale or 1), la, pos, ang)
+	return (LocalToWorld(localPoint * (scale or 1), Angle(), pp, pa))
+end
+
 function Bags.MountTransform(ent, bagId)
 	local mount = Bags.Mount[bagId]
 	if not mount then return end
@@ -163,10 +175,27 @@ end
 
 function Bags.FPActive() return fp ~= nil end
 
+-- Настройка анимации рук от первого лица (единицы — в масштабе модели сумки).
+-- grip  — за что берётся левая рука, пока едет молния (точка на бегунке);
+-- lift  — край крышки/клапана, который она поднимает;
+-- wrist — смещение запястья от точки хвата (вдоль взгляда / вправо / вверх).
 local poses = {
-	waistbag = { scale = 0.62, pitch = 34 },
-	backpack = { scale = 0.48, pitch = 18 },
+	waistbag = {
+		scale = 0.62, pitch = 34,
+		zip = { from = 0, to = 12 }, lift = { from = 13, to = 24 },
+		grip = { part = "zipper", pt = Vector(0.3, 0, -0.5) },
+		edge = { part = "lid", pt = Vector(3.4, 0, 1.1) },
+		wrist = Vector(-3.2, -0.6, -1.2),
+	},
+	backpack = {
+		scale = 0.48, pitch = 18,
+		zip = { from = 0, to = 4 }, lift = { from = 4, to = 24 },
+		grip = { part = "flap", pt = Vector(5.3, 0, -4.8) },
+		edge = { part = "flap", pt = Vector(5.3, 0, -4.8) },
+		wrist = Vector(-3.2, -0.6, -1.4),
+	},
 }
+CreateClientConVar("nyrp_bagfp_debug", "0", false, false, "Показать точки, к которым тянется рука при открытии сумки")
 
 -- Кость предмета во вьюмодели (аптечка) — на её место ставим сумку: рука держит именно её.
 local propBone
@@ -179,6 +208,26 @@ local function findPropBone(vm)
 	end
 	propBone = { model = vm:GetModel(), id = id }
 	return id
+end
+
+-- Переносим всю левую руку (от плеча, оно за кадром) так, чтобы кисть оказалась в target.
+local function placeLeftHand(vm, target)
+	local upper = vm:LookupBone("ValveBiped.Bip01_L_UpperArm")
+	local hand = vm:LookupBone("ValveBiped.Bip01_L_Hand")
+	if not upper or not hand then return end
+	vm:ManipulateBonePosition(upper, vector_origin)
+	vm:InvalidateBoneCache()
+	vm:SetupBones()
+	if not target then return end
+	local hm = vm:GetBoneMatrix(hand)
+	local parent = vm:GetBoneParent(upper)
+	local pm = parent and parent >= 0 and vm:GetBoneMatrix(parent)
+	if not hm or not pm then return end
+	local delta = target - hm:GetTranslation()
+	local localDelta = WorldToLocal(delta, Angle(), vector_origin, pm:GetAngles())
+	vm:ManipulateBonePosition(upper, localDelta)
+	vm:InvalidateBoneCache()
+	vm:SetupBones()
 end
 
 local function setupLighting(eye, view)
@@ -235,9 +284,35 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 		vm:SetupBones()
 		hands:InvalidateBoneCache()
 		hands:SetupBones()
+		placeLeftHand(vm, nil)
 		local bone = findPropBone(vm) or vm:LookupBone("ValveBiped.Bip01_R_Hand")
 		local m = bone and vm:GetBoneMatrix(bone)
 		if m then bagPos = m:GetTranslation() end
+		if bagPos then
+			-- левая рука: снизу в кадр -> язычок молнии -> ведёт его -> поднимает край крышки
+			local wob = (frame > 0 and frame < last and not fp.closing) and math.sin(t * 55) * 1.2 or 0
+			local _, bagAng = LocalToWorld(Vector(), Angle(p.pitch, 195, math.sin(t * 1.6) * 2 + wob), eye, view)
+			local function at(spec, f)
+				local pt = Bags.PartPoint(fp.bag, bagPos, bagAng, f, p.scale, spec.part, spec.pt)
+				return pt + LocalToWorld(p.wrist, Angle(), vector_origin, view)
+			end
+			local rest = eye + view:Forward() * 14 + view:Right() * -9 + view:Up() * -24
+			local target
+			local reach = math.Clamp((t - DRAW * 0.45) / 0.35, 0, 1)  -- рука тянется к молнии
+			if frame <= p.zip.to then
+				target = LerpVector(UI.EaseInOut(reach), rest, at(p.grip, frame))
+			else
+				local k = math.Clamp((frame - p.lift.from) / (p.lift.to - p.lift.from), 0, 1)
+				target = LerpVector(UI.EaseInOut(math.min(k * 3, 1)), at(p.grip, frame), at(p.edge, frame))
+			end
+			if fp.closing then
+				target = LerpVector(1 - raise, target, rest)
+			end
+			placeLeftHand(vm, target)
+			hands:InvalidateBoneCache()
+			hands:SetupBones()
+			fp.debug = GetConVar("nyrp_bagfp_debug"):GetBool() and { target, at(p.grip, frame), at(p.edge, frame) } or nil
+		end
 		hands:DrawModel()
 	end
 	if not bagPos then
@@ -247,6 +322,12 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	local wobble = (frame > 0 and frame < last and not fp.closing) and math.sin(t * 55) * 1.2 or 0
 	local _, ang = LocalToWorld(Vector(), Angle(p.pitch, 195, math.sin(t * 1.6) * 2 + wobble), eye, view)
 	Bags.DrawAt(fp.bag, bagPos, ang, frame, p.scale)
+	if fp.debug then
+		render.SetColorMaterial()
+		for i, v in ipairs(fp.debug) do
+			render.DrawSphere(v, 0.4, 8, 8, i == 1 and Color(255, 60, 60) or Color(60, 255, 120))
+		end
+	end
 	render.SuppressEngineLighting(false)
 	cam.End3D()
 end)
