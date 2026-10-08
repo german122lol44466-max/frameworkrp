@@ -48,12 +48,24 @@ function NYRP.IncludeDir(dir)
 	end
 end
 
+-- Модули, от которых зависят другие, грузятся первыми; остальные — по алфавиту.
+NYRP.ModuleOrder = { "items", "characters", "chat", "recognition" }
+
 -- Каждая подпапка modules/ — отдельный модуль, загружается целиком.
 function NYRP.LoadModules()
 	local _, dirs = file.Find(NYRP.Root .. "modules/*", "LUA")
+	local loaded = {}
 
+	for _, dir in ipairs(NYRP.ModuleOrder) do
+		if table.HasValue(dirs, dir) then
+			NYRP.IncludeDir("modules/" .. dir)
+			loaded[dir] = true
+		end
+	end
 	for _, dir in ipairs(dirs) do
-		NYRP.IncludeDir("modules/" .. dir)
+		if not loaded[dir] then
+			NYRP.IncludeDir("modules/" .. dir)
+		end
 	end
 end
 
