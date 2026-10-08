@@ -31,6 +31,9 @@ NYRP.NetMessages = {
 	"nyrp.id.request", "nyrp.id.answer",
 	-- меню тела
 	"nyrp.body.act",
+	-- NPC: диалог, торговля, задания, редактор
+	"nyrp.npc.node", "nyrp.npc.choose", "nyrp.npc.trade", "nyrp.npc.buy", "nyrp.npc.edit", "nyrp.npc.save",
+	"nyrp.npc.remove", "nyrp.quest.sync",
 	-- время суток
 	"nyrp.time.light",
 	-- контейнеры

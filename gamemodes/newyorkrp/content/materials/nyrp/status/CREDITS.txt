@@ -21,3 +21,7 @@ w_tool.png <- spyglass
 w_hands.png <- hand
 unknown.png <- cowled
 known.png <- person
+npc_trader.png <- shop
+npc_talk.png <- conversation
+quest.png <- scroll-quill
+quest_point.png <- flag-objective

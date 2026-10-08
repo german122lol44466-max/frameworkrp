@@ -22,6 +22,8 @@ ICONS = {
     "w_pistol": "pistol-gun", "w_smg": "mp5", "w_rifle": "ak47", "w_shotgun": "sawed-off-shotgun",
     "w_melee": "bowie-knife", "w_grenade": "grenade", "w_tool": "spyglass",
     "w_hands": "hand", "unknown": "cowled", "known": "person",
+    # NPC и задания
+    "npc_trader": "shop", "npc_talk": "conversation", "quest": "scroll-quill", "quest_point": "flag-objective",
 }
 
 

@@ -99,8 +99,8 @@ def run(realm, call_hooks):
         stack.append(full)
         try:
             fn = lua.eval("function(src, name) return load(src, '@' .. name) end")(src, os.path.relpath(full, ROOT))
-            if fn is None:
-                errors.append(f"синтаксис: {full}")
+            if fn is None or isinstance(fn, tuple):
+                errors.append(f"синтаксис: {full}: {fn[1] if isinstance(fn, tuple) else ''}")
                 return None
             return fn()
         except lupa.LuaError as e:

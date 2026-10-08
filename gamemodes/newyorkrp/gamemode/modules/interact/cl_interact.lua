@@ -135,6 +135,8 @@ end
 -- E по цели, даже если луч прошёл чуть мимо: просим сервер нажать за нас.
 hook.Add("PlayerBindPress", "nyrp.interact", function(ply, bind, pressed)
 	if not pressed or not string.find(bind, "+use", 1, true) then return end
+	-- открыт диалог или круговое меню — E обрабатывают они
+	if (NYRP.NPC and NYRP.NPC.InDialog and NYRP.NPC.InDialog()) or (NYRP.WorldRadial and NYRP.WorldRadial.IsOpen()) then return end
 	if IsValid(I.Target) and I.Target:IsPlayer() then
 		if I.OpenPlayerMenu then I.OpenPlayerMenu(I.Target) end
 		return true

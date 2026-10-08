@@ -47,6 +47,7 @@ function Inv.Sync(ply)
 	net.WriteTable(inv.slots)
 	net.WriteTable(inv.equip)
 	net.Send(ply)
+	hook.Run("NYRP.InvChanged", ply)
 end
 
 function Inv.Clear(ply)
