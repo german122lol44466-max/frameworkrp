@@ -217,7 +217,8 @@ function Inv.Equip(ply, slot, target)
 		return
 	end
 	local isWeapon = def.category == "weapon"
-	NYRP.Action(ply, isWeapon and "Достаю оружие..." or "Одеваю...", isWeapon and 0.9 or 1.2, function()
+	local text = def.weaponSlot == "phone" and "Убираю телефон в карман..." or (isWeapon and "Достаю оружие..." or "Одеваю...")
+	NYRP.Action(ply, text, isWeapon and 0.9 or 1.2, function()
 		if inv.slots[slot] ~= it then return end -- предмет успели переложить
 		local prev = inv.equip[target]
 		if prev then takeWeapon(ply, prev) end
@@ -277,6 +278,7 @@ end
 net.Receive("nyrp.inv.move", function(_, ply)
 	if limited(ply) then return end
 	local fk, fkey, tk, tkey = net.ReadString(), net.ReadString(), net.ReadString(), net.ReadString()
+	if hook.Run("NYRP.InvMove", ply, fk, fkey, tk, tkey) then return end -- особые случаи (SIM-карта на телефон)
 	if (fk == "cont" or tk == "cont") and NYRP.Containers and NYRP.Containers.Move then
 		NYRP.Containers.Move(ply, fk, fkey, tk, tkey)
 		return

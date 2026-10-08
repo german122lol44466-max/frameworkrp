@@ -93,6 +93,7 @@ function Inv.ContextMenu(kind, key)
 	if kind == "inv" and Inv.Container then
 		opts[#opts + 1] = { text = "Положить в контейнер", icon = "box", func = function() Inv.Move("inv", key, "cont", "") end }
 	end
+	hook.Run("NYRP.ItemContext", kind, key, it, opts) -- модули добавляют свои пункты (телефон: извлечь SIM)
 	opts[#opts + 1] = { text = "Осмотреть", icon = "eye", func = function() Inv.ShowDetail(kind, key) end }
 	if not def.noDrop then
 		opts[#opts + 1] = { divider = true }
@@ -152,6 +153,8 @@ function SLOTP:Accepts(dragKind, dragKey, item)
 	if self.Kind == "cont" then return dragKind == "inv" or dragKind == "cont" end
 	if self.Kind == "inv" and dragKind == "cont" then return true end
 	if self.Kind == "eq" then
+		-- SIM-карту можно бросить прямо на телефон в слоте
+		if dragKind == "inv" and item.id == "simcard" and self.Key == "phone" then return itemAt("eq", "phone") ~= nil end
 		return dragKind == "inv" and Items.EquipTarget(Items.Get(item.id)) == self.Key
 	end
 	return true
@@ -455,6 +458,8 @@ local function paperdoll(parent, x, y, w, h, compact)
 
 	-- слоты оружия под моделью
 	local ww, wh = UI.S(compact and 120 or 136), UI.S(compact and 66 or 72)
+	-- слотов может быть больше (телефон) — сужаем, чтобы ряд влез в ширину
+	ww = math.min(ww, (w - UI.S(16) - (#Items.WeaponSlots - 1) * UI.S(GAP)) / #Items.WeaponSlots)
 	local wy = cy + R * 0.72
 	local total = #Items.WeaponSlots * (ww + UI.S(GAP)) - UI.S(GAP)
 	for i, ws in ipairs(Items.WeaponSlots) do
@@ -561,6 +566,16 @@ function Inv.BuildDetail(silent)
 		if it.id == "idcard" and it.data and it.data.name then
 			y = y + UI.S(6)
 			draw.SimpleText("Владелец: " .. it.data.name, NYRP.Font("semibold", 15), 0, y, UI.Col.text)
+			y = y + UI.S(22)
+		end
+		local extra = it.data and ((it.id == "simcard" and it.data.number) or (it.id == "phone" and it.data.sim and it.data.sim.number))
+		if extra then
+			y = y + UI.S(6)
+			draw.SimpleText("Номер: " .. NYRP.Phone.FormatNumber(extra), NYRP.Font("semibold", 15), 0, y, Color(247, 198, 0))
+			y = y + UI.S(22)
+		elseif it.id == "phone" then
+			y = y + UI.S(6)
+			draw.SimpleText("SIM-карта не вставлена", NYRP.Font("semibold", 15), 0, y, UI.Col.red)
 			y = y + UI.S(22)
 		end
 		if #def.buffs > 0 then

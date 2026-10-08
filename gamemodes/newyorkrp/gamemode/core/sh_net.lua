@@ -38,6 +38,9 @@ NYRP.NetMessages = {
 	"nyrp.time.light",
 	-- контейнеры
 	"nyrp.cont.progress", "nyrp.cont.open", "nyrp.cont.sync", "nyrp.cont.close",
+	-- телефон
+	"nyrp.phone.eject", "nyrp.phone.set", "nyrp.phone.call", "nyrp.phone.answer", "nyrp.phone.hangup", "nyrp.phone.state",
+	"nyrp.phone.alarm", "nyrp.phone.alarmact", "nyrp.phone.bank", "nyrp.phone.bankinfo", "nyrp.phone.ui",
 }
 
 if SERVER then

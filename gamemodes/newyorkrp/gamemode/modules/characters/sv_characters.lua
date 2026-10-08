@@ -131,6 +131,7 @@ function Chars.Load(ply, id)
 	if NYRP.Recog then NYRP.Recog.Sync(ply) end
 	if NYRP.Inv then NYRP.Inv.Import(ply, c.inventory, c.equipment) end
 	issueID(ply, c)
+	hook.Run("NYRP.CharInventoryReady", ply, c) -- выдача стартовых вещей модулями (телефон и т.п.)
 
 	ply.nyrpSpawnHealth = math.max(c.health, 25)
 	ply:Spawn()
