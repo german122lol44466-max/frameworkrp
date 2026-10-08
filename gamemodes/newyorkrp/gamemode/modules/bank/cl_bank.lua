@@ -48,11 +48,12 @@ function B.ShowCard(d)
 		local cw = w * math.max(sx, 0.02)
 		local x0 = (w - cw) / 2
 		local m = Matrix()
-		m:Translate(Vector(s:LocalToScreen(x0, 0)))
+		-- матрица применяется поверх смещения панели — переводим только внутри неё
+		m:Translate(Vector(x0, 0, 0))
 		m:Scale(Vector(math.max(sx, 0.02), 1, 1))
 		render.PushFilterMag(TEXFILTER.ANISOTROPIC)
 		render.PushFilterMin(TEXFILTER.ANISOTROPIC)
-		cam.PushModelMatrix(m)
+		cam.PushModelMatrix(m, true)
 		-- тень и фон карты с градиентом цвета банка
 		draw.RoundedBox(UI.S(22), UI.S(6), UI.S(8), w, h, Color(0, 0, 0, 120))
 		draw.RoundedBox(UI.S(22), 0, 0, w, h, bank.dark)

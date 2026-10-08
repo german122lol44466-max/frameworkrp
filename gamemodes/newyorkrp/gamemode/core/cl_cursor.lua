@@ -30,22 +30,41 @@ function vgui.CreateFromTable(...)
 	return hide(origFromTable(...))
 end
 
--- gui.EnableScreenClicker возвращает миру системный курсор — снова прячем его (рисуем свой)
+-- Свободная мышь (gui.EnableScreenClicker): «пустой» курсор у панели мира заставляет движок снова
+-- захватывать мышь под обзор. Поэтому свободная мышь — это невидимая панель на весь экран поверх игры:
+-- курсор у неё наш, клики уходят в обычный хук GUIMousePressed/GUIMouseReleased, клавиатура остаётся у игры.
 local origClicker = gui.NYRPOrigClicker or gui.EnableScreenClicker
 gui.NYRPOrigClicker = origClicker
 NYRP.ScreenClicker = NYRP.ScreenClicker or false
+local catcher
+
 function gui.EnableScreenClicker(on)
 	NYRP.ScreenClicker = on and true or false
-	origClicker(on)
-	hide(vgui.GetWorldPanel())
+	if on then
+		if IsValid(catcher) then return end
+		catcher = origCreate("EditablePanel")
+		catcher:SetSize(ScrW(), ScrH())
+		catcher:SetPos(0, 0)
+		catcher:MakePopup()
+		catcher:SetKeyboardInputEnabled(false)
+		catcher:SetMouseInputEnabled(true)
+		catcher:SetCursor("arrow")
+		catcher:MoveToBack()
+		catcher.Paint = function() end
+		catcher.OnMousePressed = function(_, code) hook.Run("GUIMousePressed", code, gui.ScreenToVector(gui.MousePos())) end
+		catcher.OnMouseReleased = function(_, code) hook.Run("GUIMouseReleased", code, gui.ScreenToVector(gui.MousePos())) end
+		catcher.OnMouseWheeled = function(_, delta) hook.Run("NYRP.MouseWheel", delta) end
+		catcher.OnScreenSizeChanged = function(s) s:SetSize(ScrW(), ScrH()) end
+	else
+		if IsValid(catcher) then catcher:Remove() end
+		catcher = nil
+	end
 end
 
+function gui.NYRPCatcher() return catcher end
+
 hook.Add("Initialize", "nyrp.cursor", function()
-	hide(vgui.GetWorldPanel())
 	hide(GetHUDPanel and GetHUDPanel())
-end)
-hook.Add("InitPostEntity", "nyrp.cursor", function()
-	hide(vgui.GetWorldPanel())
 end)
 
 -- Курсор панели (SetCursor) -> наш вид. Картинки: materials/nyrp/cursor/<вид>.png

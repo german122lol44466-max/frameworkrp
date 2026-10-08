@@ -1,11 +1,11 @@
 --[[
 	Банкомат на клиенте. Сеанс:
-	  insert — камера подъезжает к банкомату, рука вставляет карту (v_atm, «insert»);
-	  pin    — ввод PIN: цифры на клавиатуре или клик по кнопкам на экране, рука нажимает клавиши («type»);
-	  menu   — камера отъезжает, видно весь экран: баланс, снять/внести наличные, штрафы, история;
-	  take   — камера снова у клавиатуры, рука забирает карту («take»), затем вид возвращается игроку.
-	Меню рисуется прямо на экране банкомата (3D2D), мышь свободна, клик — луч из камеры в плоскость экрана.
-	Esc/ПКМ — назад или выход.
+	  insert — камера подъезжает к банкомату, рука вставляет карту (v_atm, «insert»), затем тянется к клавиатуре;
+	  pin    — PIN набирают мышью по настоящей клавиатуре банкомата: наведение подсвечивает клавишу,
+	           клик — рука нажимает именно её (отрезок «keys»). ENTER — ввод, CLEAR — стереть, CANCEL — выход;
+	  menu   — камера отъезжает, видно весь экран: баланс, снять/внести наличные, штрафы, история (клики по экрану);
+	  take   — камера снова у клавиатуры, рука забирает карту, затем вид возвращается игроку.
+	ПКМ / Esc — назад или выход.
 ]]
 
 local UI = NYRP.UI
@@ -14,9 +14,11 @@ local G = B.ATM
 
 local A                     -- текущий сеанс
 local confirmAmount         -- (ниже)
-local SCALE = 0.02          -- 14 ед. экрана = 700 px
 local PW = 700
+local SCALE = G.screenSize / PW
 local FPS = 30
+local SEG = 14              -- кадров на одно нажатие в «keys»
+local KEYS_FRAMES = SEG * #B.Keys
 
 local function now() return RealTime() end
 
@@ -55,17 +57,28 @@ local function ensureModels()
 	return vm, hands
 end
 
--- последовательность и её начало
+local SEQ_FRAMES = { insert = 34, reach = 12, keys = KEYS_FRAMES, menu = 2, take = 34 }
+
 local function playSeq(name)
 	if not A then return end
-	A.seq, A.seqT = name, now()
+	A.seq, A.seqT, A.seg = name, now(), nil
 end
 
-local SEQ_FRAMES = { insert = 34, reach = 12, type = 48, menu = 2, take = 34 }
-local LOOP = { type = true, menu = true }
-
 local function seqDone()
-	return A and not LOOP[A.seq] and (now() - A.seqT) * FPS >= (SEQ_FRAMES[A.seq] or 1)
+	return A and (now() - A.seqT) * FPS >= (SEQ_FRAMES[A.seq] or 1)
+end
+
+-- текущий кадр/цикл последовательности
+local function cycleOf()
+	local frames = SEQ_FRAMES[A.seq] or 1
+	if A.seq == "keys" then
+		if not A.seg then return 0 end            -- рука ждёт над клавиатурой
+		local f = math.min(SEG, (now() - A.segT) * FPS)
+		if f >= SEG then A.seg = nil return 0 end
+		return ((A.seg - 1) * SEG + f) / frames
+	end
+	if A.seq == "menu" then return 0 end
+	return math.Clamp((now() - A.seqT) * FPS / frames, 0, 0.999)
 end
 
 hook.Add("PostDrawOpaqueRenderables", "nyrp.atm.hands", function(depth, sky)
@@ -75,11 +88,9 @@ hook.Add("PostDrawOpaqueRenderables", "nyrp.atm.hands", function(depth, sky)
 	local seq = m:LookupSequence(A.seq or "menu")
 	if seq < 0 then return end
 	if m:GetSequence() ~= seq then m:ResetSequence(seq) end
-	local frames = SEQ_FRAMES[A.seq] or 1
-	local t = (now() - A.seqT) * FPS / frames
 	m:SetPlaybackRate(0)
-	m:SetCycle(LOOP[A.seq] and t % 1 or math.Clamp(t, 0, 0.999))
-	-- модель стоит в точке «камеры ввода PIN»: так карта всегда в щели, а руки — у клавиатуры
+	m:SetCycle(math.min(cycleOf(), 0.999))
+	-- модель стоит в точке «камеры ввода PIN»: карта всегда в щели, палец — на клавишах
 	local pos, ang = B.CamWorld(A.ent, G.camPin)
 	m:SetPos(pos)
 	m:SetAngles(ang)
@@ -90,7 +101,6 @@ hook.Add("PostDrawOpaqueRenderables", "nyrp.atm.hands", function(depth, sky)
 	m.nyrpDraw = true
 	m:DrawModel()
 	m.nyrpDraw = false
-	-- в меню руки опущены (камера дальше — их не показываем)
 	if A.seq ~= "menu" then
 		h.nyrpDraw = true
 		h:DrawModel()
@@ -99,15 +109,9 @@ hook.Add("PostDrawOpaqueRenderables", "nyrp.atm.hands", function(depth, sky)
 end)
 
 -- ---------------------------------------------------------------- камера --
-local function camTarget()
-	if not A then return end
-	local cam = (A.stage == "menu") and G.camMenu or G.camPin
-	return B.CamWorld(A.ent, cam)
-end
-
 hook.Add("NYRP.CalcView", "nyrp.atm", function(ply, origin, angles, fov)
 	if not A or not IsValid(A.ent) then return end
-	local tp, ta = camTarget()
+	local tp, ta = B.CamWorld(A.ent, A.stage == "menu" and G.camMenu or G.camPin)
 	A.camPos = A.camPos or origin
 	A.camAng = A.camAng or angles
 	A.camFov = A.camFov or fov
@@ -116,7 +120,7 @@ hook.Add("NYRP.CalcView", "nyrp.atm", function(ply, origin, angles, fov)
 	A.camPos = LerpVector(k, A.camPos, tp)
 	A.camAng = LerpAngle(k, A.camAng, ta)
 	A.camFov = Lerp(k, A.camFov, A.leaving and fov or G.fov)
-	A.viewPos, A.viewAng, A.viewFov = A.camPos, A.camAng, A.camFov
+	A.viewPos = A.camPos
 	return { origin = A.camPos, angles = A.camAng, fov = A.camFov, drawviewer = false, znear = 1 }
 end)
 
@@ -149,8 +153,8 @@ net.Receive("nyrp.atm.open", function()
 	local ent, bank, number, holder = net.ReadEntity(), net.ReadString(), net.ReadString(), net.ReadString()
 	if not IsValid(ent) then return end
 	finish()
-	A = { ent = ent, bank = bank, number = number, holder = holder, stage = "insert", pin = "", amount = "", page = "main", born = now(), msg = "", msgT = 0,
-		confirmAmount = function() confirmAmount() end }
+	A = { ent = ent, bank = bank, number = number, holder = holder, stage = "insert", pin = "", amount = "", page = "main",
+		born = now(), msg = "", msgT = 0, confirmAmount = function() confirmAmount() end }
 	playSeq("insert")
 	timer.Simple(0.75, function() if A and A.ent == ent then ent:EmitSound("buttons/lightswitch2.wav", 50, 140) end end)
 end)
@@ -189,29 +193,21 @@ local function op(name, arg)
 end
 
 local function sendPin()
-	if #A.pin < 4 then return end
+	if #A.pin < 4 then A.msg, A.msgT = "PIN — 4 цифры", now() return end
 	net.Start("nyrp.atm.pin")
 	net.WriteString(A.pin)
 	net.SendToServer()
-	A.wait = now()
 end
 
--- ход сеанса по времени
 hook.Add("Think", "nyrp.atm.flow", function()
 	if not A then return end
 	if not IsValid(A.ent) or not LocalPlayer():Alive() then finish() return end
-	if A.stage == "insert" and seqDone() then
-		A.stage = "pin"
+	if A.stage == "insert" and A.seq == "insert" and seqDone() then
 		playSeq("reach")
+	elseif A.stage == "insert" and A.seq == "reach" and seqDone() then
+		A.stage = "pin"
+		playSeq("keys")
 		setClicker(true)
-	elseif A.stage == "pin" then
-		-- рука «печатает», пока вводят цифры, иначе держится над клавиатурой
-		if (A.typing or 0) > now() then
-			if A.seq ~= "type" then playSeq("type") end
-		elseif A.seq == "type" then
-			playSeq("reach")
-			A.seqT = now() - 1     -- сразу конец «reach»: рука над клавишами
-		end
 	elseif A.stage == "take" and seqDone() and not A.leaving then
 		A.leaving = now()
 		A.ent:EmitSound("buttons/lightswitch2.wav", 50, 120)
@@ -219,7 +215,7 @@ hook.Add("Think", "nyrp.atm.flow", function()
 	if A.leaving and now() - A.leaving > 0.7 then finish() end
 end)
 
--- двигаться и стрелять во время сеанса нельзя
+-- двигаться, крутить камерой и стрелять во время сеанса нельзя
 hook.Add("CreateMove", "nyrp.atm", function(cmd)
 	if not A then return end
 	cmd:ClearMovement()
@@ -247,6 +243,59 @@ hook.Add("PlayerBindPress", "nyrp.atm", function(_, bind, pressed)
 	if bind:find("+") or bind:find("slot") or bind:find("inv") then return true end
 end)
 
+-- ---------------------------------------------------------- клавиатура банкомата --
+local function pressKey(k, idx)
+	if not A or A.stage ~= "pin" then return end
+	A.seg, A.segT = idx, now()
+	-- звук и ввод — в момент нажатия пальцем
+	timer.Simple(8 / FPS, function()
+		if not A or A.stage ~= "pin" then return end
+		A.ent:EmitSound("buttons/button17.wav", 45, 100 + math.random(-8, 8))
+		if k.key:match("^%d$") then
+			if #A.pin < 4 then A.pin = A.pin .. k.key end
+		elseif k.key == "clear" then
+			A.pin = ""
+		elseif k.key == "enter" then
+			sendPin()
+		elseif k.key == "cancel" then
+			leave()
+		end
+	end)
+end
+
+-- луч из камеры через курсор
+local function cursorRay()
+	if not A or not A.viewPos then return end
+	local mx, my = gui.MousePos()
+	return A.viewPos, gui.ScreenToVector(mx, my)
+end
+
+-- клавиша под курсором (на настоящей клавиатуре банкомата)
+local function keyUnderCursor()
+	local o, dir = cursorRay()
+	if not o then return end
+	local ent = A.ent
+	local n = ent:LocalToWorld(B.KeypadNormal()) - ent:GetPos()
+	local p = ent:LocalToWorld(B.KeypadPoint(0.5, 0.5, 0))
+	local hit = util.IntersectRayWithPlane(o, dir, p, n)
+	if not hit then return end
+	local fx, fy = B.KeypadUV(ent:WorldToLocal(hit))
+	return B.KeyAt(fx, fy)
+end
+
+-- подсветка клавиши под курсором
+local glow = Material("sprites/light_glow02_add")
+hook.Add("PostDrawTranslucentRenderables", "nyrp.atm.keyglow", function(depth, sky)
+	if sky or depth or not A or A.stage ~= "pin" then return end
+	local k = keyUnderCursor()
+	A.hoverKey = k
+	if not k then return end
+	local pos = A.ent:LocalToWorld(B.KeypadPoint(k.fx, k.fy, 0.05))
+	render.SetMaterial(glow)
+	local col = k.key == "enter" and Color(80, 255, 120) or k.key == "cancel" and Color(255, 80, 70) or Color(255, 220, 90)
+	render.DrawSprite(pos, 3.2, 3.2, col)
+end)
+
 -- --------------------------------------------------------- ввод с клавиатуры --
 local keys = {}
 local function pressedKey(k)
@@ -256,42 +305,25 @@ local function pressedKey(k)
 	return d and not was
 end
 
-local function digit(d)
-	if A.stage == "pin" then
-		if #A.pin < 4 then
-			A.pin = A.pin .. d
-			A.typing = now() + 0.7
-			A.ent:EmitSound("buttons/button17.wav", 45, 100 + math.random(-8, 8))
-			if #A.pin == 4 then timer.Simple(0.25, function() if A and A.stage == "pin" then sendPin() end end) end
-		end
-	elseif A.page == "amount" and #A.amount < 6 then
-		A.amount = A.amount .. d
-		A.ent:EmitSound("buttons/button17.wav", 45, 110)
-	end
-end
-
-local function backspace()
-	if A.stage == "pin" then A.pin = A.pin:sub(1, -2)
-	elseif A.page == "amount" then A.amount = A.amount:sub(1, -2) end
-end
-
 hook.Add("Think", "nyrp.atm.keys", function()
-	if not A or gui.IsGameUIVisible() then
-		if A and gui.IsGameUIVisible() then
-			-- Esc — выйти из банкомата, а не открыть меню игры
-			gui.HideGameUI()
-			if A.page and A.page ~= "main" then A.page = "main" else leave() end
-		end
+	if not A then return end
+	if gui.IsGameUIVisible() then
+		-- Esc — назад/выход из банкомата, а не меню игры
+		gui.HideGameUI()
+		if A.page and A.page ~= "main" then A.page = "main" else leave() end
 		return
 	end
-	for d = 0, 9 do
-		local a, b = pressedKey(KEY_0 + d), pressedKey(KEY_PAD_0 + d)
-		if a or b then digit(tostring(d)) end
-	end
-	if pressedKey(KEY_BACKSPACE) then backspace() end
-	if pressedKey(KEY_ENTER) or pressedKey(KEY_PAD_ENTER) then
-		if A.stage == "pin" then sendPin()
-		elseif A.page == "amount" then A.confirmAmount() end
+	-- сумму можно набрать и цифрами клавиатуры; PIN — только мышью по клавишам банкомата
+	if A.stage == "menu" and A.page == "amount" then
+		for d = 0, 9 do
+			local a, b = pressedKey(KEY_0 + d), pressedKey(KEY_PAD_0 + d)
+			if (a or b) and #A.amount < 6 then
+				A.amount = A.amount .. d
+				A.ent:EmitSound("buttons/button17.wav", 45, 110)
+			end
+		end
+		if pressedKey(KEY_BACKSPACE) then A.amount = A.amount:sub(1, -2) end
+		if pressedKey(KEY_ENTER) or pressedKey(KEY_PAD_ENTER) then confirmAmount() end
 	end
 end)
 
@@ -300,16 +332,10 @@ local btns = {}
 local hovered
 
 local function mouseOnScreen(ent)
-	if not A or ent ~= A.ent or not A.viewPos or not vgui.CursorVisible() and not NYRP.ScreenClicker then return end
-	local mx, my = gui.MousePos()
-	local w, h = ScrW(), ScrH()
-	local tanH = math.tan(math.rad(A.viewFov or G.fov) / 2) * (w / h) / (4 / 3)
-	local dx = (2 * mx / w - 1) * tanH
-	local dy = (2 * my / h - 1) * tanH * h / w
-	local ang = A.viewAng
-	local dir = (ang:Forward() + ang:Right() * dx - ang:Up() * dy):GetNormalized()
-	local origin = ent:LocalToWorld(Vector(G.screenX + 0.01, -G.screenY, G.screenTop))
-	local hit = util.IntersectRayWithPlane(A.viewPos, dir, origin, ent:GetForward())
+	local o, dir = cursorRay()
+	if not o or ent ~= A.ent then return end
+	local origin = ent:LocalToWorld(Vector(G.screenX, -G.screenY, G.screenTop))
+	local hit = util.IntersectRayWithPlane(o, dir, origin, ent:GetForward())
 	if not hit then return end
 	local d = hit - origin
 	return d:Dot(-ent:GetRight()) / SCALE, d:Dot(-ent:GetUp()) / SCALE
@@ -327,11 +353,15 @@ hook.Add("GUIMousePressed", "nyrp.atm", function(code)
 		return
 	end
 	if code ~= MOUSE_LEFT then return end
+	if A.stage == "pin" then
+		local k, idx = keyUnderCursor()
+		if k then pressKey(k, idx) end
+		return
+	end
 	for i = #btns, 1, -1 do
 		local b = btns[i]
 		if b.id == hovered then
 			A.ent:EmitSound("buttons/button15.wav", 45, 110)
-			A.typing = now() + 0.4
 			b.fn()
 			return
 		end
@@ -367,7 +397,7 @@ end
 
 local function money(n) return NYRP.Money.Format(n or 0) end
 
-local function drawIdle(ent, bank, busy)
+local function drawIdle(bank, busy)
 	local t = now()
 	box(0, 0, PW, PW, bank.dark, 0)
 	surface.SetMaterial(UI.Mat("vgui/gradient-d"))
@@ -380,7 +410,6 @@ local function drawIdle(ent, bank, busy)
 		T("Пожалуйста, подождите", 24, PW / 2, PW / 2 + 86, Color(255, 255, 255, 160), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "medium")
 		return
 	end
-	-- карта «заходит» в щель
 	local k = (t % 2.4) / 2.4
 	local cy = PW / 2 + 30 + math.sin(k * math.pi) * -40
 	box(PW / 2 - 110, cy - 70, 220, 140, Color(255, 255, 255, 230), 14)
@@ -397,39 +426,22 @@ local function header(bank)
 	T(A.holder, 18, PW - 28, 62, Color(255, 255, 255, 180), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, "medium")
 end
 
+-- ввод PIN: камера у клавиатуры видит только низ экрана — всё важное там
 local function drawPin(bank)
 	box(0, 0, PW, PW, Color(10, 12, 20), 0)
 	header(bank)
-	-- всё нужное — в нижней половине: при вводе PIN камера ниже и видит её
-	T("Введите PIN-код", 40, PW / 2, 300, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
+	T("Введите PIN-код", 46, PW / 2, 300, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
+	T("на клавиатуре банкомата", 26, PW / 2, 350, Color(200, 205, 220), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "medium")
+	-- нижняя полоса: точки PIN и подсказка
+	box(0, PW - 180, PW, 180, Color(20, 24, 36), 0)
 	for i = 1, 4 do
-		local cx = PW / 2 + (i - 2.5) * 70
-		box(cx - 26, 340, 52, 64, Color(255, 255, 255, 24), 10)
-		if i <= #A.pin then
-			draw.NoTexture()
-			UI.Circle(cx, 372, 12, color_white)
-		end
+		local cx = PW / 2 + (i - 2.5) * 86
+		box(cx - 34, PW - 162, 68, 80, Color(255, 255, 255, 26), 12)
+		if i <= #A.pin then UI.Circle(cx, PW - 122, 15, color_white) end
 	end
 	local msg = (now() - A.msgT < 3) and A.msg or ""
-	if msg ~= "" then T(msg, 22, PW / 2, 432, Color(255, 120, 110), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "semibold") end
-	-- экранные цифры
-	local kw, kh = 120, 54
-	local gx, gy = PW / 2 - (kw * 5 + 16 * 4) / 2, 470
-	for i = 0, 9 do
-		local col, row = i % 5, math.floor(i / 5)
-		local x, y = gx + col * (kw + 16), gy + row * (kh + 12)
-		local d = tostring((i + 1) % 10)
-		local hv = btn("d" .. d, x, y, kw, kh, function() digit(d) end)
-		box(x, y, kw, kh, hv and Color(255, 255, 255, 60) or Color(255, 255, 255, 22), 10)
-		T(d, 32, x + kw / 2, y + kh / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
-	end
-	local by = gy + 2 * (kh + 12)
-	local hv1 = btn("cancel", gx, by, 300, 56, leave)
-	box(gx, by, 300, 56, hv1 and Color(220, 60, 50) or Color(170, 40, 35), 10)
-	T("Отмена", 28, gx + 150, by + 28, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
-	local hv2 = btn("enter", PW - gx - 300, by, 300, 56, sendPin)
-	box(PW - gx - 300, by, 300, 56, hv2 and Color(60, 200, 100) or Color(40, 160, 80), 10)
-	T("Ввод", 28, PW - gx - 150, by + 28, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
+	T(msg ~= "" and msg or "ENTER — ввод   ·   CLEAR — стереть   ·   CANCEL — выход", 24, PW / 2, PW - 46,
+		msg ~= "" and Color(255, 120, 110) or Color(170, 175, 190), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "semibold")
 end
 
 local QUICK = { 20, 50, 100, 200, 500 }
@@ -438,7 +450,6 @@ local function drawMenu(bank, ent)
 	box(0, 0, PW, PW, Color(10, 12, 20), 0)
 	header(bank)
 	local info = A.info or {}
-	-- баланс
 	box(28, 120, PW - 56, 110, Color(255, 255, 255, 14), 14)
 	T("Баланс счёта", 22, 52, 138, Color(200, 205, 220), nil, nil, "medium")
 	T(money(info.balance), 54, 52, 164, color_white, nil, nil, "title")
@@ -470,19 +481,13 @@ local function drawMenu(bank, ent)
 			T("$" .. v, 30, x + bw / 2, y0 + 83, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
 		end
 		box(28, y0 + 136, PW - 56, 80, Color(255, 255, 255, 10), 12)
-		local txt = A.amount == "" and "Введите сумму цифрами" or ("$" .. A.amount)
-		T(txt, A.amount == "" and 26 or 44, PW / 2, y0 + 176, A.amount == "" and Color(150, 155, 170) or color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
-		if math.floor(now() * 2) % 2 == 0 and A.amount ~= "" then
-			surface.SetFont(NYRP.FontRaw("bold", 44))
-			local tw = surface.GetTextSize(txt)
-			surface.SetDrawColor(247, 198, 0)
-			surface.DrawRect(PW / 2 + tw / 2 + 6, y0 + 154, 4, 44)
-		end
+		local txt = A.amount == "" and "Другая сумма — цифрами на клавиатуре" or ("$" .. A.amount)
+		T(txt, A.amount == "" and 24 or 44, PW / 2, y0 + 176, A.amount == "" and Color(150, 155, 170) or color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
 		local w2 = (PW - 56 - 16) / 2
 		local hv1 = btn("back", 28, y0 + 236, w2, 76, function() A.page = "main" end)
 		box(28, y0 + 236, w2, 76, hv1 and Color(255, 255, 255, 50) or Color(255, 255, 255, 18), 12)
 		T("Назад", 28, 28 + w2 / 2, y0 + 274, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
-		local hv2 = btn("ok", 44 + w2, y0 + 236, w2, 76, A.confirmAmount)
+		local hv2 = btn("ok", 44 + w2, y0 + 236, w2, 76, confirmAmount)
 		box(44 + w2, y0 + 236, w2, 76, hv2 and Color(60, 200, 100) or Color(40, 160, 80), 12)
 		T(wd and "Снять" or "Внести", 28, 44 + w2 + w2 / 2, y0 + 274, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
 		if wd and foreign then T("+ комиссия " .. money(B.ForeignFee), 20, PW / 2, y0 + 336, Color(247, 198, 0), TEXT_ALIGN_CENTER, nil, "semibold") end
@@ -518,7 +523,6 @@ local function drawMenu(bank, ent)
 		box(28, PW - 96, 200, 70, hv and Color(255, 255, 255, 50) or Color(255, 255, 255, 18), 12)
 		T("Назад", 26, 128, PW - 61, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
 	end
-	-- сообщение банка
 	local msg = (now() - A.msgT < 3.5) and A.msg or ""
 	if msg ~= "" then
 		local a = math.min(1, (3.5 - (now() - A.msgT)) * 3)
@@ -529,26 +533,24 @@ end
 
 function B.DrawScreen(ent)
 	local bank = B.Banks[ent:GetBank()] or B.Banks.liberty
-	local origin = ent:LocalToWorld(Vector(G.screenX + 0.02, -G.screenY, G.screenTop))
+	local origin = ent:LocalToWorld(Vector(G.screenX, -G.screenY, G.screenTop))
 	local ang = ent:LocalToWorldAngles(Angle(0, 90, 90))
 	local mine = A and A.ent == ent
-	if not mine and EyePos():DistToSqr(ent:GetPos()) > 600 * 600 then return end
+	if not mine and EyePos():DistToSqr(ent:GetPos()) > 800 * 800 then return end
+	local mx, my
 	if mine then
 		btns = {}
-		local mx, my = mouseOnScreen(ent)
-		hovered = nil
-		A.mouse = mx and { mx, my }
+		mx, my = mouseOnScreen(ent)
 	end
 	cam.Start3D2D(origin, ang, SCALE)
 	render.PushFilterMag(TEXFILTER.ANISOTROPIC)
 	render.PushFilterMin(TEXFILTER.ANISOTROPIC)
 	if not mine then
-		drawIdle(ent, bank, IsValid(ent:GetUser()))
+		drawIdle(bank, IsValid(ent:GetUser()))
 	elseif A.stage == "insert" or A.stage == "take" then
 		box(0, 0, PW, PW, Color(10, 12, 20), 0)
-		header(bank)
-		T(A.stage == "insert" and "Читаем карту…" or "Заберите карту", 40, PW / 2, PW / 2 + 80, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
-		T("Спасибо, что выбрали " .. bank.name, 22, PW / 2, PW / 2 + 130, Color(200, 205, 220), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "medium")
+		header(B.Banks[A.bank] or bank)
+		T(A.stage == "insert" and "Читаем карту…" or "Заберите карту", 46, PW / 2, PW - 120, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, "bold")
 	elseif A.stage == "pin" then
 		drawPin(B.Banks[A.bank] or bank)
 	else
@@ -557,28 +559,29 @@ function B.DrawScreen(ent)
 	render.PopFilterMin()
 	render.PopFilterMag()
 	cam.End3D2D()
-	if mine and A.mouse then
-		-- наведение решаем после того, как кнопки зарегистрированы
-		for i = #btns, 1, -1 do
-			local b = btns[i]
-			if A.mouse[1] >= b.x and A.mouse[1] <= b.x + b.w and A.mouse[2] >= b.y and A.mouse[2] <= b.y + b.h then
-				if A.lastHover ~= b.id then A.lastHover = b.id surface.PlaySound("nyrp/phone/key.wav") end
-				hovered = b.id
-				break
+	if mine then
+		-- наведение решаем после того, как кнопки кадра зарегистрированы
+		hovered = nil
+		if mx then
+			for i = #btns, 1, -1 do
+				local b = btns[i]
+				if mx >= b.x and mx <= b.x + b.w and my >= b.y and my <= b.y + b.h then
+					if A.lastHover ~= b.id then A.lastHover = b.id surface.PlaySound("nyrp/phone/key.wav") end
+					hovered = b.id
+					break
+				end
 			end
 		end
 	end
 end
 
--- подтверждение суммы
 confirmAmount = function()
 	if not A then return end
 	local n = tonumber(A.amount)
-	if not n or n <= 0 then A.msg, A.msgT = "Введите сумму", now() return end
+	if not n or n <= 0 then A.msg, A.msgT = "Выберите или введите сумму", now() return end
 	op(A.mode, n)
 end
 
--- во время сеанса не рисуем лишний HUD
 hook.Add("HUDShouldDraw", "nyrp.atm", function(name)
 	if A and (name == "CHudCrosshair" or name == "CHudWeaponSelection") then return false end
 end)

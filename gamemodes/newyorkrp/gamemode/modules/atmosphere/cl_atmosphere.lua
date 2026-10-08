@@ -23,6 +23,7 @@ end)
 
 -- Дымка: видна вдали, у края мира. Цвет и плотность зависят от времени суток.
 local function fog(scale)
+	if NYRP.State ~= "playing" then return end   -- в меню персонажей тумана нет
 	local d = daylight()
 	local col = LerpVector(d, Vector(14, 18, 30), Vector(170, 178, 186))
 	render.FogMode(MATERIAL_FOG_LINEAR)

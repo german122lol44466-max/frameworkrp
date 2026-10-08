@@ -106,6 +106,21 @@ local function instructions(w)
 	return string.Trim(t)
 end
 
+-- Список справа от центра экрана (как в Helix): выбранное — жёлтым и крупнее, остальные мельче и прозрачнее
+-- с удалением от выбранного. Под выбранным — подсказка управления; она занимает своё место в списке,
+-- поэтому никогда не налезает на названия соседей. Каждая строка плавно едет к своему месту.
+local rowY = {}
+
+local function infoLines(w)
+	local info = IsValid(w) and instructions(w) or ""
+	local lines = {}
+	if info == "" then return lines end
+	for _, line in ipairs(string.Explode("\n", info)) do
+		for _, l in ipairs(UI.Wrap(line, NYRP.Font("regular", 14), ScrW() * 0.26)) do lines[#lines + 1] = l end
+	end
+	return lines
+end
+
 hook.Add("HUDPaint", "nyrp.weaponselect", function()
 	if open and RealTime() - lastInput > 3 then open = false end
 	if open then
@@ -113,58 +128,47 @@ hook.Add("HUDPaint", "nyrp.weaponselect", function()
 	end
 	local ft = FrameTime()
 	alpha = Lerp(ft * 10, alpha, open and 1 or 0)
-	if alpha < 0.01 or #list == 0 then return end
-	delta = Lerp(ft * 12, delta, index)
+	if alpha < 0.01 or #list == 0 then rowY = {} return end
 
-	local x, y = ScrW() * 0.5, ScrH() * 0.5
-	local spacing = math.pi * 0.85
-	local radius = UI.S(240) * alpha
-	local shiftX = ScrW() * 0.02
-	local font = NYRP.Font("title", 34)
-	-- высота подсказки выбранного оружия: всё, что ниже выбранного, сдвигаем вниз на неё (как в Helix)
-	local selW = list[index]
-	local selInfo = IsValid(selW) and instructions(selW) or ""
-	local infoLines = 0
-	if selInfo ~= "" then
-		for _, line in ipairs(string.Explode("\n", selInfo)) do
-			infoLines = infoLines + #UI.Wrap(line, NYRP.Font("regular", 14), ScrW() * 0.3)
-		end
+	local cx, cy = ScrW() * 0.5 + ScrW() * 0.03, ScrH() * 0.5
+	local rowH = UI.S(46)
+	local sel = list[index]
+	local lines = infoLines(sel)
+	local infoH = #lines > 0 and (UI.S(26) + #lines * UI.S(18) + UI.S(10)) or 0
+	-- целевые места: выбранное — по центру экрана, подсказка сразу под ним
+	local targets = {}
+	for i = 1, #list do
+		local d = i - index
+		local y = cy + d * rowH
+		if d > 0 then y = y + infoH end
+		targets[i] = y
 	end
-	infoH = Lerp(ft * 10, infoH or 0, selInfo ~= "" and (UI.S(30) + infoLines * UI.S(18)) or 0)
 	for i, w in ipairs(list) do
-		local theta = (i - delta) * 0.1
-		local fade = math.Clamp(1 - math.abs(theta * 3), 0, 1)
+		local key = w
+		rowY[key] = rowY[key] and Lerp(math.min(1, ft * 14), rowY[key], targets[i]) or targets[i]
+		local d = math.abs(i - index)
+		local fade = math.Clamp(1 - d * 0.22, 0, 1)
 		if fade > 0 then
-			local sel = i == index
-			local col = sel and UI.Col.accent or Color(240, 241, 245)
+			local isSel = i == index
+			local size = isSel and 34 or 24
+			local font = NYRP.Font("title", size)
+			local col = isSel and UI.Col.accent or Color(240, 241, 245)
 			local name = utf8.upper and utf8.upper(nameOf(w)) or string.upper(nameOf(w))
-			surface.SetFont(font)
-			local _, th = surface.GetTextSize(name)
-			local scale = math.max(0.2, 1 - math.abs(theta * 2))
-			local m = Matrix()
-			local push = i > index and infoH * math.Clamp(i - delta, 0, 1) or 0
-			m:Translate(Vector(shiftX + x + math.cos(theta * spacing + math.pi) * radius + radius,
-				y + math.sin(theta * spacing + math.pi) * radius - th / 2 + push, 1))
-			m:Scale(matScale * scale)
-			cam.PushModelMatrix(m)
-			draw.SimpleText(name, font, 3, th / 2 + 3, Color(0, 0, 0, 160 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-			draw.SimpleText(name, font, 0, th / 2, Color(col.r, col.g, col.b, 255 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-			cam.PopModelMatrix()
+			local x = cx + d * UI.S(10)
+			local y = rowY[key]
+			draw.SimpleText(name, font, x + 2, y + 2, Color(0, 0, 0, 150 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			draw.SimpleText(name, font, x, y, Color(col.r, col.g, col.b, 255 * fade * alpha), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 		end
 	end
-	-- подсказка выбранного оружия
-	local w = list[index]
-	local info = IsValid(w) and instructions(w) or ""
-	infoA = Lerp(ft * 4, infoA, info ~= "" and 1 or 0)
-	if info ~= "" and infoA > 0.01 then
-		local ix, iy = x + shiftX + UI.S(8), y + UI.S(36)
+	-- подсказка выбранного
+	infoA = Lerp(ft * 6, infoA, #lines > 0 and 1 or 0)
+	if #lines > 0 and infoA > 0.01 and IsValid(sel) and rowY[sel] then
+		local ix, iy = cx + UI.S(2), rowY[sel] + rowH * 0.5
 		draw.SimpleText("УПРАВЛЕНИЕ", NYRP.Font("bold", 13), ix, iy, UI.Alpha(UI.Col.accent, 255 * infoA * alpha))
-		local ly = iy + UI.S(18)
-		for _, line in ipairs(string.Explode("\n", info)) do
-			for _, l in ipairs(UI.Wrap(line, NYRP.Font("regular", 14), ScrW() * 0.3)) do
-				draw.SimpleText(l, NYRP.Font("regular", 14), ix, ly, Color(220, 222, 230, 230 * infoA * alpha))
-				ly = ly + UI.S(18)
-			end
+		local ly = iy + UI.S(20)
+		for _, l in ipairs(lines) do
+			draw.SimpleText(l, NYRP.Font("regular", 14), ix, ly, Color(220, 222, 230, 230 * infoA * alpha))
+			ly = ly + UI.S(18)
 		end
 	end
 end)

@@ -8,7 +8,7 @@
   content/materials/models/nyrp/atm/*      текстуры
   branding/atm_preview.png
 
-Геометрия (ед. Source), лицевая сторона — плоскость x = 9:
+Геометрия (чертёжные ед.; в игре × K = 1.5), лицевая сторона — плоскость x = 9:
   экран: x = 8.6, y ∈ [-7, 7], z ∈ [38, 52]
   клавиатура: полка под экраном, центр (12.0, -1.2, 31.6), наклон 18° (передний край ниже)
   картоприёмник: справа от клавиатуры (для стоящего перед банкоматом), центр (9, 7.6, 34)
@@ -35,6 +35,7 @@ GM = os.path.join(ROOT, "gamemodes", "newyorkrp")
 SRC = os.path.join(HERE, "src")
 MATDIR = os.path.join(GM, "content", "materials", "models", "nyrp", "atm")
 FONTS = os.path.join(GM, "content", "resource", "fonts")
+K = 1.5          # масштаб банкомата в игре относительно чертёжных размеров ниже
 
 
 def font(name, size):
@@ -367,13 +368,15 @@ def main():
     build_textures()
     obs = build()
     tris = collect(obs)
+    # в игре банкомат в K раз больше чертежа (реальный рост ~1.6 м, экран на уровне глаз)
+    tris = {m: [[(tuple(c * K for c in p), n, uv) for p, n, uv in tri] for tri in tl] for m, tl in tris.items()}
     print("triangles:", sum(len(v) for v in tris.values()))
     out = os.path.join(GM, "content", "models", "nyrp", "atm")
     mdlc.compile_model(out, "atm", "nyrp/atm/atm.mdl", tris, "models/nyrp/atm", "metal", 300)
-    # карта: 3.37 × 2.13 (крупнее настоящей в ~1.3 раза, как сим-карта), лежит плашмя
+    # карта: настоящий размер 85.6 × 54 мм = 4.5 × 2.84 ед., лежит плашмя
     for ob in obs:
         ob.hide_render = True
-    card = box("card", (3.37, 2.13, 0.05), (0, 0, 0), {"+z": "atm_card", "-z": "atm_card", "*": "atm_trim"}, fit=("+z", "-z"))
+    card = box("card", (4.5, 2.84, 0.05), (0, 0, 0), {"+z": "atm_card", "-z": "atm_card", "*": "atm_trim"}, fit=("+z", "-z"))
     ctris = collect([card])
     mdlc.compile_model(out, "w_bankcard", "nyrp/atm/w_bankcard.mdl", ctris, "models/nyrp/atm", "plastic", 0.05)
     os.makedirs(SRC, exist_ok=True)

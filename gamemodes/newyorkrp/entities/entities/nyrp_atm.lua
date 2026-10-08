@@ -82,12 +82,14 @@ if CLIENT then
 		local B = NYRP.Bank
 		local bank = B.Banks[self:GetBank()] or B.Banks.liberty
 		local dist = EyePos():DistToSqr(self:GetPos())
-		if dist > 1200 * 1200 then return end
-		-- вывеска: название банка с двух сторон короба
+		if dist > 1600 * 1600 then return end
+		-- вывеска: название банка с двух сторон короба (чуть впереди граней — без мерцания)
+		local G = B.ATM
+		local backX = -1 * G.K - 0.15
 		for _, side in ipairs({ 1, -1 }) do
-			local pos = self:LocalToWorld(Vector(3 + side * 4.02, side * -12.5, 72))
+			local pos = self:LocalToWorld(Vector(side == 1 and G.topperX or backX, side * -G.topperY, G.topperTop))
 			local ang = self:LocalToWorldAngles(Angle(0, side == 1 and 90 or -90, 90))
-			cam.Start3D2D(pos, ang, 0.05)
+			cam.Start3D2D(pos, ang, G.topperY * 2 / 500)
 			draw.RoundedBox(0, 0, 0, 500, 200, bank.color)
 			surface.SetDrawColor(255, 255, 255, 30)
 			surface.DrawRect(0, 0, 500, 6)

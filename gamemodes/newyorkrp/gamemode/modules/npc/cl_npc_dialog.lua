@@ -214,3 +214,11 @@ end)
 hook.Add("HUDShouldDraw", "nyrp.npc.dialog", function(name)
 	if N.InDialog() and name == "CHudCrosshair" then return false end
 end)
+
+-- колесо мыши, когда курсор свободен (клики и колесо ловит панель свободной мыши)
+hook.Add("NYRP.MouseWheel", "nyrp.npc.dialog", function(delta)
+	if N.InDialog() and #D.opts > 0 then
+		D.sel = (D.sel - 1 + (delta > 0 and -1 or 1)) % #D.opts + 1
+		UI.Sound("hover")
+	end
+end)

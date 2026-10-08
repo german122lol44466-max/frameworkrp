@@ -69,7 +69,7 @@ end
 
 local function canHold(ent, phys, isBody, maxMass)
 	if not IsValid(ent) or ent:IsPlayer() or ent:IsNPC() or ent:IsVehicle() then return false end
-	if not IsValid(phys) or not phys:IsMoveable() or not phys:IsMotionEnabled() then return false end
+	if not IsValid(phys) or not phys:IsMotionEnabled() then return false end
 	local cls = ent:GetClass()
 	if cls == "nyrp_container" or cls == "nyrp_vending" or cls == "nyrp_npc" then return false end
 	if ent.nyrpHeldBy and IsValid(ent.nyrpHeldBy) then return false end
@@ -84,6 +84,8 @@ if SERVER then
 		if not canHold(ent, phys, isBody, self.maxMass) then
 			if IsValid(phys) and not isBody and phys:GetMass() > self.maxMass and IsValid(ent) and not ent:IsPlayer() then
 				NYRP.Notify(self:GetOwner(), "Слишком тяжело", "warning", 2)
+			elseif IsValid(phys) and not phys:IsMotionEnabled() and IsValid(ent) and not ent:IsPlayer() then
+				NYRP.Notify(self:GetOwner(), "Закреплено — не взять", "warning", 2)
 			end
 			return
 		end
@@ -174,7 +176,13 @@ function SWEP:SecondaryAttack()
 	end
 	local ply = self:GetOwner()
 	if not IsValid(ply) or (NYRP.Cond and NYRP.Cond.KO(ply)) then return end
-	local tr = util.TraceLine({ start = ply:GetShootPos(), endpos = ply:GetShootPos() + ply:GetAimVector() * 84, filter = { self, ply } })
+	-- луч + «толстый» луч: мелкие предметы (группа столкновений WEAPON) обычный луч мог не задевать
+	local start, dir = ply:GetShootPos(), ply:GetAimVector()
+	local tr = util.TraceLine({ start = start, endpos = start + dir * 90, filter = { self, ply }, mask = MASK_SHOT })
+	if not IsValid(tr.Entity) or tr.Entity:IsWorld() then
+		tr = util.TraceHull({ start = start, endpos = start + dir * 90, mins = Vector(-4, -4, -4), maxs = Vector(4, 4, 4),
+			filter = { self, ply }, mask = MASK_SHOT, ignoreworld = true })
+	end
 	if IsValid(tr.Entity) then self:Pickup(tr.Entity, tr) end
 	self:SetNextSecondaryFire(CurTime() + 0.4)
 end

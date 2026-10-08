@@ -295,7 +295,16 @@ local function spawnModel(model, pos, ang, silhouette)
 			render.MaterialOverride(nil)
 			render.SetColorModulation(1, 1, 1)
 		else
+			-- свой «студийный» свет: ночью и в тёмном месте карты персонажей всё равно видно
+			render.SuppressEngineLighting(true)
+			render.SetModelLighting(BOX_TOP, 0.85, 0.82, 0.78)
+			render.SetModelLighting(BOX_BOTTOM, 0.12, 0.12, 0.14)
+			render.SetModelLighting(BOX_FRONT, 0.7, 0.68, 0.66)
+			render.SetModelLighting(BOX_BACK, 0.25, 0.27, 0.33)
+			render.SetModelLighting(BOX_LEFT, 0.45, 0.45, 0.5)
+			render.SetModelLighting(BOX_RIGHT, 0.55, 0.52, 0.48)
 			self:DrawModel()
+			render.SuppressEngineLighting(false)
 		end
 	end
 	return ent

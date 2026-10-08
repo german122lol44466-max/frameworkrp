@@ -68,6 +68,13 @@ end
 function Chars.Save(ply)
 	local c = ply.nyrpChar
 	if not c then return end
+	-- инвентарь пишем только «своему» персонажу: если в памяти вещи другого (переключение не завершилось),
+	-- строку инвентаря не трогаем — иначе вещи одного персонажа оказывались у другого
+	if NYRP.Inv and ply.nyrpInvChar ~= c.id then
+		NYRP.Print("Сохранение " .. tostring(c.name) .. ": инвентарь в памяти принадлежит другому персонажу — не сохраняю его")
+		Q(string.format("UPDATE nyrp_characters SET flags = %s WHERE id = %d", E(util.TableToJSON(c.flags or {})), c.id))
+		return
+	end
 	local inv, eq = {}, {}
 	if NYRP.Inv then inv, eq = NYRP.Inv.Export(ply) end
 	Q(string.format("UPDATE nyrp_characters SET inventory = %s, equipment = %s, hunger = %f, thirst = %f, health = %d, recognized = %s, flags = %s WHERE id = %d",
@@ -105,6 +112,8 @@ function Chars.Load(ply, id)
 	if ply.nyrpChar then Chars.Save(ply) end
 
 	local c = rowToChar(r[1])
+	-- вещи прошлого персонажа убираем из памяти до смены персонажа
+	ply.nyrpInv, ply.nyrpInvChar = nil, nil
 	-- у каждого персонажа свои вещи: оружие, патроны, броня прошлого персонажа не переносятся
 	ply:StripWeapons()
 	ply:RemoveAllAmmo()
@@ -129,9 +138,14 @@ function Chars.Load(ply, id)
 		for cid, ts in pairs(rec) do if tonumber(cid) then ply.nyrpRecog[tonumber(cid)] = tonumber(ts) or os.time() end end
 	end
 	if NYRP.Recog then NYRP.Recog.Sync(ply) end
-	if NYRP.Inv then NYRP.Inv.Import(ply, c.inventory, c.equipment) end
-	issueID(ply, c)
-	hook.Run("NYRP.CharInventoryReady", ply, c) -- выдача стартовых вещей модулями (телефон и т.п.)
+	if NYRP.Inv then
+		NYRP.Inv.Import(ply, c.inventory, c.equipment)
+		ply.nyrpInvChar = c.id
+	end
+	-- выдача стартовых вещей (удостоверение, телефон, карта): ошибка в одном модуле не должна ломать вход
+	ProtectedCall(function() issueID(ply, c) end)
+	ProtectedCall(function() hook.Run("NYRP.CharInventoryReady", ply, c) end)
+	Chars.Save(ply) -- сразу запоминаем выданное и отметки «уже выдано»
 
 	ply.nyrpSpawnHealth = math.max(c.health, 25)
 	ply:Spawn()
@@ -147,6 +161,7 @@ end
 function Chars.ToMenu(ply)
 	if ply.nyrpChar then Chars.Save(ply) end
 	ply.nyrpChar = nil
+	ply.nyrpInvChar = nil
 	ply:SetNW2Int("nyrp.charID", 0)
 	ply:SetNW2String("nyrp.name", "")
 	ply:SetNW2String("nyrp.bag", "")

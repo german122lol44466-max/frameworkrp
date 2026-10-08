@@ -11,6 +11,7 @@ hook.Add("HUDPaint", "nyrp.crosshair", function()
 	local ply = LocalPlayer()
 	if NYRP.HUDHidden() or not IsValid(ply) or not ply:Alive() then return end
 	if NYRP.Inventory and NYRP.Inventory.IsOpen and NYRP.Inventory.IsOpen() then return end
+	if (NYRP.Bank and NYRP.Bank.ATMActive and NYRP.Bank.ATMActive()) or NYRP.ScreenClicker then return end
 
 	local target = NYRP.Interact and NYRP.Interact.Target
 	hover = UI.Approach(hover, IsValid(target) and 1 or 0, 12)

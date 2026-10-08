@@ -275,6 +275,8 @@ end
 
 -- F2: свободная мышь. Курсор сразу ставим на экран телефона.
 function P.ToggleMouse(on)
+	if (P.LastToggle or 0) + 0.2 > RealTime() then return end   -- клавиша и бинд F2 не должны переключить дважды
+	P.LastToggle = RealTime()
 	if on == nil then on = not P.Mouse end
 	P.Mouse = on
 	gui.EnableScreenClicker(on)
@@ -303,13 +305,14 @@ end
 hook.Add("Think", "nyrp.phone.keys", function()
 	-- телефон закрывается сам, если его убрали из рук / вынули SIM
 	if P.Open and not P.Active() then P.CloseUI(true) end
-	local keys = { KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_PAD_ENTER, KEY_BACKSPACE, KEY_F2 }
+	-- F2 обрабатываем всегда, пока телефон открыт (даже если фокус клавиатуры у другой панели)
+	if pressed(KEY_F2) and P.Open and not P.Prompt and not gui.IsGameUIVisible() then P.ToggleMouse() end
+	local keys = { KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_PAD_ENTER, KEY_BACKSPACE }
 	if not P.Open or P.Prompt or gui.IsGameUIVisible() or (P.SkipKeys and RealTime() < P.SkipKeys)
 		or (IsValid(vgui.GetKeyboardFocus()) and not P.Mouse) or (NYRP.Chat and NYRP.Chat.IsOpen and NYRP.Chat.IsOpen()) then
 		for _, k in ipairs(keys) do keyState[k] = input.IsKeyDown(k) end
 		return
 	end
-	if pressed(KEY_F2) then P.ToggleMouse() end
 	local top = P.Top()
 	-- клавиши получает экран приложения, только если он сейчас на экране (не звонок/блокировка/будильник)
 	local def = P.ActiveScreen and P.Screens[P.ActiveScreen]
@@ -337,7 +340,10 @@ hook.Add("PlayerBindPress", "nyrp.phone", function(_, bind, down)
 		return true
 	end
 	if input.IsKeyDown(KEY_ENTER) or input.IsKeyDown(KEY_BACKSPACE) then return true end
-	if bind:find("gm_showteam") then return true end
+	if bind:find("gm_showteam") then
+		if down and not P.Prompt then P.ToggleMouse() end
+		return true
+	end
 end)
 
 hook.Add("GUIMousePressed", "nyrp.phone", function(code)
