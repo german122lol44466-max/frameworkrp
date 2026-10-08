@@ -90,6 +90,8 @@ hook.Add("Think", "nyrp.npc.dialog", function()
 		return
 	end
 	if not IsValid(D.ent) or not LocalPlayer():Alive() or D.ent:GetPos():Distance(LocalPlayer():GetPos()) > 180 then close() return end
+	-- курсор свободен всё время разговора (его могла выключить другая часть интерфейса)
+	if not vgui.CursorVisible() then gui.EnableScreenClicker(true) end
 	D.typed = math.min(utf8.len(D.text) or 0, D.typed + FrameTime() * 55)
 	local i = optionAt(gui.MousePos())
 	if i and i ~= D.sel then D.sel = i UI.Sound("hover") end

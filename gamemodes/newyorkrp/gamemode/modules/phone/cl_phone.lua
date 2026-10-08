@@ -181,7 +181,7 @@ local function move(dx, dy)
 	local cx, cy = center(cur)
 	local best, bs
 	for _, b in ipairs(P.Btns) do
-		if b ~= cur then
+		if b ~= cur and not (b.opts and b.opts.noNav) then
 			local bx, by = center(b)
 			local vx, vy = bx - cx, by - cy
 			local along = vx * dx + vy * dy
@@ -231,11 +231,30 @@ function P.Ask(title, default, opts, cb)
 		end
 	end
 	P.Prompt = { entry = e, title = title, hint = opts.hint, born = RealTime() }
+	gui.EnableScreenClicker(true)
 end
+
+-- F2: свободная мышь. Курсор сразу ставим на экран телефона.
+function P.ToggleMouse(on)
+	if on == nil then on = not P.Mouse end
+	P.Mouse = on
+	gui.EnableScreenClicker(on)
+	if on then
+		local x, y, w, h = P.Rect()
+		input.SetCursorPos(math.floor(x + w / 2), math.floor(y + h * 0.55))
+	end
+	surface.PlaySound("nyrp/phone/key.wav")
+end
+
+-- мышь могла «отобрать» другая часть интерфейса — пока режим мыши включён, держим курсор
+hook.Add("Think", "nyrp.phone.mouse", function()
+	if (P.Open and P.Mouse or P.Prompt) and not vgui.CursorVisible() then gui.EnableScreenClicker(true) end
+end)
 
 function P.CancelPrompt()
 	if P.Prompt and IsValid(P.Prompt.entry) then P.Prompt.entry:Remove() end
 	P.Prompt = nil
+	if not P.Mouse then gui.EnableScreenClicker(false) end
 	P.SkipKeys = RealTime() + 0.15
 end
 
@@ -257,11 +276,7 @@ hook.Add("Think", "nyrp.phone.keys", function()
 		for _, k in ipairs(keys) do keyState[k] = input.IsKeyDown(k) end
 		return
 	end
-	if pressed(KEY_F2) then
-		P.Mouse = not P.Mouse
-		gui.EnableScreenClicker(P.Mouse)
-		surface.PlaySound("nyrp/phone/key.wav")
-	end
+	if pressed(KEY_F2) then P.ToggleMouse() end
 	local top = P.Top()
 	-- клавиши получает экран приложения, только если он сейчас на экране (не звонок/блокировка/будильник)
 	local def = P.ActiveScreen and P.Screens[P.ActiveScreen]
@@ -289,6 +304,7 @@ hook.Add("PlayerBindPress", "nyrp.phone", function(_, bind, down)
 		return true
 	end
 	if input.IsKeyDown(KEY_ENTER) or input.IsKeyDown(KEY_BACKSPACE) then return true end
+	if bind:find("gm_showteam") then return true end
 end)
 
 hook.Add("GUIMousePressed", "nyrp.phone", function(code)
@@ -672,7 +688,7 @@ hook.Add("HUDPaint", "nyrp.phone", function()
 	if P.Open and #P.Btns > 0 then
 		local found = false
 		for _, b in ipairs(P.Btns) do if b.id == P.Focus then found = true break end end
-		if not found then P.Focus = (P.Btns[2] and P.Btns[1].id == "hdr.back") and P.Btns[2].id or P.Btns[1].id end
+		if not found or P.Focus == "homebar" and not P.Mouse then P.Focus = (P.Btns[2] and P.Btns[1].id == "hdr.back") and P.Btns[2].id or P.Btns[1].id end
 	end
 
 	-- ввод текста
@@ -709,11 +725,20 @@ hook.Add("HUDPaint", "nyrp.phone", function()
 	UI.Outline(UI.S(38), x + UI.S(2), y + UI.S(2), w - UI.S(4), h - UI.S(4), Color(8, 9, 12), bz - UI.S(2))
 	UI.RoundedRect(UI.S(9), x + w / 2 - UI.S(40), sy + UI.S(5), UI.S(80), UI.S(18), Color(0, 0, 0))
 	UI.Circle(x + w / 2 + UI.S(26), sy + UI.S(14), UI.S(4), Color(20, 24, 40))
-	UI.RoundedRect(UI.S(2), x + w / 2 - UI.S(50), y + h - bz - UI.S(10), UI.S(100), UI.S(4), Color(255, 255, 255, 140))
+	local hb = P.Open and P.Btn("homebar", x + w / 2 - UI.S(70), y + h - bz - UI.S(24), UI.S(140), UI.S(26), function()
+		if P.Unlocked and #P.Stack > 1 and not P.Call and not P.Alarm then
+			P.Home()
+		else
+			P.CloseUI()
+			P.RaiseWeapon(false)
+		end
+	end, { noNav = true })
+	UI.RoundedRect(UI.S(3), x + w / 2 - UI.S(hb and 56 or 50), y + h - bz - UI.S(hb and 11 or 10), UI.S(hb and 112 or 100), UI.S(hb and 6 or 4),
+		hb and YELLOW or Color(255, 255, 255, 140))
 
 	-- подсказки управления под телефоном
 	if P.Open then
-		local hint = P.Mouse and "Мышь: клик  ·  ПКМ — убрать  ·  F2 — без мыши" or "↑↓←→ — выбор  ·  Enter  ·  Backspace — назад  ·  ПКМ — убрать  ·  F2 — мышь"
+		local hint = P.Mouse and "Мышь: клик  ·  полоска внизу — домой/выход  ·  ПКМ — убрать  ·  F2 — без мыши" or "↑↓←→ — выбор  ·  Enter  ·  Backspace — назад  ·  ПКМ — убрать  ·  F2 — мышь"
 		P.Text(hint, "medium", 11, x + w / 2, y + h + UI.S(12), Color(255, 255, 255, 150), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 end)

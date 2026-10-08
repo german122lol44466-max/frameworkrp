@@ -136,20 +136,123 @@ if SERVER then
 end
 
 if CLIENT then
-	-- от третьего лица телефон лежит в правой ладони
+	-- Камера «с телом» рисует самого игрока (drawviewer), и тогда движок не рисует вьюмодель.
+	-- Поэтому руки с телефоном рисуем сами: своя копия v_phone + руки игрока по бонмерджу,
+	-- анимация — та же последовательность, что у настоящей вьюмодели (её шлёт сервер).
+	local VM_FOV = 62
+	local fpVM, fpHands
+	local seqId, seqStart = -1, 0
+
+	local function cleanup()
+		if IsValid(fpHands) then fpHands:Remove() end
+		if IsValid(fpVM) then fpVM:Remove() end
+		fpHands, fpVM = nil, nil
+	end
+
+	local function ensure()
+		if not IsValid(fpVM) then
+			fpVM = ClientsideModel("models/nyrp/phone/v_phone.mdl", RENDERGROUP_OPAQUE)
+			if not IsValid(fpVM) then return end
+			fpVM:SetNoDraw(true)
+			fpVM.RenderOverride = function(e) if e.nyrpDraw then e:DrawModel() end end
+		end
+		local hands = LocalPlayer():GetHands()
+		local mdl = IsValid(hands) and hands:GetModel() or ""
+		if mdl == "" then mdl = "models/weapons/c_arms_citizen.mdl" end
+		if not IsValid(fpHands) or fpHands:GetModel() ~= mdl then
+			if IsValid(fpHands) then fpHands:Remove() end
+			fpHands = ClientsideModel(mdl, RENDERGROUP_OPAQUE)
+			if not IsValid(fpHands) then return end
+			fpHands:SetNoDraw(true)
+			fpHands.RenderOverride = function(e) if e.nyrpDraw then e:DrawModel() end end
+			fpHands:SetParent(fpVM)
+			fpHands:AddEffects(EF_BONEMERGE)
+		end
+		if IsValid(hands) then
+			fpHands:SetSkin(hands:GetSkin())
+			for i = 0, hands:GetNumBodyGroups() - 1 do fpHands:SetBodygroup(i, hands:GetBodygroup(i)) end
+		end
+		return fpVM, fpHands
+	end
+
+	local function light(eye, dir)
+		local c = render.ComputeLighting(eye, dir) + render.ComputeDynamicLighting(eye, dir)
+		return math.Clamp(c.x + 0.15, 0, 1.4), math.Clamp(c.y + 0.15, 0, 1.4), math.Clamp(c.z + 0.17, 0, 1.4)
+	end
+
+	hook.Add("HUDPaintBackground", "nyrp.phone.vm", function()
+		local ply = LocalPlayer()
+		local wep = IsValid(ply) and ply:GetActiveWeapon()
+		local Cam = NYRP.Camera
+		-- рисуем сами только в камере «с телом» (иначе вьюмодель рисует движок)
+		local bodyCam = Cam and Cam.BodyEnabled and Cam.BodyEnabled() and not Cam.IsThirdPerson()
+		if not ply:Alive() or not bodyCam or not IsValid(wep) or wep:GetClass() ~= "nyrp_phone" then
+			if IsValid(fpVM) then cleanup() end
+			return
+		end
+		local real = ply:GetViewModel()
+		local vm, hands = ensure()
+		if not IsValid(vm) or not IsValid(hands) or not IsValid(real) then return end
+		-- последовательность берём у настоящей вьюмодели, время считаем сами
+		local seq = real:GetSequence()
+		if seq ~= seqId then seqId, seqStart = seq, RealTime() end
+		if vm:GetSequence() ~= seq then vm:ResetSequence(seq) end
+		local dur = math.max(vm:SequenceDuration(seq), 0.01)
+		local t = (RealTime() - seqStart) / dur
+		local name = vm:GetSequenceName(seq)
+		local loop = name == "idle" or name == "idle_open"
+		vm:SetPlaybackRate(0)
+		vm:SetCycle(loop and t % 1 or math.Clamp(t, 0, 0.999))
+
+		local eye, view = EyePos(), EyeAngles()
+		-- лёгкое покачивание при ходьбе
+		local spd = math.min(ply:GetVelocity():Length2D() / 200, 1)
+		local bob = Angle(math.sin(RealTime() * 9) * 0.6 * spd, math.cos(RealTime() * 4.5) * 0.5 * spd, 0)
+		vm:SetPos(eye)
+		vm:SetAngles(view + bob)
+		vm:InvalidateBoneCache()
+		vm:SetupBones()
+		hands:InvalidateBoneCache()
+		hands:SetupBones()
+
+		cam.Start3D(eye, view, VM_FOV, nil, nil, nil, nil, 1, 300)
+		render.ClearDepth()
+		render.SuppressEngineLighting(true)
+		render.SetModelLighting(BOX_TOP, light(eye, Vector(0, 0, 1)))
+		render.SetModelLighting(BOX_BOTTOM, light(eye, Vector(0, 0, -1)))
+		render.SetModelLighting(BOX_FRONT, light(eye, view:Forward()))
+		render.SetModelLighting(BOX_BACK, light(eye, -view:Forward()))
+		render.SetModelLighting(BOX_LEFT, light(eye, -view:Right()))
+		render.SetModelLighting(BOX_RIGHT, light(eye, view:Right()))
+		vm.nyrpDraw, hands.nyrpDraw = true, true
+		vm:DrawModel()
+		hands:DrawModel()
+		vm.nyrpDraw, hands.nyrpDraw = false, false
+		render.SuppressEngineLighting(false)
+		cam.End3D()
+	end)
+
+	-- от третьего лица телефон лежит в правой ладони экраном к лицу.
+	-- Кость кисти ValveBiped: X — вдоль пальцев, -Y — сторона ладони.
 	function SWEP:DrawWorldModel()
 		local owner = self:GetOwner()
 		if not IsValid(owner) then self:DrawModel() return end
+		-- свой телефон в первом лице не рисуем — его показывают руки на экране
+		if owner == LocalPlayer() and not (NYRP.Camera and NYRP.Camera.IsThirdPerson and NYRP.Camera.IsThirdPerson()) then return end
 		local bone = owner:LookupBone("ValveBiped.Bip01_R_Hand")
 		if not bone then return end
 		local m = owner:GetBoneMatrix(bone)
 		if not m then return end
-		local pos, ang = m:GetTranslation(), m:GetAngles()
-		pos = pos + ang:Forward() * 3.4 + ang:Right() * 1.6 + ang:Up() * -0.6
-		ang:RotateAroundAxis(ang:Forward(), 90)
-		ang:RotateAroundAxis(ang:Up(), 180)
-		self:SetRenderOrigin(pos)
-		self:SetRenderAngles(ang)
+		local hp = m:GetTranslation()
+		local fwd, right, up = m:GetForward(), m:GetRight(), m:GetUp()
+		-- модель телефона: X — нормаль экрана, Z — длинная сторона
+		local mm = Matrix()
+		mm:SetForward(right)   -- экран смотрит от ладони
+		mm:SetUp(fwd)          -- длинная сторона вдоль пальцев
+		mm:SetRight(up)
+		mm:SetTranslation(hp + fwd * 3.0 + right * 1.5)
+		self:SetRenderOrigin(mm:GetTranslation())
+		self:SetRenderAngles(mm:GetAngles())
 		self:DrawModel()
 		self:SetRenderOrigin()
 		self:SetRenderAngles()

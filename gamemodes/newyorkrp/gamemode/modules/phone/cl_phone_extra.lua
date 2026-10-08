@@ -53,12 +53,10 @@ function P.MediaThumb(m)
 end
 
 -- ----------------------------------------------------------------- съёмка --
-local RT_W, RT_H = 1024, 1024
-local rt = GetRenderTargetEx("nyrp_phone_cam", RT_W, RT_H, RT_SIZE_NO_CHANGE, MATERIAL_RT_DEPTH_SEPARATE, 0, 0, IMAGE_FORMAT_RGB888)
+-- Кадр снимаем прямо с видоискателя на экране телефона (второй рендер сцены давал мерцание).
 local captureQueue = {}
 
 local function camView(front)
-	local ply = LocalPlayer()
 	local eye, ang = EyePos(), EyeAngles()
 	if front then
 		local a = Angle(-ang.p * 0.3, ang.y + 180, 0)
@@ -67,24 +65,18 @@ local function camView(front)
 	return eye + ang:Forward() * 6 + ang:Right() * 3 - ang:Up() * 2, ang, false
 end
 
--- запрос на кадр: w, h — размер снимка, cb(data)
-local function requestCapture(w, h, front, cb)
-	captureQueue[#captureQueue + 1] = { w = w, h = h, front = front, cb = cb }
+local function requestCapture(quality, cb)
+	captureQueue[#captureQueue + 1] = { quality = quality, cb = cb }
 end
 
-hook.Add("PostRender", "nyrp.phone.capture", function()
-	if #captureQueue == 0 then return end
-	local q = table.remove(captureQueue, 1)
-	local origin, ang, viewer = camView(q.front)
-	render.PushRenderTarget(rt)
-	render.Clear(0, 0, 0, 255, true, true)
-	P.Rendering = true
-	render.RenderView({ origin = origin, angles = ang, x = 0, y = 0, w = q.w, h = q.h, fov = 62, drawviewmodel = false, drawhud = false, drawviewer = viewer, dopostprocess = true })
-	P.Rendering = false
-	local data = render.Capture({ format = "jpeg", quality = 88, x = 0, y = 0, w = q.w, h = q.h, alpha = false })
-	render.PopRenderTarget()
-	if data then q.cb(data) end
-end)
+-- вызывается сразу после отрисовки видоискателя, до сетки и кнопок
+local function processCaptures(x, y, w, h)
+	while #captureQueue > 0 do
+		local q = table.remove(captureQueue, 1)
+		local data = render.Capture({ format = "jpeg", quality = q.quality, x = math.floor(x), y = math.floor(y), w = math.floor(w), h = math.floor(h), alpha = false })
+		if data then q.cb(data) end
+	end
+end
 
 -- ----------------------------------------------------------------- Камера --
 P.Register("camera", {
@@ -95,9 +87,8 @@ P.Register("camera", {
 		local vy = y - S(28)
 		local vh = h + S(28)
 		local origin, ang, viewer = camView(st.front)
-		if not P.Rendering then
-			render.RenderView({ origin = origin, angles = ang, x = x, y = vy, w = w, h = vh, fov = 62, drawviewmodel = false, drawhud = false, drawviewer = viewer })
-		end
+		render.RenderView({ origin = origin, angles = ang, x = x, y = vy, w = w, h = vh, fov = 62, drawviewmodel = false, drawhud = false, drawviewer = viewer })
+		processCaptures(x, vy, w, vh)
 		-- сетка
 		surface.SetDrawColor(255, 255, 255, 30)
 		surface.DrawRect(x + w / 3, vy, 1, vh)
@@ -109,6 +100,10 @@ P.Register("camera", {
 			surface.SetDrawColor(255, 255, 255, 255 * (1 - (RealTime() - st.flash) / 0.25))
 			surface.DrawRect(x, vy, w, vh)
 		end
+		-- назад
+		local fb = P.Btn("hdr.back", x + S(10), y + S(6), S(36), S(36), function() if st.rec then P.StopRec(st) end P.Back() end)
+		UI.Circle(x + S(28), y + S(24), S(18), fb and Color(0, 0, 0, 200) or Color(0, 0, 0, 130))
+		P.Icon("p_back", x + S(28), y + S(24), S(18), fb and C.yellow or color_white)
 		-- нижняя панель
 		local by = y + h - S(120)
 		surface.SetDrawColor(0, 0, 0, 150)
@@ -165,7 +160,7 @@ P.Register("camera", {
 				local n = st.rec.n
 				local base = st.rec.base
 				st.rec.busy = true
-				requestCapture(288, 512, st.front, function(data)
+				requestCapture(70, function(data)
 					file.Write(dir() .. "/" .. base .. "_" .. n .. ".jpg", data)
 					if st.rec then st.rec.busy = false end
 				end)
@@ -194,7 +189,7 @@ function P.Shoot(st)
 	surface.PlaySound("nyrp/phone/shutter.wav")
 	LocalPlayer():EmitSound("nyrp/phone/shutter.wav", 50, 100, 0.6)
 	st.flash = RealTime()
-	requestCapture(576, 1024, st.front, function(data)
+	requestCapture(92, function(data)
 		file.Write(dir() .. "/p_" .. stamp() .. ".jpg", data)
 		st.busy = false
 		st.media = nil
