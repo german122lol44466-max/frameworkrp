@@ -337,9 +337,7 @@ def music():
 if __name__ == "__main__":
     import sys
     if "--music-only" in sys.argv:
-        save("music/night_city.ogg", music())
         sys.exit()
     save("fx/zipper.wav", zipper())
     save("fx/cloth.wav", cloth())
     save("fx/death.wav", death())
-    save("music/night_city.ogg", music())

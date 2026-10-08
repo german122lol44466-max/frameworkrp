@@ -64,31 +64,31 @@ Items.Register("water", {
 	name = "Бутылка воды", desc = "Обычная вода из магазина на углу. Холодная.",
 	model = "models/props_junk/garbage_plasticbottle003a.mdl", category = "food", stack = 5,
 	buffs = { { "+35 к жажде", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, nil, 35) ply:EmitSound("npc/barnacle/barnacle_gulp1.wav", 60) return true end,
+	use = function(ply) needs(ply, nil, 35) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
 })
 Items.Register("soda", {
 	name = "Liberty Cola", desc = "Сладкая газировка в жестяной банке. Бодрит, но ненадолго.",
 	model = "models/props_junk/PopCan01a.mdl", category = "food", stack = 6,
 	buffs = { { "+20 к жажде", true }, { "+5 к сытости", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, 5, 20) ply:EmitSound("npc/barnacle/barnacle_gulp2.wav", 60) return true end,
+	use = function(ply) needs(ply, 5, 20) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
 })
 Items.Register("coffee", {
 	name = "Кофе навынос", desc = "Крепкий чёрный кофе из закусочной. Пахнет утренним Бруклином.",
 	model = "models/props_junk/garbage_coffeemug001a.mdl", category = "food", stack = 3,
 	buffs = { { "+15 к жажде", true }, { "+5 к здоровью", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, nil, 15) heal(ply, 5) ply:EmitSound("npc/barnacle/barnacle_gulp1.wav", 60) return true end,
+	use = function(ply) needs(ply, nil, 15) heal(ply, 5) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
 })
 Items.Register("takeout", {
 	name = "Лапша в коробке", desc = "Китайская лапша из Чайна-тауна. Ещё тёплая.",
 	model = "models/props_junk/garbage_takeoutcarton001a.mdl", category = "food", stack = 3,
 	buffs = { { "+40 к сытости", true }, { "-5 к жажде", false } }, useText = "Съесть",
-	use = function(ply) needs(ply, 40, -5) ply:EmitSound("npc/barnacle/barnacle_crunch2.wav", 60) return true end,
+	use = function(ply) needs(ply, 40, -5) ply:EmitSound("nyrp/fx/eat.wav", 60, math.random(96, 104)) return true end,
 })
 Items.Register("milk", {
 	name = "Пакет молока", desc = "Литр молока. Срок годности лучше не проверять.",
 	model = "models/props_junk/garbage_milkcarton002a.mdl", category = "food", stack = 3,
 	buffs = { { "+20 к жажде", true }, { "+10 к сытости", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, 10, 20) ply:EmitSound("npc/barnacle/barnacle_gulp2.wav", 60) return true end,
+	use = function(ply) needs(ply, 10, 20) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
 })
 
 -- --------------------------------------------------------------- медицина --

@@ -33,6 +33,19 @@ FILES = {
     "fall": CONQ + "fall-3.c5908a39.mp3",
     "cloth1": CONQ + "cloth-rustle-1.2b5c6eaa.mp3", "cloth2": CONQ + "cloth-rustle-3.7f459adb.mp3",
     "heart": "https://raw.githubusercontent.com/e3ntity/react-sounds/master/sounds/ambient/heartbeat.mp3",
+    # одежда (freesound 770050 «Leather jacket - Dress undress», Kenney cloth) — CC0
+    "leather1": CONQ + "equip-leather-1.f9c2f19b.mp3", "leather2": CONQ + "equip-leather-2.5a7e8364.mp3",
+    "leather3": CONQ + "equip-leather-3.aa76dd26.mp3", "kcloth1": CONQ + "equip-cloth-1.42a9136d.mp3",
+    "kcloth2": CONQ + "equip-cloth-2.9ff02c3f.mp3",
+    # оружие: кобура/ремень (Schupke leather squeeze, Still North draw/sheath) — CC0
+    "squeeze2": CONQ + "pickup-2.0ef4283c.mp3", "squeeze3": CONQ + "pickup-3.2c948442.mp3",
+    "draw1": CONQ + "unsheathe-1.402ea1fd.mp3", "sheath1": CONQ + "sheathe-1.16e5aee7.mp3",
+    # еда и питьё (freesound 807393 «Eating a fruit», 805468 «Drinking from bottle») — CC0
+    "eat1": CONQ + "eat-1.88fd00f7.mp3", "eat2": CONQ + "eat-2.bf7b4104.mp3", "eat3": CONQ + "eat-3.0b0a29e5.mp3",
+    "drink1": CONQ + "potion-drink-1.afae4959.mp3", "drink2": CONQ + "potion-drink-2.a6b1205c.mp3",
+    "drink3": CONQ + "potion-drink-3.ac0fd9a5.mp3",
+    # падение тела (freesound 504626 «BODY FALL - V HVY», 181177 «Body falling to floor») — CC0
+    "thud_big2": CONQ + "death-thud-big-2.d2ef6a15.mp3", "thud_big3": CONQ + "death-thud-big-3.8af1e4d2.mp3",
 }
 
 
@@ -79,6 +92,15 @@ def loop_seam(x, xf=0.15):
     return np.concatenate([head, x[n:-n]])
 
 
+def mix(a, b, offset=0.0, gain=1.0):
+    """b поверх a со сдвигом offset (с) и громкостью gain."""
+    o = int(offset * SR)
+    out = np.zeros(max(len(a), o + len(b)), np.float32)
+    out[:len(a)] += a
+    out[o:o + len(b)] += b * gain
+    return out
+
+
 def save(name, x, loop=False):
     os.makedirs(OUT, exist_ok=True)
     pcm = (np.clip(x, -1, 1) * 32767).astype("<i2").tobytes()
@@ -108,7 +130,26 @@ def main():
     for i in range(1, 5):
         save(f"pain{i}.wav", fade(norm(load(f"hurt{i}"), 0.8), 0.002, 0.04))
     save("land_hard.wav", fade(norm(load("fall"), 0.9), 0.001, 0.06))
-    save("body_fall.wav", fade(norm(load("thud_big"), 0.9), 0.001, 0.1))
+
+    # одежда: надеть / снять
+    save("cloth_on.wav", fade(norm(mix(load("leather1"), load("kcloth1"), 0.15, 0.5), 0.75), 0.002, 0.08))
+    save("cloth_off.wav", fade(norm(mix(load("leather2"), load("kcloth2"), 0.1, 0.45), 0.7), 0.002, 0.08))
+    # оружие: достать из кобуры / убрать
+    save("weapon_draw.wav", fade(norm(mix(load("squeeze2"), load("draw1"), 0.12, 0.35), 0.75), 0.002, 0.06))
+    save("weapon_holster.wav", fade(norm(mix(load("sheath1"), load("squeeze3"), 0.18, 0.5), 0.7), 0.002, 0.06))
+    # еда и питьё
+    for i in range(1, 4):
+        save(f"eat{i}.wav", fade(norm(load(f"eat{i}"), 0.8), 0.002, 0.08))
+        save(f"drink{i}.wav", fade(norm(load(f"drink{i}"), 0.8), 0.002, 0.08))
+    # несколько укусов подряд — «ест»
+    bites = [norm(load(f"eat{i}"), 0.8) for i in (1, 3, 2)]
+    chew = np.zeros(int(1.5 * SR), np.float32)
+    for k, b in enumerate(bites):
+        o = int(k * 0.48 * SR)
+        chew[o:o + len(b)] += b[:len(chew) - o]
+    save("eat.wav", fade(norm(chew, 0.8), 0.002, 0.1))
+    # падение тела — тяжёлый глухой удар
+    save("body_fall.wav", fade(norm(mix(load("thud_big2"), load("thud_big3"), 0.03, 0.55), 0.92), 0.001, 0.12))
 
     # пробуждение: шорох одежды, затем один глубокий вдох-выдох (замедленная запись дыхания)
     c = norm(load("cloth1"), 0.5)

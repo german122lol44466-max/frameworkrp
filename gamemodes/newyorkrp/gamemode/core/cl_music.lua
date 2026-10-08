@@ -1,20 +1,39 @@
 --[[
-	Фоновая музыка (sound/nyrp/music/night_city.ogg) по кругу.
-	Громкость — nyrp_music_volume; в меню немного громче.
+	Фоновая музыка: ночной джаз и lo-fi (Open Lo-Fi, CC0) — плейлист в случайном порядке,
+	треки сменяются с плавным затуханием. Громкость — nyrp_music_volume; в меню немного громче.
 ]]
+
+local TRACKS = {
+	"rain_off_the_neon_signs", "saxophone_in_the_rain", "blinds_and_headlights", "last_call_in_c_minor",
+	"empty_street_static", "velvet_cigarette_haze", "midnight_amber_room",
+}
 
 local channel
 local current = 0
+local order, pos = {}, 0
+local fadeOut = false
+
+local function nextTrack()
+	if pos >= #order then
+		order = table.Copy(TRACKS)
+		for i = #order, 2, -1 do local j = math.random(i) order[i], order[j] = order[j], order[i] end
+		pos = 0
+	end
+	pos = pos + 1
+	return order[pos]
+end
 
 local function start()
 	if IsValid(channel) then return end
-	sound.PlayFile("sound/nyrp/music/night_city.ogg", "noplay noblock", function(ch, errId, err)
+	local name = nextTrack()
+	sound.PlayFile("sound/nyrp/music/" .. name .. ".ogg", "noplay noblock", function(ch, errId, err)
 		if not IsValid(ch) then
 			NYRP.Print("Музыка не загрузилась: " .. tostring(err or errId))
 			return
 		end
 		channel = ch
-		ch:EnableLooping(true)
+		fadeOut = false
+		current = 0
 		ch:SetVolume(0)
 		ch:Play()
 	end)
@@ -27,8 +46,21 @@ hook.Add("Think", "nyrp.music", function()
 	local base = GetConVar("nyrp_music_volume"):GetFloat()
 	local target = base * (NYRP.HUDHidden() and 1.6 or 1)
 	if system.HasFocus and not system.HasFocus() then target = 0 end
-	current = NYRP.UI.Approach(current, math.Clamp(target, 0, 1), 1.5)
+	-- за 4 секунды до конца трека — затухание и следующий
+	local left = channel:GetLength() - channel:GetTime()
+	if left < 4 or channel:GetState() == GMOD_CHANNEL_STOPPED then fadeOut = true end
+	if fadeOut then target = 0 end
+	current = NYRP.UI.Approach(current, math.Clamp(target, 0, 1), fadeOut and 0.9 or 1.5)
 	channel:SetVolume(current)
+	if fadeOut and current < 0.01 then
+		channel:Stop()
+		channel = nil
+		start()
+	end
+end)
+
+concommand.Add("nyrp_music_next", function()
+	if IsValid(channel) then fadeOut = true end
 end)
 
 concommand.Add("nyrp_music_restart", function()
