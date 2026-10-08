@@ -252,3 +252,93 @@ def pose(rig, base, fn, f, which=None):
             wrist = wrist + palm * float(np.clip(err, -0.6, 0.6))
         loc = trial
     return loc, parts, extra
+
+
+# ------------------------------------------------------------------ телефон
+# Телефон в правой руке: экран смотрит на камеру, ладонь под задней крышкой,
+# пальцы обхватывают левый (от зрителя) край, большой палец — у правого края экрана.
+PHONE = {"H": 7.9, "W": 3.7, "T": 0.42}
+# корпус тонкий — подгонка «касания» проталкивала кисть сквозь него, поэтому для телефона без неё
+VOLUMES["phone"] = []
+
+
+def _basis(xdir, zhint):
+    x = vmlib.norm(np.array(xdir, float))
+    z = np.array(zhint, float)
+    z = vmlib.norm(z - x * np.dot(z, x))
+    y = np.cross(z, x)
+    m = np.eye(4)
+    m[:3, 0], m[:3, 1], m[:3, 2] = x, y, z
+    return m
+
+
+def _phone_matrix(pos, tilt, roll=0.0):
+    """Телефон в точке pos, экран на камеру; tilt — насколько «лежит» к взгляду, roll — крен."""
+    p = np.array(pos, float)
+    to_eye = vmlib.norm(-p)
+    m = _basis(to_eye, (math.sin(math.radians(roll)) * 0.4, 0, 1) + np.array((tilt, 0, 0)))
+    m[:3, 3] = p
+    return m
+
+
+PHONE_POSES = {
+    "low": ((9.0, -8.5, -21.0), 0.5, 25),     # опущен, вне кадра
+    "idle": ((12.5, -3.6, -2.6), 0.3, 4),     # в руке, внизу справа
+    "open": ((10.8, -2.7, -1.0), 0.15, 0),    # поднесён ближе — смотрим в экран
+}
+
+
+def _phone_pose(name):
+    pos, tilt, roll = PHONE_POSES[name]
+    return np.array(pos, float), tilt, roll
+
+
+def _phone_parts(f, keys):
+    pos = channel({k: tuple(_phone_pose(v)[0]) for k, v in keys.items()}, f)
+    tilt = channel({k: _phone_pose(v)[1] for k, v in keys.items()}, f)
+    roll = channel({k: _phone_pose(v)[2] for k, v in keys.items()}, f)
+    return {"phone": _phone_matrix(pos, tilt, roll)}
+
+
+def _phone_hands(parts):
+    m = parts["phone"]
+    # «влево от зрителя» в осях телефона: какая из ±Y смотрит в мировой +Y
+    sgn = 1.0 if (m[:3, 1] @ np.array((0, 1, 0))) > 0 else -1.0
+    T, W = PHONE["T"], PHONE["W"]
+    grip = Grip("phone", (-T / 2, -sgn * 0.9, -0.9), (-1, 0, 0), (0.0, sgn, 0.2), reach=1.2, lift=-0.7, curl=0.4, thumb=0.15)
+    return {"R": grip.world(parts), "L": rest_hand("L")}
+
+
+def phone_draw(f):
+    parts = _phone_parts(f, {0: "low", 18: "idle"})
+    return parts, _phone_hands(parts), {}
+
+
+def phone_idle(f):
+    parts = _phone_parts(0, {0: "idle"})
+    # лёгкое «дыхание»
+    m = parts["phone"].copy()
+    m[:3, 3] += np.array((0, 0.08 * math.sin(f / 60 * 2 * math.pi), 0.12 * math.sin(f / 60 * 2 * math.pi + 1)))
+    parts = {"phone": m}
+    return parts, _phone_hands(parts), {}
+
+
+def phone_open(f):
+    parts = _phone_parts(f, {0: "idle", 12: "open"})
+    return parts, _phone_hands(parts), {}
+
+
+def phone_holster(f):
+    parts = _phone_parts(f, {0: "idle", 16: "low"})
+    return parts, _phone_hands(parts), {}
+
+
+# последовательности вьюмодели телефона: (имя, функция, кадров, цикл, обратно)
+PHONE_SEQS = [
+    ("draw", phone_draw, 18, False, False),
+    ("idle", phone_idle, 60, True, False),
+    ("open", phone_open, 12, False, False),
+    ("idle_open", lambda f: phone_open(12), 2, True, False),
+    ("close", phone_open, 12, False, True),
+    ("holster", phone_holster, 16, False, False),
+]

@@ -14,14 +14,18 @@ from mdl_read import MDL  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 BAGS = os.path.join(ROOT, "gamemodes", "newyorkrp", "content", "models", "nyrp", "bags")
+PHONE_DIR = os.path.join(ROOT, "gamemodes", "newyorkrp", "content", "models", "nyrp", "phone")
 OUT = os.environ.get("NYRP_SHEET_OUT", "/tmp/claude-0/-home-user/2c6fa45e-d882-541c-b296-0d1db1f0d39c/scratchpad/sheet")
-COLORS = {"bag_fabric": (0.08, 0.09, 0.1, 1), "bag_strap": (0.02, 0.02, 0.025, 1), "bag_metal": (0.6, 0.6, 0.62, 1),
+COLORS = {"phone_frame": (0.12, 0.12, 0.13, 1), "phone_back": (0.03, 0.05, 0.1, 1), "phone_glass": (0.01, 0.01, 0.015, 1),
+          "phone_screen": (0.3, 0.25, 0.6, 1), "phone_lens": (0.02, 0.02, 0.03, 1),
+          "bag_fabric": (0.08, 0.09, 0.1, 1), "bag_strap": (0.02, 0.02, 0.025, 1), "bag_metal": (0.6, 0.6, 0.62, 1),
           "bag_accent": (0.9, 0.6, 0.0, 1), "bag_inner": (0.25, 0.04, 0.04, 1)}
 
 
 def load_part(name):
-    m = MDL(os.path.join(BAGS, name + ".mdl"))
-    verts, tris = m.load_mesh(os.path.join(BAGS, name))
+    base = os.path.join(PHONE_DIR if name.startswith("w_phone") else BAGS, name)
+    m = MDL(base + ".mdl")
+    verts, tris = m.load_mesh(base)
     pos = np.array([v[0] for v in verts])
     out = {m.textures[k]: v for k, v in tris.items()}
     if name == "waistbag_root":
@@ -34,7 +38,7 @@ def load_part(name):
 def main():
     which = sys.argv[1]
     frames = [int(x) for x in sys.argv[2].split(",")]
-    fn, _ = anims.ANIMS[which]
+    fn = anims.ANIMS[which][0] if which in anims.ANIMS else getattr(anims, which)
     arms = vmlib.Arms()
     am = MDL(os.path.join(vmlib.CARMS, "c_arms_animations.mdl"))
     base = arms.pose_from(am, [a["name"] for a in am.anims].index("a_fists_idle_01"), 0)
@@ -42,9 +46,10 @@ def main():
     preview.setup_scene()
     tris0 = {k: v for k, v in arms.tris.items() if k in (0, 1)}
     arm_ob = preview.mesh_object("arms", arms.pos, tris0, {0: (0.25, 0.3, 0.4, 1), 1: (0.8, 0.6, 0.5, 1)})
-    kind = "backpack" if "backpack" in which else "waistbag"
+    kind = "phone" if which.startswith("phone") else ("backpack" if "backpack" in which else "waistbag")
     partnames = {"waistbag": {"root": "waistbag_root", "lid": "waistbag_lid", "zipper": "waistbag_zipper"},
-                 "backpack": {"root": "backpack_root", "flap": "backpack_flap"}}[kind]
+                 "backpack": {"root": "backpack_root", "flap": "backpack_flap"},
+                 "phone": {"phone": "w_phone"}}[kind]
     bag_obs = {}
     for part, mdl in partnames.items():
         pos, tris = load_part(mdl)

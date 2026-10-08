@@ -1,0 +1,8 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models/nyrp/phone/phone_back"
+	"$phong" "1"
+	"$phongexponent" "40"
+	"$phongboost" "4"
+	"$phongfresnelranges" "[0.4 0.8 1]"
+}

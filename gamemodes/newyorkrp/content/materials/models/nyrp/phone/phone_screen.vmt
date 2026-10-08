@@ -1,0 +1,5 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models/nyrp/phone/phone_screen"
+	"$selfillum" "1"
+}
