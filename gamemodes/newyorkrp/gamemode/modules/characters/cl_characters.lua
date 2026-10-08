@@ -235,14 +235,12 @@ function Chars.OpenMenu(fromIntro)
 		surface.SetMaterial(UI.Mat("vgui/gradient-l"))
 		surface.SetDrawColor(5, 6, 12, 200 * t)
 		surface.DrawTexturedRect(0, 0, w * 0.45, h)
-		-- баннер сверху
-		local bw = math.min(w * 0.5, UI.S(980))
-		local bh = bw * 600 / 1920
-		local by = UI.S(40) - (1 - t) * UI.S(30)
-		surface.SetMaterial(UI.Mat("nyrp/banner.png"))
+		-- отдельный чистый баннер меню, слева сверху
+		local bw = math.min(w * 0.42, UI.S(780))
+		local bh = bw * 440 / 1500
+		surface.SetMaterial(UI.Mat("nyrp/menu_banner.png"))
 		surface.SetDrawColor(255, 255, 255, 255 * t)
-		surface.DrawTexturedRect(w / 2 - bw / 2, by, bw, bh)
-		UI.Outline(UI.S(4), w / 2 - bw / 2, by, bw, bh, Color(247, 198, 0, 90 * t), 1)
+		surface.DrawTexturedRect(UI.S(48) - (1 - t) * UI.S(30), UI.S(48), bw, bh)
 		draw.SimpleText("v" .. NYRP.Version .. "  ·  работа в процессе", NYRP.Font("regular", 14), UI.S(60), h - UI.S(40), Color(255, 255, 255, 70 * t))
 	end
 
@@ -253,7 +251,7 @@ function Chars.OpenMenu(fromIntro)
 			UI.Confirm("Отключиться?", "Вы покинете сервер New-York Roleplay.", "Отключиться", function() RunConsoleCommand("disconnect") end)
 		end },
 	}
-	local bx, by = UI.S(60), ScrH() * 0.42
+	local bx, by = UI.S(60), math.max(ScrH() * 0.42, UI.S(48) + math.min(ScrW() * 0.42, UI.S(780)) * 440 / 1500 + UI.S(60))
 	for i, b in ipairs(buttons) do
 		local btn = vgui.Create("NYRP.Button", pnl)
 		btn:SetSize(UI.S(340), UI.S(58))

@@ -164,25 +164,27 @@ end
 function Bags.FPActive() return fp ~= nil end
 
 local poses = {
-	waistbag = { width = 10.5, pitch = 38, lift = 1.5 },
-	backpack = { width = 11, pitch = 20, lift = 3.5 },
+	waistbag = { scale = 0.62, pitch = 34 },
+	backpack = { scale = 0.48, pitch = 18 },
 }
 
--- Отражение относительно вертикальной плоскости камеры: из правой руки получается левая.
-local function mirrorMatrix(eye, view)
-	local r = Matrix()
-	r:SetAngles(view)
-	local t1, t2, sc = Matrix(), Matrix(), Matrix()
-	t1:SetTranslation(eye)
-	t2:SetTranslation(-eye)
-	sc:Scale(Vector(1, -1, 1))
-	return t1 * r * sc * r:GetInverse() * t2
+-- Кость предмета во вьюмодели (аптечка) — на её место ставим сумку: рука держит именно её.
+local propBone
+local function findPropBone(vm)
+	if propBone and propBone.model == vm:GetModel() then return propBone.id end
+	local id
+	for i = 0, vm:GetBoneCount() - 1 do
+		local name = vm:GetBoneName(i) or ""
+		if name ~= "__INVALIDBONE__" and not string.find(name, "ValveBiped", 1, true) then id = i break end
+	end
+	propBone = { model = vm:GetModel(), id = id }
+	return id
 end
 
 local function setupLighting(eye, view)
 	local function light(dir)
 		local c = render.ComputeLighting(eye, dir) + render.ComputeDynamicLighting(eye, dir)
-		return math.Clamp(c.x + 0.12, 0, 1.4), math.Clamp(c.y + 0.12, 0, 1.4), math.Clamp(c.z + 0.14, 0, 1.4)
+		return math.Clamp(c.x + 0.15, 0, 1.4), math.Clamp(c.y + 0.15, 0, 1.4), math.Clamp(c.z + 0.17, 0, 1.4)
 	end
 	render.SetModelLighting(BOX_TOP, light(Vector(0, 0, 1)))
 	render.SetModelLighting(BOX_BOTTOM, light(Vector(0, 0, -1)))
@@ -203,17 +205,13 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	local p = poses[fp.bag]
 	local eye, view = EyePos(), EyeAngles()
 
-	local vm, hands = ensureHands()
-	local drawSeq = IsValid(vm) and vm:SelectWeightedSequence(ACT_VM_DRAW) or -1
-	local idleSeq = IsValid(vm) and vm:SelectWeightedSequence(ACT_VM_IDLE) or -1
-	local drawDur = 0.55
-	local raise = math.Clamp(t / drawDur, 0, 1)                 -- руки поднимаются
-	local frame = math.Clamp((t - drawDur * 0.8) / 0.5, 0, 1) * last
-	local lower = 0
+	local DRAW = 0.6
+	local raise = UI.EaseInOut(math.Clamp(t / DRAW, 0, 1))          -- рука поднимает сумку
+	local frame = math.Clamp((t - DRAW * 0.85) / 0.45, 0, 1) * last  -- молния и крышка
 	if fp.closing then
 		local c = now - fp.closing
-		frame = frame * (1 - math.Clamp(c / 0.28, 0, 1))
-		lower = UI.Ease((c - 0.22) / 0.35)
+		frame = frame * (1 - math.Clamp(c / 0.25, 0, 1))
+		raise = raise * (1 - UI.EaseInOut(math.Clamp((c - 0.2) / 0.35, 0, 1)))
 		if c > 0.6 then fp = nil return end
 	end
 
@@ -222,42 +220,33 @@ hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	render.SuppressEngineLighting(true)
 	setupLighting(eye, view)
 
-	local bagPos, bagScale
+	local bagPos
+	local vm, hands = ensureHands()
+	local drawSeq = IsValid(vm) and vm:SelectWeightedSequence(ACT_VM_DRAW) or -1
 	if IsValid(vm) and IsValid(hands) and drawSeq >= 0 then
-		-- поза рук: анимация доставания, потом idle; при закрытии — опускаем
-		local seq = (raise < 1 or idleSeq < 0) and drawSeq or idleSeq
-		if vm:GetSequence() ~= seq then vm:ResetSequence(seq) end
-		vm:SetCycle(seq == drawSeq and raise or (t * 0.2) % 1)
-		local drop = view:Up() * (-14 * lower) + view:Forward() * (-2 * lower)
-		vm:SetPos(eye + drop)
+		if vm:GetSequence() ~= drawSeq then vm:SetSequence(drawSeq) end
+		vm:SetPlaybackRate(0)
+		vm:SetCycle(math.Clamp(raise, 0, 0.999))
+		-- при закрытии рука ещё и уходит вниз из кадра
+		local lower = fp.closing and (1 - raise) or 0
+		vm:SetPos(eye - view:Up() * (10 * lower))
 		vm:SetAngles(view)
+		vm:InvalidateBoneCache()
 		vm:SetupBones()
+		hands:InvalidateBoneCache()
 		hands:SetupBones()
-		local bone = vm:LookupBone("ValveBiped.Bip01_R_Hand")
+		local bone = findPropBone(vm) or vm:LookupBone("ValveBiped.Bip01_R_Hand")
 		local m = bone and vm:GetBoneMatrix(bone)
-		if m then
-			local right = view:Right()
-			local rp = m:GetTranslation()
-			local lp = rp - right * (2 * (rp - eye):Dot(right))
-			bagPos = (rp + lp) / 2 + view:Up() * p.lift + view:Forward() * 1.5
-			bagScale = math.Clamp(rp:Distance(lp) / p.width, 0.55, 1.15)
-		end
+		if m then bagPos = m:GetTranslation() end
 		hands:DrawModel()
-		cam.PushModelMatrix(mirrorMatrix(eye, view))
-		render.CullMode(MATERIAL_CULLMODE_CW)
-		hands:DrawModel()
-		render.CullMode(MATERIAL_CULLMODE_CCW)
-		cam.PopModelMatrix()
 	end
 	if not bagPos then
 		-- без рук: сумка просто поднимается в кадр
-		local rise = UI.Ease(t / 0.35) * (1 - lower)
-		bagPos = LocalToWorld(Vector(15, 0, Lerp(rise, -28, -7)), Angle(), eye, view)
-		bagScale = 1
+		bagPos = LocalToWorld(Vector(18, 2, Lerp(raise, -26, -8)), Angle(), eye, view)
 	end
-	local wobble = (frame > 0 and frame < last and not fp.closing) and math.sin(t * 60) * 1.5 or 0
-	local _, ang = LocalToWorld(Vector(), Angle(p.pitch, 180, math.sin(t * 1.6) * 2 + wobble), eye, view)
-	Bags.DrawAt(fp.bag, bagPos, ang, frame, bagScale)
+	local wobble = (frame > 0 and frame < last and not fp.closing) and math.sin(t * 55) * 1.2 or 0
+	local _, ang = LocalToWorld(Vector(), Angle(p.pitch, 195, math.sin(t * 1.6) * 2 + wobble), eye, view)
+	Bags.DrawAt(fp.bag, bagPos, ang, frame, p.scale)
 	render.SuppressEngineLighting(false)
 	cam.End3D()
 end)

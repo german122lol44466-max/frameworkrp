@@ -107,9 +107,9 @@ function SB.Show()
 		UI.RoundedRect(UI.S(20), 0, 0, pw, ph, Color(9, 11, 18, 232))
 		-- шапка: баннер города
 		UI.Masked(UI.S(20), 0, 0, pw, headH, function()
-			surface.SetMaterial(UI.Mat("nyrp/banner.png"))
-			surface.SetDrawColor(255, 255, 255, 120)
-			local bw = headH * 1920 / 600
+			surface.SetMaterial(UI.Mat("nyrp/header_skyline.png"))
+			surface.SetDrawColor(255, 255, 255, 200)
+			local bw = headH * 1200 / 420
 			surface.DrawTexturedRect(pw / 2 - bw / 2, 0, bw, headH)
 			surface.SetMaterial(UI.Mat("vgui/gradient-u"))
 			surface.SetDrawColor(9, 11, 18, 255)

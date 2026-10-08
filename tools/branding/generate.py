@@ -310,6 +310,57 @@ def make_menu_logo(w=288, h=128):
     return img.resize((w, h), Image.LANCZOS)
 
 
+def make_menu_banner(w=1500, h=440):
+    """Баннер главного меню: прозрачный фон, лого + надпись, без «коробки» с городом."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    logo = make_logo(1024).resize((360, 360), Image.LANCZOS)
+    sh = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    sh.paste((0, 0, 0, 170), (40, 50, 400, 410), logo.getchannel("A").point(lambda a: a))
+    img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(18)), (0, 0))
+    img.alpha_composite(logo, (30, 30))
+
+    x0 = 440
+    f_title = font(FONT_BLACK, 170)
+    def title(dd, fill, off):
+        dd.text((x0 + off[0], 26 + off[1]), "NEW-YORK", font=f_title, fill=fill or WHITE)
+    shadowed(img, title, offset=(0, 8), blur=14, alpha=210)
+
+    d = ImageDraw.Draw(img)
+    f_rp = font(FONT_BLACK, 52)
+    label, track = "ROLEPLAY", 22
+    lw = sum(d.textlength(c, font=f_rp) for c in label) + track * (len(label) - 1)
+    bx0, by0 = x0 + 6, 236
+    d.rectangle([bx0, by0, bx0 + lw + 56, by0 + 78], fill=TAXI)
+    checker(d, bx0, by0 + 78, bx0 + lw + 56, by0 + 92, 7, (16, 16, 20), TAXI)
+    x = bx0 + 28
+    for ch in label:
+        d.text((x, by0 + 8), ch, font=f_rp, fill=NAVY)
+        x += d.textlength(ch, font=f_rp) + track
+    f_tag = font(FONT_BOLD, 30)
+    def tag(dd, fill, off):
+        dd.text((x0 + 10 + off[0], 352 + off[1]), "GARRY'S MOD  ·  ROLEPLAY FRAMEWORK", font=f_tag, fill=fill or (225, 228, 240))
+    shadowed(img, tag, offset=(0, 3), blur=6, alpha=200)
+    return img
+
+
+def make_header_skyline(w=1200, h=420):
+    """Фон для шапок (список игроков и т.п.): ночное небо и город, без текста."""
+    img = vgradient(w, h, SKY_TOP, SKY_BOTTOM).convert("RGBA")
+    rng = random.Random(21)
+    stars(img, 260, rng, int(h * 0.6))
+    glow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).ellipse([-w * 0.1, h * 0.55, w * 1.1, h * 1.4], fill=GLOW + (110,))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(60)))
+    far = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw_skyline(far, int(h * 0.98), 0.9, (40, 34, 70, 255), random.Random(6), windows=False,
+                 hmax=h * 0.55, lm_scale=h / 1100, lm_x=(0.2, 0.42, 0.8))
+    img.alpha_composite(far)
+    near = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw_skyline(near, int(h * 1.0), 0.9, (12, 13, 28, 255), random.Random(8), density=1.0, hmax=h * 0.38, landmarks=False)
+    img.alpha_composite(near)
+    return img
+
+
 if __name__ == "__main__":
     logo = make_logo()
     save(logo, "logo_1024.png")
@@ -320,3 +371,9 @@ if __name__ == "__main__":
     save(make_banner(1920, 1080), "wallpaper_1920x1080.png", rgb=True)
     save(make_menu_logo(), os.path.join(GM, "logo.png"))
     save(logo, os.path.join(GM, "icon24.png"), (24, 24))
+    mb = make_menu_banner()
+    save(mb, "menu_banner.png")
+    save(mb, os.path.join(GM, "content", "materials", "nyrp", "menu_banner.png"))
+    hs = make_header_skyline()
+    save(hs, "header_skyline.png", rgb=True)
+    save(hs, os.path.join(GM, "content", "materials", "nyrp", "header_skyline.png"), rgb=True)

@@ -467,6 +467,7 @@ function Inv.BuildDetail(silent)
 	pnl:SetPos(old and pnl.TargetX or fx, fy + (Inv.Frame:GetTall() - h) / 2)
 	if old then old:Remove() end
 	pnl.Think = function(s)
+		if not IsValid(Inv.Frame) then return end
 		local x, y = s:GetPos()
 		local fx2 = Inv.Frame:GetPos()
 		s.TargetX = fx2 - w - UI.S(16)
@@ -604,7 +605,7 @@ function Inv.BuildFrame()
 	frame.Born = RealTime()
 	local w, h
 	if page == "bag" then
-		w = pad * 2 + UI.S(76) + gridW
+		w = pad * 2 + UI.S(76) + gridW + UI.S(44)
 		h = top + gridH + pad + UI.S(36)
 	elseif page == "equip" then
 		w, h = UI.S(1180), UI.S(720)
@@ -641,8 +642,8 @@ function Inv.BuildFrame()
 			-- стрелка «к снаряжению» у правого верхнего угла сетки
 			local arrow = vgui.Create("NYRP.IconButton", frame)
 			arrow:SetIcon("arrow_right")
-			arrow:SetSize(UI.S(30), UI.S(30))
-			arrow:SetPos(pad + UI.S(76) + gridW - UI.S(30), top - UI.S(36))
+			arrow:SetSize(UI.S(34), UI.S(34))
+			arrow:SetPos(pad + UI.S(76) + gridW + UI.S(8), top + (UI.S(SLOT) - UI.S(34)) / 2)
 			arrow:SetTooltip("Снаряжение")
 			arrow.DoClick = function()
 				Inv.Page = "equip"
@@ -704,8 +705,10 @@ function Inv.ToggleSettings()
 	pnl:SetSize(w, h)
 	pnl.Born = RealTime()
 	pnl.Think = function(s)
-		local fx, fy = f:GetPos()
-		s:SetPos(fx + f:GetWide() + UI.S(16), fy + (f:GetTall() - h) / 2)
+		local fr = Inv.Frame  -- окно могло пересоздаться (смена страницы/режима)
+		if not IsValid(fr) then return end
+		local fx, fy = fr:GetPos()
+		s:SetPos(fx + fr:GetWide() + UI.S(16), fy + (fr:GetTall() - h) / 2)
 	end
 	pnl.Paint = function(s, pw, ph)
 		s:SetAlpha(255 * UI.Ease((RealTime() - s.Born) / 0.3))
