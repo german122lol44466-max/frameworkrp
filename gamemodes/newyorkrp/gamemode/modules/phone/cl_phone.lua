@@ -158,20 +158,20 @@ function P.Btn(id, x, y, w, h, act, opts)
 end
 
 function P.ResolveHover()
-	if not P.Mouse then return end
+	if not P.Mouse then P.HoverId = nil return end
 	for i = #P.Btns, 1, -1 do
 		local b = P.Btns[i]
 		if b.hover then
-			if P.Focus ~= b.id then
-				P.Focus = b.id
-				if (P.LastHoverSound or 0) + 0.05 < RealTime() then
-					P.LastHoverSound = RealTime()
-					surface.PlaySound("nyrp/phone/key.wav")
-				end
+			P.Focus = b.id
+			-- звук — только когда курсор перешёл на другую кнопку
+			if P.HoverId ~= b.id then
+				P.HoverId = b.id
+				surface.PlaySound("nyrp/phone/key.wav")
 			end
 			return
 		end
 	end
+	P.HoverId = nil
 end
 
 -- кнопки, обрезанные прокруткой, не должны ловить мышь
@@ -748,7 +748,7 @@ hook.Add("HUDPaint", "nyrp.phone", function()
 	if P.Open and #P.Btns > 0 then
 		local found = false
 		for _, b in ipairs(P.Btns) do if b.id == P.Focus then found = true break end end
-		if not found or P.Focus == "homebar" and not P.Mouse then P.Focus = (P.Btns[2] and P.Btns[1].id == "hdr.back") and P.Btns[2].id or P.Btns[1].id end
+		if (not found and P.Focus ~= "homebar") or (P.Focus == "homebar" and not P.Mouse) then P.Focus = (P.Btns[2] and P.Btns[1].id == "hdr.back") and P.Btns[2].id or P.Btns[1].id end
 	end
 
 	-- ввод текста

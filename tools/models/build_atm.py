@@ -35,7 +35,7 @@ GM = os.path.join(ROOT, "gamemodes", "newyorkrp")
 SRC = os.path.join(HERE, "src")
 MATDIR = os.path.join(GM, "content", "materials", "models", "nyrp", "atm")
 FONTS = os.path.join(GM, "content", "resource", "fonts")
-K = 1.5          # масштаб банкомата в игре относительно чертёжных размеров ниже
+K = 1.5          # масштаб банкомата в игре (ENT:SetModelScale) относительно чертёжных размеров ниже
 
 
 def font(name, size):
@@ -368,8 +368,8 @@ def main():
     build_textures()
     obs = build()
     tris = collect(obs)
-    # в игре банкомат в K раз больше чертежа (реальный рост ~1.6 м, экран на уровне глаз)
-    tris = {m: [[(tuple(c * K for c in p), n, uv) for p, n, uv in tri] for tri in tl] for m, tl in tris.items()}
+    # модель — в чертёжных размерах; в игре её увеличивает сама энтити (SetModelScale(K)),
+    # так банкомат правильного размера при любой версии контента
     print("triangles:", sum(len(v) for v in tris.values()))
     out = os.path.join(GM, "content", "models", "nyrp", "atm")
     mdlc.compile_model(out, "atm", "nyrp/atm/atm.mdl", tris, "models/nyrp/atm", "metal", 300)

@@ -40,6 +40,7 @@ local catcher
 
 function gui.EnableScreenClicker(on)
 	NYRP.ScreenClicker = on and true or false
+	origClicker(on)                         -- штатное освобождение мыши движком
 	if on then
 		if IsValid(catcher) then return end
 		catcher = origCreate("EditablePanel")
@@ -49,7 +50,6 @@ function gui.EnableScreenClicker(on)
 		catcher:SetKeyboardInputEnabled(false)
 		catcher:SetMouseInputEnabled(true)
 		catcher:SetCursor("arrow")
-		catcher:MoveToBack()
 		catcher.Paint = function() end
 		catcher.OnMousePressed = function(_, code) hook.Run("GUIMousePressed", code, gui.ScreenToVector(gui.MousePos())) end
 		catcher.OnMouseReleased = function(_, code) hook.Run("GUIMouseReleased", code, gui.ScreenToVector(gui.MousePos())) end

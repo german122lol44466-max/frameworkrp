@@ -22,7 +22,12 @@ end
 if SERVER then
 	function ENT:Initialize()
 		self:SetModel("models/nyrp/atm/atm.mdl")
-		self:PhysicsInit(SOLID_VPHYSICS)
+		-- модель в чертёжных размерах — в игре увеличиваем до реального роста, коллизию тоже
+		local K = NYRP.Bank.ATM.K
+		self:SetModelScale(K, 0)
+		local mn, mx = self:GetModelBounds()
+		self:PhysicsInitBox(mn * K, mx * K)
+		self:SetCollisionBounds(mn * K, mx * K)
 		self:SetMoveType(MOVETYPE_NONE)
 		self:SetSolid(SOLID_VPHYSICS)
 		self:SetUseType(SIMPLE_USE)
@@ -74,7 +79,14 @@ properties.Add("nyrp_atm_bank", {
 })
 
 if CLIENT then
+	function ENT:Initialize()
+		local K = NYRP.Bank.ATM.K
+		local mn, mx = self:GetModelBounds()
+		self:SetRenderBounds(mn * K - Vector(4, 4, 4), mx * K + Vector(4, 4, 4))
+	end
+
 	function ENT:Draw()
+		if self:GetModelScale() ~= NYRP.Bank.ATM.K then self:SetModelScale(NYRP.Bank.ATM.K, 0) end
 		self:DrawModel()
 	end
 

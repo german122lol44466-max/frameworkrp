@@ -33,6 +33,14 @@ function B.ShowCard(d)
 	end
 	bg.OnMousePressed = function(s) UI.Sound("close") s:Remove() end
 	bg.OnKeyCodePressed = function(s, key) if key == KEY_ESCAPE or key == KEY_E or key == KEY_Q then s:Remove() end end
+	-- Esc сначала открывает меню игры — перехватываем: закрываем карту, меню игры прячем
+	bg.Think = function(s)
+		if gui.IsGameUIVisible() then
+			gui.HideGameUI()
+			UI.Sound("close")
+			s:Remove()
+		end
+	end
 
 	local W, H = UI.S(560), UI.S(353)
 	local card = vgui.Create("DPanel", bg)

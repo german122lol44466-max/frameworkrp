@@ -68,7 +68,7 @@ def main():
     if kind == "atm":
         # сам банкомат в пространстве камеры ввода PIN
         pos, tris = load_part("atm")
-        pc = np.array([anims.atm_to_cam(v, scaled=True) for v in pos])
+        pc = np.array([anims.atm_to_cam(v) for v in pos])
         mats = {i: (0.3, 0.32, 0.36, 1) for i, _ in enumerate(tris)}
         for i, name in enumerate(tris):
             if "keypad" in name:

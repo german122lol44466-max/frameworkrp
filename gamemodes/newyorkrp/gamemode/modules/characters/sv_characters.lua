@@ -65,23 +65,52 @@ function Chars.Insert(ply, d)
 	return tonumber(sql.QueryValue("SELECT last_insert_rowid()"))
 end
 
+-- JSON без падений: при ошибке пишем в консоль, какое поле не сохранилось
+local function json(name, t, c)
+	local ok, res = pcall(util.TableToJSON, t or {})
+	if ok and res then return res end
+	NYRP.Print("Сохранение " .. tostring(c and c.name) .. ": не удалось записать «" .. name .. "»: " .. tostring(res))
+end
+
+-- резервная копия персонажа в файл (data/nyrp/chars/<id>.json) — на случай сбоя базы
+local function backupPath(id) return "nyrp/chars/" .. id .. ".json" end
+
+local function writeBackup(c, inv, eq)
+	file.CreateDir("nyrp/chars")
+	local ok, s = pcall(util.TableToJSON, { inventory = inv, equipment = eq, flags = c.flags or {}, t = os.time() })
+	if ok and s then file.Write(backupPath(c.id), s) end
+end
+
+function Chars.ReadBackup(id)
+	local s = file.Read(backupPath(id), "DATA")
+	if not s then return end
+	local ok, t = pcall(util.JSONToTable, s)
+	return ok and t or nil
+end
+
 function Chars.Save(ply)
 	local c = ply.nyrpChar
 	if not c then return end
+	local flags = json("flags", c.flags, c) or "{}"
 	-- инвентарь пишем только «своему» персонажу: если в памяти вещи другого (переключение не завершилось),
 	-- строку инвентаря не трогаем — иначе вещи одного персонажа оказывались у другого
 	if NYRP.Inv and ply.nyrpInvChar ~= c.id then
 		NYRP.Print("Сохранение " .. tostring(c.name) .. ": инвентарь в памяти принадлежит другому персонажу — не сохраняю его")
-		Q(string.format("UPDATE nyrp_characters SET flags = %s WHERE id = %d", E(util.TableToJSON(c.flags or {})), c.id))
+		Q(string.format("UPDATE nyrp_characters SET flags = %s WHERE id = %d", E(flags), c.id))
 		return
 	end
 	local inv, eq = {}, {}
 	if NYRP.Inv then inv, eq = NYRP.Inv.Export(ply) end
-	Q(string.format("UPDATE nyrp_characters SET inventory = %s, equipment = %s, hunger = %f, thirst = %f, health = %d, recognized = %s, flags = %s WHERE id = %d",
-		E(util.TableToJSON(inv)), E(util.TableToJSON(eq)),
+	local res = Q(string.format("UPDATE nyrp_characters SET inventory = %s, equipment = %s, hunger = %f, thirst = %f, health = %d, recognized = %s, flags = %s WHERE id = %d",
+		E(json("inventory", inv, c) or "[]"), E(json("equipment", eq, c) or "{}"),
 		ply:GetNW2Float("nyrp.hunger", 100), ply:GetNW2Float("nyrp.thirst", 100),
-		ply:Alive() and ply:Health() or 100,
-		E(util.TableToJSON(NYRP.Recog.Export and NYRP.Recog.Export(ply) or {})), E(util.TableToJSON(c.flags or {})), c.id))
+		math.floor(ply:Alive() and ply:Health() or 100),
+		E(json("recognized", NYRP.Recog.Export and NYRP.Recog.Export(ply) or {}, c) or "{}"), E(flags), c.id))
+	writeBackup(c, inv, eq)
+	if res == false and IsValid(ply) and ply:IsAdmin() and (ply.nyrpSaveWarn or 0) < CurTime() then
+		ply.nyrpSaveWarn = CurTime() + 60
+		NYRP.Notify(ply, "Ошибка сохранения персонажа в базу (подробности в консоли сервера). Используется резервная копия.", "error", 10)
+	end
 end
 
 local function savePlaytime(ply)
@@ -112,6 +141,19 @@ function Chars.Load(ply, id)
 	if ply.nyrpChar then Chars.Save(ply) end
 
 	local c = rowToChar(r[1])
+	-- база пуста, а в резервной копии есть вещи/отметки — берём копию (база могла не сохраниться)
+	local bk = Chars.ReadBackup(c.id)
+	if bk then
+		local dbInvEmpty = table.IsEmpty(c.inventory or {}) and table.IsEmpty(c.equipment or {})
+		local bkInv = not table.IsEmpty(bk.inventory or {}) or not table.IsEmpty(bk.equipment or {})
+		if dbInvEmpty and bkInv then
+			c.inventory, c.equipment = bk.inventory or {}, bk.equipment or {}
+			NYRP.Print("Персонаж " .. c.name .. ": инвентарь восстановлен из резервной копии")
+		end
+		if table.Count(bk.flags or {}) > table.Count(c.flags or {}) then
+			c.flags = table.Merge(table.Copy(bk.flags), c.flags or {})
+		end
+	end
 	-- вещи прошлого персонажа убираем из памяти до смены персонажа
 	ply.nyrpInv, ply.nyrpInvChar = nil, nil
 	-- у каждого персонажа свои вещи: оружие, патроны, броня прошлого персонажа не переносятся
