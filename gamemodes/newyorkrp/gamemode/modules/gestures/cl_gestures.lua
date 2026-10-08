@@ -41,16 +41,25 @@ function G.OpenRadial()
 		local mx, my = gui.MousePos()
 		local dx, dy = mx - ScrW() / 2, my - ScrH() / 2
 		local d = math.sqrt(dx * dx + dy * dy)
-		local sel
-		if d > R1 * 0.55 then
+		local sel, vsel
+		if d > R1 * 0.75 then
 			local a = (math.deg(math.atan2(dx, -dy)) + 360 + 180 / n) % 360
 			sel = math.floor(a / (360 / n)) + 1
+		elseif NYRP.Voice then
+			-- центр — выбор режима голоса (три кнопки в ряд)
+			for i = 1, #NYRP.Voice.Modes do
+				local bx = (i - 2) * UI.S(56)
+				if (dx - bx) ^ 2 + (dy + UI.S(8)) ^ 2 <= UI.S(26) ^ 2 then vsel = i end
+			end
 		end
-		if sel ~= s.Sel and sel then UI.Sound("hover") end
-		s.Sel = sel
+		if (sel ~= s.Sel and sel) or (vsel ~= s.VoiceSel and vsel) then UI.Sound("hover") end
+		s.Sel, s.VoiceSel = sel, vsel
 	end
 	pnl.OnMousePressed = function(s, code)
-		if code == MOUSE_LEFT and s.Sel then
+		if code == MOUSE_LEFT and s.VoiceSel then
+			NYRP.Voice.SetMode(s.VoiceSel)
+			G.CloseRadial()
+		elseif code == MOUSE_LEFT and s.Sel then
 			play(G.List[s.Sel])
 			G.CloseRadial()
 		elseif code == MOUSE_RIGHT then
@@ -103,14 +112,25 @@ function G.OpenRadial()
 		end
 		-- центр
 		UI.Ring(cx, cy, r1 - UI.S(10), Color(255, 255, 255, 22))
-		local g = s.Sel and G.List[s.Sel]
-		if g then
-			UI.DrawIcon(g.icon, cx, cy - UI.S(18), UI.S(34), UI.Col.accent)
-			draw.SimpleText(g.name, NYRP.Font("bold", 17), cx, cy + UI.S(18), UI.Col.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		else
-			draw.SimpleText("ЖЕСТЫ", NYRP.Font("title", 24), cx, cy - UI.S(6), UI.Col.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		-- центр: режим голоса
+		local V = NYRP.Voice
+		if V then
+			draw.SimpleText("ГОЛОС", NYRP.Font("title", 15), cx, cy - UI.S(52), UI.Col.dim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			local cur = LocalPlayer():GetNW2Int("nyrp.voiceMode", 2)
+			s.VHover = s.VHover or {}
+			for i, m in ipairs(V.Modes) do
+				s.VHover[i] = UI.Approach(s.VHover[i] or 0, s.VoiceSel == i and 1 or 0, 16)
+				local hv = s.VHover[i]
+				local bx, by = cx + (i - 2) * UI.S(56), cy - UI.S(8)
+				local r = UI.S(22) + hv * UI.S(3)
+				UI.Circle(bx, by, r, i == cur and Color(247, 198, 0, 235) or UI.LerpColor(hv, Color(255, 255, 255, 16), Color(255, 255, 255, 60)))
+				UI.DrawIcon(m.icon, bx, by, UI.S(20), i == cur and Color(14, 14, 18) or m.col)
+			end
 		end
-		draw.SimpleText("отпустите G или кликните · ПКМ — отмена", NYRP.Font("regular", 12), cx, cy + UI.S(42), UI.Col.faint, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		local g = s.Sel and G.List[s.Sel]
+		local label = s.VoiceSel and V and V.Modes[s.VoiceSel].name or (g and g.name) or "ЖЕСТЫ И ГОЛОС"
+		draw.SimpleText(label, NYRP.Font("bold", 15), cx, cy + UI.S(32), (s.Sel or s.VoiceSel) and UI.Col.accent or UI.Col.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("отпустите G или кликните · ПКМ — отмена", NYRP.Font("regular", 11), cx, cy + UI.S(54), UI.Col.faint, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		surface.SetAlphaMultiplier(1)
 	end
 end
@@ -127,7 +147,10 @@ end
 function G.ReleaseRadial()
 	local pnl = G.Radial
 	if not IsValid(pnl) or pnl.Closing then return end
-	if pnl.Sel and RealTime() - pnl.Born > 0.12 then play(G.List[pnl.Sel]) end
+	if RealTime() - pnl.Born > 0.12 then
+		if pnl.VoiceSel and NYRP.Voice then NYRP.Voice.SetMode(pnl.VoiceSel)
+		elseif pnl.Sel then play(G.List[pnl.Sel]) end
+	end
 	G.CloseRadial()
 end
 

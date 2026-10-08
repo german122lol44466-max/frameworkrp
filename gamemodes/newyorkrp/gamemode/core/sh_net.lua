@@ -25,6 +25,10 @@ NYRP.NetMessages = {
 	"nyrp.gesture.play",
 	-- взаимодействие с игроком, деньги
 	"nyrp.player.act", "nyrp.money.give",
+	-- режим голоса
+	"nyrp.voice.mode",
+	-- время суток
+	"nyrp.time.light",
 	-- контейнеры
 	"nyrp.cont.progress", "nyrp.cont.open", "nyrp.cont.sync", "nyrp.cont.close",
 }

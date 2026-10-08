@@ -58,7 +58,13 @@ if SERVER then
 		local def = self:GetDef()
 		if not def then self:Remove() return end
 		local n = self:GetAmount()
-		local added = NYRP.Inv.Add(ply, def.id, n, self.ItemData)
+		if not NYRP.Inv.CanTake(ply, self.ItemData) then return end
+		local data = self.ItemData and table.Copy(self.ItemData) or nil
+		if data then
+			data.nyrpFrom = nil
+			if table.IsEmpty(data) then data = nil end -- обычные предметы снова складываются в стопки
+		end
+		local added = NYRP.Inv.Add(ply, def.id, n, data)
 		if added <= 0 then
 			NYRP.Notify(ply, "В сумке нет места", "error")
 			return

@@ -27,17 +27,22 @@ timer.Create("nyrp.condition", TICK, 0, function()
 			local st = Cond.Stamina(ply)
 			local speed = ply:GetVelocity():Length2D()
 			local running = ply:KeyDown(IN_SPEED) and speed > ply:GetWalkSpeed() + 15 and ply:GetMoveType() == MOVETYPE_WALK
+			-- жажда бьёт по выносливости (здоровье не отнимает)
+			local thirst = ply:GetNW2Float("nyrp.thirst", 100)
+			local tDrain, tRegen, cap = 1, 1, 100
+			if thirst <= 0 then tDrain, tRegen, cap = 1.8, 0.35, 40
+			elseif thirst < 25 then tDrain, tRegen = 1.4, 0.6 end
 			if running then
 				local skill = ply.nyrpChar and ply.nyrpChar.skills and ply.nyrpChar.skills.stamina or 0
 				local drain = 100 / (S.Seconds * (1 + skill * S.PerSkill))
 				if ply:Health() < 50 then drain = drain * S.InjuredDrain end
-				st = st - drain * TICK
+				st = st - drain * tDrain * TICK
 			elseif speed < 8 then
-				st = st + S.RegenStand * TICK
+				st = st + S.RegenStand * tRegen * TICK
 			else
-				st = st + S.RegenWalk * TICK
+				st = st + S.RegenWalk * tRegen * TICK
 			end
-			st = math.Clamp(st, 0, 100)
+			st = math.Clamp(st, 0, cap)
 			ply:SetNW2Float("nyrp.stamina", st)
 			if st <= 0 and not Cond.Exhausted(ply) then
 				ply:SetNW2Bool("nyrp.exhausted", true)

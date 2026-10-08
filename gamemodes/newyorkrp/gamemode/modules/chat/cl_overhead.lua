@@ -156,7 +156,8 @@ local function drawPlayer(ply, me, eye, look, now)
 		local vol = math.Clamp(ply:VoiceVolume() * 3, 0, 1)
 		local r = 22 * (1 + vol * 0.35)
 		UI.Circle(0, y - 26, r, Color(255, 255, 255, 235 * st.voice))
-		UI.DrawIcon("mic", 0, y - 26, r * 1.15, Color(10, 12, 18, 255 * st.voice))
+		local vm = NYRP.Voice and NYRP.Voice.ModeOf(ply)
+		UI.DrawIcon(vm and vm.icon or "mic", 0, y - 26, r * 1.15, Color(10, 12, 18, 255 * st.voice))
 		y = y - (54 + gap) * st.voice
 	end
 	if st.typing > 0.01 then

@@ -190,12 +190,62 @@ function C.Move(ply, fk, fkey, tk, tkey)
 		-- своё удостоверение можно положить, но предупредим
 		NYRP.Notify(ply, "Вы положили своё удостоверение в контейнер", "warning")
 	end
+	-- вещи «другого своего персонажа» из контейнера не взять (и обменом тоже)
+	if fk == "cont" and tk == "inv" and not Inv.CanTake(ply, from[a].data) then return end
+	if fk == "inv" and tk == "cont" and to[b] and not Inv.CanTake(ply, to[b].data) then return end
+	-- что уходит в контейнер — помечаем этим персонажем, что уходит в сумку — метку снимаем
+	if fk == "inv" and tk == "cont" then Inv.Tag(ply, from[a]) Inv.Untag(to[b]) end
+	if fk == "cont" and tk == "inv" then Inv.Untag(from[a]) Inv.Tag(ply, to[b]) end
 	stackOrSwap(from[a], to[b], function(v) from[a] = v end, function(v) to[b] = v end)
 	Inv.Sync(ply)
 	sendContents(ent, viewers(ent))
 	ent:EmitSound("physics/cardboard/cardboard_box_impact_soft" .. math.random(1, 7) .. ".wav", 50, math.random(95, 110))
 	queueSave()
 end
+
+-- ------------------------------------------------------------- лут --
+local function rollLoot(tbl)
+	local total = 0
+	for _, row in ipairs(tbl) do total = total + row[2] end
+	local r = math.random() * total
+	for _, row in ipairs(tbl) do
+		r = r - row[2]
+		if r <= 0 then return row[1], math.random(row[3] or 1, row[4] or row[3] or 1) end
+	end
+end
+
+function C.SpawnLoot(ent, force)
+	local tbl = C.Loot[ent:GetNW2String("nyrp.ctype", "crate")]
+	if not tbl then return end
+	ent.Slots = ent.Slots or {}
+	if table.Count(ent.Slots) >= (tbl.Max or 4) then return end
+	if not force and math.random() > C.Loot.Chance then return end
+	local added = false
+	for _ = 1, math.random(1, 2) do
+		local id, n = rollLoot(tbl)
+		local def = id and Items.Get(id)
+		if def then
+			local free
+			for i = 1, size(ent) do if not ent.Slots[i] then free = i break end end
+			if not free then break end
+			ent.Slots[free] = { id = id, n = math.min(n, def.stack), data = {} }
+			added = true
+		end
+	end
+	if added then
+		sendContents(ent, viewers(ent))
+		queueSave()
+	end
+end
+
+timer.Create("nyrp.containers.loot", C.Loot.Interval, 0, function()
+	for _, ent in ipairs(ents.FindByClass("nyrp_container")) do C.SpawnLoot(ent) end
+end)
+
+concommand.Add("nyrp_container_loot", function(ply)
+	if IsValid(ply) and not ply:IsSuperAdmin() then return end
+	for _, ent in ipairs(ents.FindByClass("nyrp_container")) do C.SpawnLoot(ent, true) end
+end)
 
 -- ------------------------------------------------------------ админ --
 concommand.Add("nyrp_container", function(ply, _, args)
@@ -207,6 +257,7 @@ concommand.Add("nyrp_container", function(ply, _, args)
 	end
 	local tr = ply:GetEyeTrace()
 	local ent = C.Spawn(ctype, tr.HitPos + tr.HitNormal * 2, Angle(0, ply:EyeAngles().y + 180, 0))
+	C.SpawnLoot(ent, true)
 	undo.Create("Контейнер")
 	undo.AddEntity(ent)
 	undo.SetPlayer(ply)

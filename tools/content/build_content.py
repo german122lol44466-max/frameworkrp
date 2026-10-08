@@ -73,6 +73,9 @@ ICONS = {
     "g_agree": "thumb-up", "g_disagree": "thumb-down", "g_wave": "hand-move", "g_laugh": "mood-happy",
     "g_beckon": "hand-finger", "g_halt": "hand-stop", "g_salute": "military-rank", "g_dance": "music",
     "g_bow": "user-down", "g_forward": "arrow-forward", "g_cheer": "mood-smile", "g_give": "heart-handshake",
+    # режимы голоса и время суток
+    "v_whisper": "volume-2", "v_normal": "volume", "v_yell": "speakerphone",
+    "sun": "sun", "moon": "moon-stars", "sunrise": "sunrise", "sunset": "sunset",
 }
 
 

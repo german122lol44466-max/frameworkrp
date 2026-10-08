@@ -70,7 +70,7 @@ Cond.Statuses = {
 		danger = function(ply) return ply:GetNW2Float("nyrp.hunger", 100) <= 0 end,
 		value = function(ply) return "Сытость " .. math.floor(ply:GetNW2Float("nyrp.hunger", 100)) .. "%" end },
 	{ id = "thirst", name = "Жажда", icon = "thirst", level = "warn",
-		desc = "Хочется пить. Без воды персонаж быстро слабеет и теряет здоровье.",
+		desc = "Хочется пить. Вы быстрее выдыхаетесь и медленнее отдыхаете, а без воды выносливость не поднимется выше 40%.",
 		check = function(ply) return ply:GetNW2Float("nyrp.thirst", 100) < 25 end,
 		danger = function(ply) return ply:GetNW2Float("nyrp.thirst", 100) <= 0 end,
 		value = function(ply) return "Вода " .. math.floor(ply:GetNW2Float("nyrp.thirst", 100)) .. "%" end },

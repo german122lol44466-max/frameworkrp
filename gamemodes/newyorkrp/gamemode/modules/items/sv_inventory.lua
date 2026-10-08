@@ -7,6 +7,29 @@ local Items = NYRP.Items
 NYRP.Inv = NYRP.Inv or {}
 local Inv = NYRP.Inv
 
+-- Метка «чей предмет»: вещи, выброшенные/положенные в контейнер одним персонажем,
+-- нельзя забрать другим персонажем того же игрока (защита от перекидывания лута между своими).
+function Inv.Tag(ply, it)
+	if not it or not ply.nyrpChar then return end
+	it.data = it.data or {}
+	it.data.nyrpFrom = NYRP.Chars.Key(ply) .. "|" .. ply.nyrpChar.id
+end
+
+function Inv.CanTake(ply, data)
+	local from = data and data.nyrpFrom
+	if not from or not ply.nyrpChar then return true end
+	local key, char = string.match(from, "^(.*)|(%d+)$")
+	if key == NYRP.Chars.Key(ply) and tonumber(char) ~= ply.nyrpChar.id then
+		NYRP.Notify(ply, "Это вещь вашего другого персонажа — её нельзя забрать", "error")
+		return false
+	end
+	return true
+end
+
+function Inv.Untag(it)
+	if it and it.data then it.data.nyrpFrom = nil end
+end
+
 function Inv.Size(ply)
 	local cfg = NYRP.Config.Bags[ply:GetNW2String("nyrp.bag", "waistbag")] or NYRP.Config.Bags.waistbag
 	return cfg.cols * cfg.rows
@@ -315,7 +338,9 @@ function Inv.Drop(ply, kind, key, all)
 	local ent = ents.Create("nyrp_item")
 	ent:SetPos(tr.HitPos + tr.HitNormal * 8)
 	ent:SetAngles(Angle(0, ply:EyeAngles().y, 0))
-	ent:SetItem(it.id, n, it.data)
+	local data = table.Copy(it.data or {})
+	data.nyrpFrom = ply.nyrpChar and (NYRP.Chars.Key(ply) .. "|" .. ply.nyrpChar.id) or nil
+	ent:SetItem(it.id, n, data)
 	ent:Spawn()
 	local phys = ent:GetPhysicsObject()
 	if IsValid(phys) then phys:SetVelocity(ply:GetAimVector() * 80) end

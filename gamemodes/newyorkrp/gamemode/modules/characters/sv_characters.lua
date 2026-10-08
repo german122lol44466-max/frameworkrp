@@ -105,6 +105,11 @@ function Chars.Load(ply, id)
 	if ply.nyrpChar then Chars.Save(ply) end
 
 	local c = rowToChar(r[1])
+	-- у каждого персонажа свои вещи: оружие, патроны, броня прошлого персонажа не переносятся
+	ply:StripWeapons()
+	ply:RemoveAllAmmo()
+	ply:SetArmor(0)
+	ply.nyrpContainer = nil
 	ply.nyrpChar = c
 	ply.nyrpLastChar = c.id
 	ply:SetNW2Int("nyrp.charID", c.id)
@@ -139,6 +144,10 @@ function Chars.ToMenu(ply)
 	ply:SetNW2String("nyrp.name", "")
 	ply:SetNW2String("nyrp.bag", "")
 	if NYRP.Inv then NYRP.Inv.Clear(ply) end
+	ply:StripWeapons()
+	ply:RemoveAllAmmo()
+	ply:SetArmor(0)
+	ply.nyrpContainer = nil
 	ply:Spawn()
 	Chars.SendList(ply)
 end

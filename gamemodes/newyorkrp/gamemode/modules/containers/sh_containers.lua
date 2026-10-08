@@ -19,6 +19,19 @@ C.Types = {
 	ammo = { name = "Армейский ящик", model = "models/items/ammocrate_smg1.mdl", cols = 5, rows = 3 },
 }
 
+-- Лут: раз в Interval секунд в каждом контейнере (если в нём меньше Max вещей) с шансом Chance
+-- появляется 1–2 предмета из его таблицы. Таблица: { id, вес, [мин], [макс] }.
+C.Loot = {
+	Interval = 300, Chance = 0.6,
+	crate = { Max = 4, { "water", 5 }, { "soda", 4 }, { "takeout", 3 }, { "crowbar", 1 }, { "gloves", 2 }, { "painkillers", 2 } },
+	locker = { Max = 6, { "tshirt", 4 }, { "jacket", 2 }, { "jeans", 3 }, { "sneakers", 3 }, { "cap", 3 }, { "gloves", 3 },
+		{ "sunglasses", 2 }, { "mask", 1 }, { "baton", 1 } },
+	dumpster = { Max = 5, { "takeout", 5 }, { "soda", 4 }, { "milk", 2 }, { "tshirt", 2 }, { "sneakers", 1 }, { "crowbar", 1 } },
+	fridge = { Max = 6, { "water", 6, 1, 2 }, { "soda", 5, 1, 2 }, { "milk", 4 }, { "takeout", 4 }, { "coffee", 3 } },
+	cabinet = { Max = 3, { "painkillers", 4 }, { "medkit", 2 }, { "coffee", 3 }, { "sunglasses", 1 } },
+	ammo = { Max = 3, { "pistol", 3 }, { "revolver", 2 }, { "smg", 1 }, { "shotgun", 1 }, { "baton", 3 }, { "medkit", 3 } },
+}
+
 function C.TypeOf(ent)
 	return C.Types[ent:GetNW2String("nyrp.ctype", "crate")] or C.Types.crate
 end
