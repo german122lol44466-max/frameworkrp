@@ -4,8 +4,8 @@
 ]]
 
 local TRACKS = {
-	"rain_off_the_neon_signs", "saxophone_in_the_rain", "blinds_and_headlights", "last_call_in_c_minor",
-	"empty_street_static", "velvet_cigarette_haze", "midnight_amber_room",
+	"last_train_home", "headlights_on_the_divider", "platform_after_rain", "glow_on_the_overpass", "3_am_echoes",
+	"rain_on_the_boulevard", "midnight_amber_room", "streetlights_in_the_rearview", "ashes_in_the_coffee_cup", "midnight_on_my_mind",
 }
 
 local channel

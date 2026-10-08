@@ -44,6 +44,14 @@ def main():
     base = arms.pose_from(am, [a["name"] for a in am.anims].index("a_fists_idle_01"), 0)
     rig = vmlib.Rig(arms, base)
     preview.setup_scene()
+    if os.environ.get("NYRP_CAM"):  # отладочный ракурс: NYRP_CAM="x,y,z" NYRP_CAM_T="x,y,z"
+        cam = bpy.context.scene.camera
+        cam.location = [float(v) for v in os.environ["NYRP_CAM"].split(",")]
+        tgt = bpy.data.objects.new("tgt", None)
+        bpy.context.collection.objects.link(tgt)
+        tgt.location = [float(v) for v in os.environ.get("NYRP_CAM_T", "11,-3,-1").split(",")]
+        c = cam.constraints.new("TRACK_TO")
+        c.target, c.track_axis, c.up_axis = tgt, "TRACK_NEGATIVE_Z", "UP_Y"
     tris0 = {k: v for k, v in arms.tris.items() if k in (0, 1)}
     arm_ob = preview.mesh_object("arms", arms.pos, tris0, {0: (0.25, 0.3, 0.4, 1), 1: (0.8, 0.6, 0.5, 1)})
     kind = "phone" if which.startswith("phone") else ("backpack" if "backpack" in which else "waistbag")

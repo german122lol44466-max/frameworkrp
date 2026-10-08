@@ -76,6 +76,15 @@ ICONS = {
     # режимы голоса и время суток
     "v_whisper": "volume-2", "v_normal": "volume", "v_yell": "speakerphone",
     "sun": "sun", "moon": "moon-stars", "sunrise": "sunrise", "sunset": "sunset",
+    # телефон
+    "p_mobile": "device-mobile", "p_sim": "device-sim", "p_phone": "phone", "p_call": "phone-call", "p_hangup": "phone-off",
+    "p_in": "phone-incoming", "p_out": "phone-outgoing", "p_notes": "notes", "p_clock": "clock", "p_calendar": "calendar",
+    "p_store": "building-store", "p_settings": "settings", "p_camera": "camera", "p_photos": "photo", "p_bank": "building-bank",
+    "p_game": "device-gamepad-2", "p_back": "backspace", "p_contacts": "address-book", "p_recent": "history",
+    "p_keypad": "grid-dots", "p_alarm": "alarm", "p_stopwatch": "stopwatch", "p_face": "face-id", "p_edit": "pencil",
+    "p_video": "video", "p_rec": "player-record", "p_stop": "player-stop", "p_play": "player-play", "p_pause": "player-pause",
+    "p_cash": "cash", "p_card": "credit-card", "p_transfer": "arrows-exchange", "p_wifi": "wifi", "p_battery": "battery-3",
+    "p_signal": "antenna-bars-5", "p_up": "chevron-up", "p_down": "chevron-down",
 }
 
 

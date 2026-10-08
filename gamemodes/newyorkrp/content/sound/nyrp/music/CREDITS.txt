@@ -1,4 +1,4 @@
 Музыка: Open Lo-Fi — github.com/btahir/open-lofi (CC0 1.0, общественное достояние).
-Late Night, Neon & After Hours / Jazz Lounge:
-rain_off_the_neon_signs, blinds_and_headlights, empty_street_static, saxophone_in_the_rain,
-last_call_in_c_minor, velvet_cigarette_haze, midnight_amber_room
+Только инструментальные треки (проверены разделением вокала Spleeter):
+last_train_home, headlights_on_the_divider, platform_after_rain, glow_on_the_overpass, 3_am_echoes,
+rain_on_the_boulevard, midnight_amber_room, streetlights_in_the_rearview, ashes_in_the_coffee_cup, midnight_on_my_mind

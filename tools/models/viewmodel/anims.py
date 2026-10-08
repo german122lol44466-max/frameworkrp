@@ -4,6 +4,7 @@
 Руки ставятся IK в точки хвата на сумке, поэтому ладони «прилипают» к сумке, бегунку и крышке.
 """
 import math
+import os
 
 import numpy as np
 
@@ -251,7 +252,7 @@ def pose(rig, base, fn, f, which=None):
             # прижимаем/отодвигаем кисть по нормали ладони, чтобы она лежала на ткани
             wrist = wrist + palm * float(np.clip(err, -0.6, 0.6))
         loc = trial
-    return loc, parts, extra
+    return vmlib.fix_proc_bones(arms, loc), parts, extra
 
 
 # ------------------------------------------------------------------ телефон
@@ -304,8 +305,12 @@ def _phone_hands(parts):
     m = parts["phone"]
     # «влево от зрителя» в осях телефона: какая из ±Y смотрит в мировой +Y
     sgn = 1.0 if (m[:3, 1] @ np.array((0, 1, 0))) > 0 else -1.0
-    T, W = PHONE["T"], PHONE["W"]
-    grip = Grip("phone", (-T / 2, -sgn * 0.9, -0.9), (-1, 0, 0), (0.0, sgn, 0.2), reach=1.2, lift=-0.7, curl=0.4, thumb=0.15)
+    T = PHONE["T"]
+    # Хват подобран оптимизацией по сетке c_arms (без пересечений с корпусом): ладонь лежит на спинке
+    # (кость кисти у c_arms у тыльной стороны, ладонь толщиной ~1.2), пальцы выходят к левой кромке,
+    # большой палец — вдоль правой.
+    grip = Grip("phone", (-T / 2, sgn * 1.318, -0.397), (1, 0, 0), (0.0, sgn, 0.371), reach=5.184, lift=1.919,
+                curl=np.array((-0.315, -0.021, 0.057)), thumb=-0.377)
     return {"R": grip.world(parts), "L": rest_hand("L")}
 
 

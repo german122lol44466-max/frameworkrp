@@ -127,7 +127,21 @@ def tex_lens(S=64):
     return (np.clip(img, 0, 1) * 255).astype(np.uint8)
 
 
+def tex_sim(S=256):
+    """Сим-карта: белый пластик с золотым чипом и надписью NY MOBILE."""
+    im = Image.new("RGB", (S, S), (236, 236, 238))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([S * 0.1, S * 0.32, S * 0.48, S * 0.68], radius=S // 24, fill=(214, 172, 70), outline=(150, 110, 30), width=2)
+    for k in range(1, 4):
+        d.line([S * 0.1, S * (0.32 + 0.09 * k), S * 0.48, S * (0.32 + 0.09 * k)], fill=(160, 120, 40), width=2)
+    d.line([S * 0.29, S * 0.32, S * 0.29, S * 0.68], fill=(160, 120, 40), width=2)
+    d.rectangle([S * 0.56, S * 0.4, S * 0.92, S * 0.47], fill=(247, 198, 0))
+    d.rectangle([S * 0.56, S * 0.53, S * 0.86, S * 0.58], fill=(40, 44, 60))
+    return np.array(im)
+
+
 MATS = {
+    "phone_sim": (tex_sim, False, False),
     # имя: (функция текстуры, фонг, selfillum)
     "phone_frame": (tex_frame, True, False),
     "phone_back": (tex_back, True, False),
@@ -359,6 +373,15 @@ def main():
     print("triangles:", sum(len(v) for v in tris.values()))
     out = os.path.join(GM, "content", "models", "nyrp", "phone")
     mdlc.compile_model(out, "w_phone", "nyrp/phone/w_phone.mdl", tris, "models/nyrp/phone", "plastic", 0.4)
+    # сим-карта: плоская карточка (крупнее настоящей, чтобы было видно в мире)
+    for ob in bpy.data.objects:
+        ob.hide_render = True
+    sim = slab("simcard", rounded_rect(1.3, 0.9, 0.08, 3), -0.025, 0.025, "phone_sim", "phone_sim", "phone_frame", uv_box=(1.3, 0.9))
+    sim.rotation_euler = (0, math.radians(90), 0)
+    mdlc.compile_model(out, "w_simcard", "nyrp/phone/w_simcard.mdl", collect([sim]), "models/nyrp/phone", "plastic", 0.05)
+    bpy.data.objects.remove(sim)
+    for ob in bpy.data.objects:
+        ob.hide_render = False
     # для вьюмодели — массив вершин по материалам (pos, normal, uv)
     os.makedirs(SRC, exist_ok=True)
     np.savez_compressed(os.path.join(SRC, "phone_vm.npz"), **{

@@ -58,6 +58,7 @@ class Arms:
     def __init__(self, name="c_arms_citizen"):
         self.mdl = MDL(os.path.join(CARMS, name + ".mdl"))
         self.bones = self.mdl.bones
+        self.proc = load_proc_rules(os.path.join(CARMS, name + ".mdl"))
         self.index = {b["name"]: i for i, b in enumerate(self.bones)}
         verts, tris = self.mdl.load_mesh(os.path.join(CARMS, name))
         self.verts = verts
@@ -97,12 +98,59 @@ class Arms:
         return loc
 
 
+def load_proc_rules(path):
+    """Правила quaternion-procedural костей (Ulna/Wrist) из .mdl: {bone: (control, [(inv_tol, trig, pos, quat)])}."""
+    import struct
+    d = open(path, "rb").read()
+    nb, bi = struct.unpack_from("<ii", d, 156)
+    rules = {}
+    for i in range(nb):
+        o = bi + i * 216
+        ptype, pidx = struct.unpack_from("<ii", d, o + 164)
+        if ptype != 2:
+            continue
+        q = o + pidx
+        control, n, ti = struct.unpack_from("<iii", d, q)
+        trig = []
+        for k in range(n):
+            t = struct.unpack_from("<f4f3f4f", d, q + ti + k * 48)
+            trig.append((t[0], np.array(t[1:5]), t[5:8], np.array(t[8:12])))
+        rules[i] = (control, trig)
+    return rules
+
+
 def fix_proc_bones(arms, loc):
-    """Процедурные Ulna/Wrist: просто держим их в покое относительно родителя."""
-    return loc
+    """Процедурные Ulna/Wrist считаем так же, как движок (STUDIO_PROC_QUATINTERP): по повороту кисти
+    относительно предплечья. Иначе при бонмердже скрутка запястья застывает и кисть «ломается»."""
+    out = list(loc)
+    if os.environ.get("NYRP_NOPROC"):
+        return out
+    for bone, (control, trig) in arms.proc.items():
+        src = np.array(loc[control][1], float)
+        w = [max(0.0, 1 - 2 * math.acos(min(1.0, abs(float(np.dot(t[1], src))))) * t[0]) for t in trig]
+        sc = sum(w)
+        if sc <= 0.001:
+            out[bone] = (tuple(trig[0][2]), tuple(trig[0][3]))
+            continue
+        quat = np.zeros(4)
+        pos = np.zeros(3)
+        for wi, t in zip(w, trig):
+            if wi == 0:
+                continue
+            k = wi / sc
+            tq = t[3] if np.dot(t[3], quat) >= 0 else -t[3]
+            quat += k * tq
+            pos += k * np.array(t[2])
+        quat /= np.linalg.norm(quat)
+        out[bone] = (tuple(pos), tuple(quat))
+    return out
 
 
 # ------------------------------------------------------------------ IK и позы
+
+# доля скрутки кисти, отдаваемая предплечью (остальное делают процедурные Ulna/Wrist)
+TWIST_TO_FOREARM = float(os.environ.get("NYRP_TWIST", "0.0"))
+
 
 def norm(v):
     n = np.linalg.norm(v)
@@ -177,7 +225,7 @@ class Rig:
         qx, qy, qz, qw = mat_to_quat(hl)
         twist = 2 * math.atan2(qx, qw)
         twist = (twist + math.pi) % (2 * math.pi) - math.pi
-        c, s_ = math.cos(twist * 0.75), math.sin(twist * 0.75)
+        c, s_ = math.cos(twist * TWIST_TO_FOREARM), math.sin(twist * TWIST_TO_FOREARM)
         Rf = Rf @ np.array([[1, 0, 0], [0, c, -s_], [0, s_, c]])
         hl = Rf.T @ hand_rot
         bend = math.degrees(math.acos(np.clip(hl[0, 0], -1, 1)))  # угол между осью кисти и предплечья
@@ -210,8 +258,9 @@ class Rig:
         b = self.arms.bones
         thumb = curl if thumb is None else thumb
         for f in range(5):
-            amount = thumb if f == 0 else curl
             for k, suffix in enumerate(("", "1", "2")):
+                c = thumb if f == 0 else curl
+                amount = float(c[k]) if np.ndim(c) else c  # можно задать сгиб по фалангам (c0, c1, c2)
                 i = self.idx.get(f"ValveBiped.Bip01_{s}_Finger{f}{suffix}")
                 if i is None:
                     continue
