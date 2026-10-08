@@ -25,8 +25,10 @@ hook.Add("HUDPaint", "nyrp.crosshair", function()
 		tx, ty = s.x, s.y
 	end
 	-- …а если рядом дверь/предмет — прицел сам «прилипает» к его иконке
-	local mx, my = NYRP.Interact.TargetScreenPos and NYRP.Interact.TargetScreenPos()
-	if mx then tx, ty = mx, my end
+	-- (не через «a and f()»: так Lua оставляет только первое значение и my = nil)
+	local mx, my
+	if NYRP.Interact and NYRP.Interact.TargetScreenPos then mx, my = NYRP.Interact.TargetScreenPos() end
+	if mx and my then tx, ty = mx, my end
 	cx = cx and UI.Approach(cx, tx, 16) or tx
 	cy = cy and UI.Approach(cy, ty, 16) or ty
 	local r = UI.S(4 + hover * 6) * size

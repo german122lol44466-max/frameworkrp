@@ -1,8 +1,8 @@
 --[[
 	Сумки на персонаже: части .mdl (models/nyrp/bags/*) крепятся к телу,
 	крышка/клапан и бегунок молнии анимируются кадрами из sh_bag_models.lua.
-	NYRP.Bags.DrawOn(ent, bagId, frame) — рисует сумку на любой модели (превью в меню создания).
-	От первого лица — отдельная вьюмодель с руками c_arms (см. ниже).
+	NYRP.Bags.DrawOn(ent, bagId, frame) — рисует сумку на модели (сейчас нигде не используется:
+	на теле сумку не видно). На экране при открытии — вьюмодель с руками c_arms (см. ниже).
 ]]
 
 local UI = NYRP.UI
@@ -103,14 +103,7 @@ function Bags.Frame(ply, bagId)
 	return math.Clamp(last - (CurTime() - ply:GetNW2Float("nyrp.bagTime")) * fps * 1.4, 0, last)
 end
 
--- Сумку на теле видит только сам владелец (от третьего лица); у других игроков её не видно.
-hook.Add("PostPlayerDraw", "nyrp.bags", function(ply)
-	if ply ~= LocalPlayer() or not ply:Alive() or ply:GetNoDraw() then return end
-	if Bags.FPActive and Bags.FPActive() then return end
-	local bag = ply:GetNW2String("nyrp.bag", "")
-	if bag == "" or not (NYRP.BagModels and NYRP.BagModels[bag]) then return end
-	Bags.DrawOn(ply, bag, Bags.Frame(ply, bag))
-end)
+-- Сумку на теле не рисуем вообще: её видно только в анимации рук на экране при открытии инвентаря.
 
 -- Жест рук при открытии/закрытии (у всех игроков вокруг).
 net.Receive("nyrp.inv.anim", function()
@@ -134,6 +127,7 @@ hook.Add("Think", "nyrp.bags.look", function()
 end)
 
 -- ------------------------------------------- своя анимация от первого лица --
+-- Играет и от первого, и от третьего лица — руки с сумкой всегда перед экраном.
 -- Вьюмодель models/nyrp/bags/v_<сумка>.mdl: скелет c_arms + кости сумки, анимация сделана в
 -- tools/models/viewmodel (Blender + IK): руки достают сумку, левая тянет бегунок молнии и откидывает
 -- крышку (у рюкзака — правая поднимает клапан). Руки вашего персонажа (ply:GetHands()) цепляются
@@ -179,10 +173,14 @@ function Bags.FPOpenDelay()
 end
 
 function Bags.FPStart()
-	if NYRP.Camera.IsThirdPerson() then return end
 	local bag = LocalPlayer():GetNW2String("nyrp.bag", "")
-	if not NYRP.BagModels[bag] then return end
-	if not util.IsValidModel("models/nyrp/bags/v_" .. bag .. ".mdl") then return end
+	if not NYRP.BagModels[bag] then bag = "waistbag" end
+	local path = "models/nyrp/bags/v_" .. bag .. ".mdl"
+	if not file.Exists(path, "GAME") then
+		print("[NYRP] нет модели " .. path .. " — обновите контент режима (newyorkrp_content.zip)")
+		return
+	end
+	util.PrecacheModel(path)
 	fp = { bag = bag, seq = "open", start = RealTime(), from = 0 }
 end
 
@@ -211,7 +209,7 @@ end
 hook.Add("HUDPaintBackground", "nyrp.bags.fp", function()
 	if not fp then return end
 	local ply = LocalPlayer()
-	if not ply:Alive() or NYRP.Camera.IsThirdPerson() then fp = nil return end
+	if not ply:Alive() then fp = nil return end
 	local vm, hands = ensureModels(fp.bag)
 	if not IsValid(vm) or not IsValid(hands) then fp = nil return end
 

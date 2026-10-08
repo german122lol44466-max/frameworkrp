@@ -93,9 +93,6 @@ function Chars.OpenCreate(spot)
 		end
 		prev.OnMousePressed = function(s, code) if code == MOUSE_LEFT then s.Dragging = true s.LastX = gui.MouseX() s:MouseCapture(true) end end
 		prev.OnMouseReleased = function(s) s.Dragging = false s:MouseCapture(false) end
-		prev.PostDrawModel = function(s, ent)
-			if NYRP.Bags and NYRP.Bags.DrawOn then NYRP.Bags.DrawOn(ent, d.bag, 0) end
-		end
 
 		-- форма
 		local form = vgui.Create("DPanel", pnl)

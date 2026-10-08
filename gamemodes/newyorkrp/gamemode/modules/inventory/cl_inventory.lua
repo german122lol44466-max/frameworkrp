@@ -400,10 +400,6 @@ local function paperdoll(parent, x, y, w, h, compact)
 		s:SetCamPos(Vector(130, 0, 40))
 		s:SetLookAt(Vector(0, 0, 37))
 	end
-	mdl.PostDrawModel = function(s, e)
-		local bag = LocalPlayer():GetNW2String("nyrp.bag", "")
-		if bag ~= "" and NYRP.Bags and NYRP.Bags.DrawOn then NYRP.Bags.DrawOn(e, bag, 0) end
-	end
 
 	-- слоты одежды по дуге: снизу слева -> верх -> снизу справа
 	local order = { "pants", "gloves", "jacket", "head", "glasses", "mask", "shirt", "shoes" }
