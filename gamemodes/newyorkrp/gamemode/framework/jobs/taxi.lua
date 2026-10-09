@@ -1,0 +1,12 @@
+JOB.Name = "Таксист"
+JOB.Description = "Подбираете пассажира (E) и везёте по адресу. На машине — оплата в полтора раза больше. Игроки тоже могут вызвать такси по телефону (911 → Такси)."
+JOB.Icon = "j_taxi"
+JOB.Color = Color(247, 198, 0)
+JOB.Type = "taxi"
+JOB.Pay = 30
+JOB.PayPerMeter = 0.45
+JOB.VehicleBonus = 1.5
+JOB.Service = "Такси"             -- можно вызвать через 911-приложение
+JOB.Calls = { "Нужно такси", "Срочно, опаздываю", "Нужна машина побольше" }
+JOB.Skill = "agility"
+JOB.SkillXP = 10

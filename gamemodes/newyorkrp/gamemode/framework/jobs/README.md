@@ -1,0 +1,20 @@
+# Профессии
+
+Файл `<id>.lua` — одна профессия (берут у NPC центра занятости: `/npc jobs`).
+Типы заданий (`JOB.Type`) — механика готова, нужно только описать работу:
+
+| Тип | Что делает игрок |
+|---|---|
+| `deliver` | забрать (если `JOB.Pickup`) и отнести по адресу; `Chain` — несколько адресов подряд; `TimeLimit` — успеть |
+| `taxi` | подобрать пассажира (E) и отвезти; на машине ×`VehicleBonus` |
+| `collect` | собрать `Count` предметов по району (E) |
+| `repair` | починить точку (E, `UseTime` секунд), `FailDamage` — урон при неудаче |
+| `carry` | перенести `Count` ящиков руками к метке |
+| `report` | приехать и простоять `UseTime` секунд |
+| `rob` | ограбить кассу: сигнализация и вызов полиции, розыск |
+
+Поля: `Name, Description, Icon, Color, Pay, PayPerMeter, Count, UseTime, UseText, SpotModel, Skill, SkillXP,
+MinHours, MinSkills, Criminal, Reward = {мин, макс}, Cooldown, WantedTime, Service + Calls (вызов через 911-приложение)`.
+
+Точки заданий берутся у дверей карты автоматически. Админ может добавить свои: `/jobpoint <id профессии>`
+(где смотрите), удалить ближайшую — `/jobpointdel`.

@@ -162,6 +162,49 @@ def money():
     return out
 
 
+def cash():
+    """Касса: звонок «дзынь» и монеты."""
+    out = np.zeros(int(0.9 * SR))
+    place(out, ping(2100, 0.8, 5, 1.0), 0.0)
+    place(out, ping(2800, 0.6, 7, 0.6), 0.04)
+    for k in range(6):
+        place(out, ping(rng.uniform(3500, 5200), 0.15, 40, 0.3), 0.25 + k * 0.05)
+    return out
+
+
+def dispatch():
+    """Диспетчер 911: два коротких тона и шум эфира."""
+    out = np.zeros(int(1.0 * SR))
+    for k, f in enumerate((880, 1320)):
+        tt = t(0.16)
+        place(out, np.sin(2 * np.pi * f * tt) * np.minimum(1, (0.16 - tt) * 40), 0.05 + k * 0.2)
+    tt = t(0.4)
+    place(out, bandpass(rng.normal(0, 1, len(tt)), 900, 3500) * np.exp(-tt * 6) * 0.35, 0.5)
+    return out
+
+
+def alarm():
+    """Сигнализация магазина: прерывистый двухтон (короткий, игра повторяет)."""
+    tt = t(1.2)
+    f = np.where((tt * 4).astype(int) % 2 == 0, 960, 760)
+    return np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * 0.5 + np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.5
+
+
+def job_start():
+    out = np.zeros(int(0.5 * SR))
+    for k, f in enumerate((660, 990)):
+        place(out, ping(f, 0.3, 9, 0.8), k * 0.12)
+    return out
+
+
+def stamp():
+    """Печать на документе."""
+    tt = t(0.25)
+    thump = lowpass(rng.normal(0, 1, len(tt)), 400) * np.exp(-tt * 30)
+    click = bandpass(rng.normal(0, 1, len(tt)), 2000, 6000) * np.exp(-tt * 80) * 0.4
+    return thump + click
+
+
 def main():
     save("keys.wav", keys(), 0.6)
     save("lock_turn.wav", lock_turn(), 0.7)
@@ -175,6 +218,11 @@ def main():
     save("type.wav", type_tick(), 0.45)
     save("zone_bell.wav", zone_bell(), 0.35)
     save("money.wav", money(), 0.6)
+    save("cash.wav", cash(), 0.6)
+    save("dispatch.wav", dispatch(), 0.55)
+    save("alarm.wav", alarm(), 0.45)
+    save("job_start.wav", job_start(), 0.5)
+    save("stamp.wav", stamp(), 0.7)
     print("item sounds ok")
 
 

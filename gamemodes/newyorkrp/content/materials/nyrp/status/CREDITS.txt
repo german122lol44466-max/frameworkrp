@@ -43,6 +43,16 @@ armor.png <- kevlar-vest
 heavy.png <- weight
 combat.png <- crossed-swords
 skills.png <- upgrade
+r_police.png <- police-badge
+r_medic.png <- caduceus
+r_fire.png <- fire-axe
+r_citizen.png <- person
+r_robber.png <- robber-mask
+siren.png <- siren
+handcuffs.png <- handcuffs
+ambulance.png <- ambulance
+fire.png <- fire
+extinguisher.png <- fire-extinguisher
 insight.png <- light-bulb
 body_front.png <- body-balance
 bandage.png <- bandage-roll

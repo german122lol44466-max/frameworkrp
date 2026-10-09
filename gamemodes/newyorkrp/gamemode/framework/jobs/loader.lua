@@ -1,0 +1,10 @@
+JOB.Name = "Грузчик"
+JOB.Description = "Перенесите ящики к фургону (метка). Ящик берут руками: ПКМ с пустыми руками. Платят за каждый."
+JOB.Icon = "j_loader"
+JOB.Color = Color(190, 140, 80)
+JOB.Type = "carry"
+JOB.Pay = 18
+JOB.Count = 4
+JOB.SpotModel = "models/props_junk/cardboard_box001a.mdl"
+JOB.Skill = "strength"
+JOB.SkillXP = 8

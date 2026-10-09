@@ -1,0 +1,12 @@
+JOB.Name = "Уборщик улиц"
+JOB.Description = "По району раскиданы мешки с мусором — соберите их (E). Платят за каждый мешок."
+JOB.Icon = "j_trash"
+JOB.Color = Color(120, 180, 90)
+JOB.Type = "collect"
+JOB.Pay = 12                      -- за каждый предмет
+JOB.Count = 6                     -- сколько за заход
+JOB.UseTime = 3
+JOB.SpotModel = "models/props_junk/garbage_bag001a.mdl"
+JOB.UseText = "Собираю мусор..."
+JOB.Skill = "strength"
+JOB.SkillXP = 4

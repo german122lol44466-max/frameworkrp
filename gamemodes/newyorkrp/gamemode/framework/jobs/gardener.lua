@@ -1,0 +1,13 @@
+JOB.Name = "Садовник"
+JOB.Description = "Городские клумбы зарастают: подстригите кусты и уберите листву. Платят за каждый участок."
+JOB.Icon = "j_garden"
+JOB.Color = Color(80, 190, 120)
+JOB.Type = "collect"
+JOB.Pay = 15
+JOB.Count = 5
+JOB.UseTime = 4
+JOB.SpotModel = "models/props/de_inferno/bushgreensmall.mdl"
+JOB.SpotFallback = "models/props_junk/garbage_bag001a.mdl"
+JOB.UseText = "Стригу кусты..."
+JOB.Skill = "agility"
+JOB.SkillXP = 4

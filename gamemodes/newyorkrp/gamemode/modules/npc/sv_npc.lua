@@ -262,6 +262,10 @@ net.Receive("nyrp.npc.choose", function(_, ply)
 		sendNode(ply, ent, d.dialog.nodes[o.arg or ""] and o.arg or nil)
 	elseif o.act == "close" then
 		sendNode(ply, ent, nil)
+	elseif o.act == "jobs" or o.act == "factions" or o.act == "cityhall" then
+		-- меню систем (профессии, фракции, ратуша) — их открывают свои модули
+		sendNode(ply, ent, nil)
+		hook.Run("NYRP.NPCMenu", ply, ent, o.act)
 	elseif o.act == "trade" then
 		sendNode(ply, ent, nil)
 		net.Start("nyrp.npc.trade")
@@ -387,3 +391,33 @@ hook.Add("ShutDown", "nyrp.npc", function()
 	N.SaveAll()
 end)
 hook.Add("PhysgunPickup", "nyrp.npc", function(ply, ent) if valid(ent) then return ply:IsAdmin() end end)
+
+-- Готовые NPC систем: /npc jobs | cityhall | factions (смотря на пол). Диалоги потом можно менять в редакторе.
+local PRESETS = {
+	jobs = { name = "Линда Морган", desc = "Центр занятости NYC. Подбирает работу всем, кто готов трудиться.",
+		model = "models/player/group01/female_02.mdl", voice = "tatyana",
+		text = "Добрый день! Центр занятости Нью-Йорка. Ищете работу? У нас есть вакансии на любой вкус: такси, доставка, ремонт…",
+		opts = { { text = "Покажите вакансии.", act = "jobs" }, { text = "Спасибо, я просто посмотреть.", act = "close" } } },
+	cityhall = { name = "Мистер Абрамс", desc = "Клерк городской ратуши. Лицензии, разрешения, бумаги.",
+		model = "models/player/group02/male_04.mdl", voice = "maxim_low",
+		text = "Городская ратуша, отдел лицензирования. Хотите открыть своё дело? Заполним заявление, оплатите пошлину — и вперёд.",
+		opts = { { text = "Я хочу открыть бизнес.", act = "cityhall" }, { text = "В другой раз.", act = "close" } } },
+	factions = { name = "Сержант Коллинз", desc = "Вербовочный пункт городских служб: NYPD, FDNY, EMS.",
+		model = "models/player/police.mdl", voice = "isp_m",
+		text = "Город нуждается в людях. Полиция, пожарные, скорая — выбирайте, если считаете, что потянете.",
+		opts = { { text = "Расскажите о службах.", act = "factions" }, { text = "Пока не готов.", act = "close" } } },
+}
+
+NYRP.Chat.AddCommand("/npc", function(ply, raw)
+	if not isEditor(ply) then return end
+	local kind = string.match(raw, "^%S+%s+(%S+)")
+	local p = PRESETS[kind or ""]
+	if not p then NYRP.Notify(ply, "/npc jobs — центр занятости, /npc cityhall — ратуша, /npc factions — госслужбы", "info", 8) return end
+	local d = N.Default("talk")
+	d.name, d.desc, d.model, d.voice = p.name, p.desc, util.IsValidModel(p.model) and p.model or d.model, p.voice
+	d.dialog = { start = "start", nodes = { start = { text = p.text, options = p.opts } } }
+	local tr = ply:GetEyeTrace()
+	local ent = N.Spawn(d, tr.HitPos, Angle(0, ply:EyeAngles().y + 180, 0))
+	undo.Create("NPC") undo.AddEntity(ent) undo.SetPlayer(ply) undo.Finish()
+	NYRP.Notify(ply, "Поставлен NPC «" .. p.name .. "»", "success")
+end)

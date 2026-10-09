@@ -245,7 +245,8 @@ if CLIENT then
 		if not m then return end
 		-- экран смотрит на лицо: чуть назад и вверх от корпуса (кость кисти у моделей повёрнута по-разному)
 		local body = Angle(0, owner:GetRenderAngles().y, 0)
-		local pos, ang = LocalToWorld(Vector(1.2, 0, 1.6), Angle(-35, 180, 0), m:GetTranslation(), body)
+		local palm = m:GetTranslation() + m:GetForward() * 3.2
+		local pos, ang = LocalToWorld(Vector(0.4, 0, 1.2), Angle(-35, 180, 0), palm, body)
 		self:SetRenderOrigin(pos)
 		self:SetRenderAngles(ang)
 		self:SetupBones()

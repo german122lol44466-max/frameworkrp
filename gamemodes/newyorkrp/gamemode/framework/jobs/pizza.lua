@@ -1,0 +1,12 @@
+JOB.Name = "Доставщик пиццы"
+JOB.Description = "Горячая пицца должна приехать горячей: успели вовремя — полная оплата и чаевые, опоздали — половина."
+JOB.Icon = "j_pizza"
+JOB.Color = Color(240, 120, 60)
+JOB.Type = "deliver"
+JOB.Pay = 30
+JOB.PayPerMeter = 0.3
+JOB.Pickup = true
+JOB.TimeLimit = true              -- есть время на доставку
+JOB.Tip = 20                      -- чаевые за скорость
+JOB.Skill = "agility"
+JOB.SkillXP = 12

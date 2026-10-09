@@ -1,5 +1,5 @@
 --[[
-	Роли из папки gamemode/roles/ (см. roles/README.md). У персонажа — c.flags.role,
+	Роли (фракции) из папки gamemode/framework/roles/ (см. framework/roles/README.md). У персонажа — c.flags.role,
 	видна всем как NW2String nyrp.role.
 ]]
 
@@ -9,7 +9,7 @@ Roles.List = {}
 Roles.Order = {}
 
 do
-	local root = NYRP.Root .. "roles/"
+	local root = NYRP.Root .. "framework/roles/"
 	local files = file.Find(root .. "*.lua", "LUA")
 	for i = 1, #files do
 		local f = files[i]

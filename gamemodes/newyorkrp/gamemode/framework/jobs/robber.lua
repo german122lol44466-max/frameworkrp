@@ -1,0 +1,16 @@
+JOB.Name = "Грабитель"
+JOB.Description = "Криминал. Вскрываете кассы магазинов (E, 20 с). Срабатывает сигнализация — полиция получает вызов 911 с вашим адресом. После дела вы в розыске."
+JOB.Icon = "j_robber"
+JOB.Color = Color(200, 60, 60)
+JOB.Type = "rob"
+JOB.Pay = 0
+JOB.Reward = { 180, 450 }         -- случайная добыча, $
+JOB.UseTime = 20
+JOB.Cooldown = 600                -- секунд между ограблениями
+JOB.WantedTime = 300              -- сколько в розыске
+JOB.SpotModel = "models/props_c17/cashregister01a.mdl"
+JOB.UseText = "Вскрываю кассу..."
+JOB.Criminal = true
+JOB.MinHours = 1                  -- требования
+JOB.Skill = "agility"
+JOB.SkillXP = 25

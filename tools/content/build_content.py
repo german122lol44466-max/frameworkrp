@@ -88,6 +88,13 @@ ICONS = {
     # предметы и меню C
     "radio": "radio", "key": "key", "smoking": "smoking", "flame": "flame", "cash": "cash", "coins": "coins",
     "mailbox": "mailbox", "fall": "fall", "map_pin": "map-pin", "zone": "map-2",
+    # профессии, бизнес, 911
+    "j_taxi": "car", "j_courier": "truck-delivery", "j_pizza": "pizza", "j_mail": "mail", "j_trash": "trash",
+    "j_loader": "package", "j_electric": "bolt", "j_plumber": "droplet", "j_reporter": "news", "j_garden": "plant-2",
+    "j_robber": "mask", "license": "license", "certificate": "file-certificate", "briefcase2": "briefcase-2",
+    "urgent": "urgent", "phone_call": "phone-call", "alarm": "alarm", "sign": "writing-sign", "badge": "id-badge-2",
+    "tools": "tools", "store": "building-store", "dollar": "currency-dollar", "clipboard": "clipboard-text",
+    "flame2": "flame", "bed": "emergency-bed", "bank": "building-bank",
 }
 
 # Иконки зон (/areaedit): имя файла = имя в Tabler, materials/nyrp/zones/<имя>.png

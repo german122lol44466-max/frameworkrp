@@ -31,6 +31,7 @@ function I.IsInteractable(ent)
 	if ent:IsPlayer() then return playerTarget(ent) end
 	if isBody(ent) then return ent:GetNW2Entity("nyrp.koOwner") ~= LocalPlayer() end
 	if doorClasses[ent:GetClass()] then return true end
+	if ent.NYRPCanInteract and not ent:NYRPCanInteract(LocalPlayer()) then return false end
 	return ent.NYRPInteract == true
 end
 

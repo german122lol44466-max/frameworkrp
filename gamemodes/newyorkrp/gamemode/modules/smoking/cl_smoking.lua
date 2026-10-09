@@ -19,26 +19,24 @@ local function cigModel(ply)
 end
 
 -- рот относительно кости головы ValveBiped (X — вверх по шее, Y — вперёд от лица)
+-- Рот: положение — точка «mouth» модели, направление — по взгляду (точка «eyes»):
+-- у точки «mouth» у части моделей кривой поворот, из-за этого сигарета «улетала» при наклоне головы.
 local function mouthPose(ply)
-	-- у моделей HL2 есть точка «mouth»: Forward — изо рта наружу
-	local att = ply:LookupAttachment("mouth")
-	if att and att > 0 then
-		local a = ply:GetAttachment(att)
-		if a then
-			local ang = a.Ang
-			ang:RotateAroundAxis(ang:Right(), -12)       -- чуть вниз, как держат сигарету
-			return a.Pos + a.Ang:Forward() * 0.2, ang
-		end
+	ply:SetupBones()
+	local ma, ea = ply:LookupAttachment("mouth"), ply:LookupAttachment("eyes")
+	local m = ma and ma > 0 and ply:GetAttachment(ma)
+	local e = ea and ea > 0 and ply:GetAttachment(ea)
+	if m and e then
+		local ang = Angle(e.Ang.p, e.Ang.y, e.Ang.r)
+		ang:RotateAroundAxis(ang:Right(), -14)       -- кончик чуть вниз
+		ang:RotateAroundAxis(ang:Up(), 8)            -- и в уголок рта
+		-- фильтр зажат губами: начало сигареты чуть внутри рта
+		return m.Pos - ang:Forward() * 0.6 - e.Ang:Up() * 0.3, ang
 	end
-	local b = ply:LookupBone("ValveBiped.Bip01_Head1")
-	if not b then return end
-	local m = ply:GetBoneMatrix(b)
-	if not m then return end
-	local hp, ha = m:GetTranslation(), m:GetAngles()
-	local pos = hp + ha:Forward() * 1.2 + ha:Right() * -5.6 + ha:Up() * 0.6
-	local fwd = (ha:Right() * -1 + ha:Forward() * -0.25):GetNormalized()
-	local ang = fwd:Angle()
-	return pos, ang
+	if e then
+		local ang = e.Ang
+		return e.Pos - ang:Up() * 3.4 + ang:Forward() * 0.6, ang
+	end
 end
 
 local function drawEmber(pos, size)
@@ -93,17 +91,18 @@ net.Receive("nyrp.smoke.puff", function()
 	if ply == LocalPlayer() and not (NYRP.Camera and NYRP.Camera.IsThirdPerson and NYRP.Camera.IsThirdPerson()) then
 		pos, ang = EyePos() + EyeAngles():Forward() * 6 - EyeAngles():Up() * 3, EyeAngles()
 	end
+	pos = pos + ang:Forward() * 0.5
 	local em = ParticleEmitter(pos)
 	if not em then return end
 	for i = 1, 14 do
 		local p = em:Add("particle/smokesprites_000" .. math.random(1, 9), pos + VectorRand() * 0.5)
 		if p then
-			p:SetVelocity(ang:Forward() * math.Rand(10, 22) + VectorRand() * 4 + Vector(0, 0, 6))
+			p:SetVelocity(ang:Forward() * math.Rand(8, 16) + VectorRand() * 3 + Vector(0, 0, 3))
 			p:SetDieTime(math.Rand(1.6, 2.6))
 			p:SetStartAlpha(70)
 			p:SetEndAlpha(0)
-			p:SetStartSize(1.5)
-			p:SetEndSize(math.Rand(10, 16))
+			p:SetStartSize(1)
+			p:SetEndSize(math.Rand(6, 10))
 			p:SetRoll(math.Rand(0, 360))
 			p:SetRollDelta(math.Rand(-1, 1))
 			p:SetColor(210, 210, 214)

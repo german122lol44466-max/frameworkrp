@@ -14,7 +14,7 @@ SWEP.SlotPos = 3
 SWEP.ViewModel = "models/nyrp/props/v_keys.mdl"
 SWEP.WorldModel = "models/nyrp/props/w_keys.mdl"
 SWEP.HoldType = "slam"
-SWEP.WMOffset = { pos = Vector(1.2, 0, -0.4), ang = Angle(0, 90, 0) }
+SWEP.WMOffset = { pos = Vector(0.2, 0, -1.2), ang = Angle(0, 90, 0) }   -- брелок в кулаке, ключи свисают
 
 local RANGE = 90
 

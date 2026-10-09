@@ -19,14 +19,21 @@ local function buttons()
 	return list
 end
 
-function CM.Open()
-	if IsValid(CM.Panel) or NYRP.State ~= "playing" or not LocalPlayer():Alive() then return end
+function CM.Open(parent)
+	if IsValid(CM.Panel) then CM.Panel:Remove() end
+	if NYRP.State ~= "playing" or not LocalPlayer():Alive() then return end
 	local list = buttons()
-	local p = vgui.Create("EditablePanel")
+	-- у админов поверх открыто стандартное контекстное меню (оно — popup и перехватывает клики),
+	-- поэтому наша колонка кладётся внутрь него; у остальных — своя popup-панель
+	local p = vgui.Create("EditablePanel", parent)
 	CM.Panel = p
-	p:SetSize(ScrW(), ScrH())
-	p:MakePopup()
-	p:SetKeyboardInputEnabled(false)
+	p:SetSize(UI.S(420), ScrH())
+	p:SetPos(0, 0)
+	if not parent then
+		p:MakePopup()
+		p:SetKeyboardInputEnabled(false)
+	end
+	p:MoveToFront()
 	p.Born = RealTime()
 	p.Paint = function(s, w, h)
 		local t = UI.Ease((RealTime() - s.Born) / 0.18)
@@ -36,7 +43,6 @@ function CM.Open()
 		surface.SetDrawColor(0, 0, 0, 200)
 		surface.DrawTexturedRect(0, 0, UI.S(420), h)
 	end
-	p.OnMousePressed = function() CM.Close() end
 	p.Think = function(s)
 		if gui.IsGameUIVisible() and not s.Closing then gui.HideGameUI() CM.Close() end
 		if not LocalPlayer():Alive() then CM.Close() end
@@ -183,13 +189,17 @@ function CM.Info()
 	end
 end
 
--- C — открыть/закрыть меню (не нужно держать: отпустили C — меню остаётся, чтобы спокойно кликнуть).
--- Админам C открывает ещё и стандартное контекстное меню, пока C зажата.
 local function adminMenu() return LocalPlayer():IsAdmin() end
+-- Держите C — меню открыто, отпустили — закрылось (вместе со стандартным контекстным меню у админов).
 function GM:OnContextMenuOpen()
-	if IsValid(CM.Panel) and not CM.Panel.Closing then CM.Close() else CM.Open() end
-	if adminMenu() then return self.BaseClass.OnContextMenuOpen(self) end
+	if adminMenu() then
+		self.BaseClass.OnContextMenuOpen(self)
+		CM.Open(IsValid(g_ContextMenu) and g_ContextMenu or nil)
+		return
+	end
+	CM.Open()
 end
 function GM:OnContextMenuClose()
+	CM.Close(true)
 	if adminMenu() then return self.BaseClass.OnContextMenuClose(self) end
 end

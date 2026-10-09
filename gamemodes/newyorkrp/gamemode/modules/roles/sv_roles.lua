@@ -40,6 +40,7 @@ function Roles.Set(ply, id)
 	end
 	if NYRP.Chars.Save then NYRP.Chars.Save(ply) end
 	hook.Run("PlayerSetModel", ply)
+	hook.Run("NYRP.RoleChanged", ply, id)
 	NYRP.Notify(ply, "Ваша роль: " .. r.Name, "success", 6)
 	return true
 end
@@ -100,4 +101,124 @@ net.Receive("nyrp.info", function(_, ply)
 	net.Start("nyrp.info")
 	net.WriteTable(d)
 	net.Send(ply)
+end)
+
+-- ------------------------------------------------------------ наигранное время --
+timer.Create("nyrp.roles.played", 60, 0, function()
+	for _, ply in ipairs(player.GetAll()) do
+		local c = ply.nyrpChar
+		if c and ply:Alive() then
+			c.flags = c.flags or {}
+			c.flags.played = (c.flags.played or 0) + 60
+		end
+	end
+end)
+
+local function members(id)
+	local n = 0
+	for _, p in ipairs(player.GetAll()) do if p:GetNW2String("nyrp.role") == id then n = n + 1 end end
+	return n
+end
+Roles.Members = members
+
+-- что мешает вступить: список строк (пусто — можно)
+function Roles.Check(ply, id)
+	local r = Roles.List[id]
+	local c = ply.nyrpChar
+	local out = {}
+	if not r or not c then return { "Нет такой службы" } end
+	local hours = (c.flags and c.flags.played or 0) / 3600
+	if (r.MinHours or 0) > 0 and hours < r.MinHours then
+		out[#out + 1] = string.format("Отыграть %d ч (сейчас %.1f ч)", r.MinHours, hours)
+	end
+	for sk, lvl in pairs(r.MinSkills or {}) do
+		local have = c.skills and c.skills[sk] or 0
+		if have < lvl then
+			local name = sk
+			for _, s in ipairs(NYRP.Config.Skills) do if s.id == sk then name = s.name end end
+			out[#out + 1] = "Навык «" .. name .. "» " .. lvl .. " (у вас " .. have .. ")"
+		end
+	end
+	if (r.MaxMembers or 0) > 0 and members(id) >= r.MaxMembers then out[#out + 1] = "Нет свободных мест (" .. r.MaxMembers .. ")" end
+	return out
+end
+
+local function sendFactions(ply)
+	local list = {}
+	for _, id in ipairs(Roles.Order) do
+		local r = Roles.List[id]
+		local c = ply.nyrpChar
+		list[#list + 1] = { id = id, members = members(id), problems = Roles.Check(ply, id),
+			applied = c and c.flags and c.flags.roleApply == id or false }
+	end
+	net.Start("nyrp.fac")
+	net.WriteTable(list)
+	net.WriteFloat(ply.nyrpChar and ply.nyrpChar.flags and ply.nyrpChar.flags.played or 0)
+	net.Send(ply)
+end
+
+hook.Add("NYRP.NPCMenu", "nyrp.roles", function(ply, ent, act)
+	if act == "factions" then sendFactions(ply) end
+end)
+
+-- заявки (вайтлист): data/nyrp/role_applications.json
+local APP = "nyrp/role_applications.json"
+local function apps() return util.JSONToTable(file.Read(APP, "DATA") or "") or {} end
+local function saveApps(t) file.CreateDir("nyrp") file.Write(APP, util.TableToJSON(t, true)) end
+
+net.Receive("nyrp.fac.act", function(_, ply)
+	if (ply.nyrpFacNext or 0) > CurTime() or not NYRP.HasCharacter(ply) then return end
+	ply.nyrpFacNext = CurTime() + 1
+	local act, id = net.ReadString(), net.ReadString()
+	local r = Roles.List[id]
+	local c = ply.nyrpChar
+	if act == "leave" then
+		if ply:GetNW2String("nyrp.role") == Roles.Default then return end
+		Roles.Set(ply, Roles.Default)
+		NYRP.Notify(ply, "Вы ушли со службы", "info")
+		sendFactions(ply)
+		return
+	end
+	if act ~= "join" or not r or r.Default then return end
+	if ply:GetNW2String("nyrp.role") == id then return end
+	local problems = Roles.Check(ply, id)
+	if #problems > 0 then NYRP.Notify(ply, "Пока нельзя: " .. problems[1], "error", 6) return end
+	if r.Whitelist then
+		local t = apps()
+		t[tostring(c.id)] = { role = id, name = c.name, steam = ply:SteamID(), time = os.time() }
+		saveApps(t)
+		c.flags.roleApply = id
+		NYRP.Notify(ply, "Заявка в «" .. r.Name .. "» отправлена. Её рассмотрит администрация.", "success", 7)
+		for _, a in ipairs(player.GetAll()) do
+			if a:IsAdmin() then NYRP.Notify(a, "Заявка: " .. c.name .. " → " .. r.Name .. ". Принять: /facaccept " .. c.name, "info", 10) end
+		end
+	else
+		Roles.Set(ply, id)
+		ply:EmitSound("nyrp/fx/stamp.wav", 60)
+	end
+	sendFactions(ply)
+end)
+
+NYRP.Chat.AddCommand("/facaccept", function(ply, raw)
+	if not ply:IsAdmin() then return end
+	local name = string.lower(string.Trim(string.match(raw, "^%S+%s+(.+)$") or ""))
+	if name == "" then
+		local t = apps()
+		local list = {}
+		for _, a in pairs(t) do list[#list + 1] = a.name .. " → " .. (Roles.List[a.role] and Roles.List[a.role].Name or a.role) end
+		NYRP.Notify(ply, #list > 0 and ("Заявки: " .. table.concat(list, "; ")) or "Заявок нет", "info", 10)
+		return
+	end
+	for _, p in ipairs(player.GetAll()) do
+		local c = p.nyrpChar
+		if c and string.find(string.lower(c.name), name, 1, true) and c.flags and c.flags.roleApply then
+			local id = c.flags.roleApply
+			c.flags.roleApply = nil
+			local t = apps() t[tostring(c.id)] = nil saveApps(t)
+			Roles.Set(p, id)
+			NYRP.Notify(ply, "Принят: " .. c.name, "success")
+			return
+		end
+	end
+	NYRP.Notify(ply, "Онлайн нет такого персонажа с заявкой", "error")
 end)

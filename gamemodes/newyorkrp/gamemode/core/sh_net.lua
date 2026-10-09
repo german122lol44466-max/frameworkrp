@@ -44,7 +44,7 @@ NYRP.NetMessages = {
 	-- банкомат
 	"nyrp.atm.open", "nyrp.atm.pin", "nyrp.atm.op", "nyrp.atm.info", "nyrp.atm.close",
 	-- аренда дверей
-	"nyrp.door.list", "nyrp.door.rent", "nyrp.door.act", "nyrp.door.home", "nyrp.door.resident", "nyrp.mailbox", "nyrp.radio.set", "nyrp.smoke.puff", "nyrp.smoke.drop", "nyrp.cmenu.fall", "nyrp.money.drop", "nyrp.info", "nyrp.zones", "nyrp.zones.save", "nyrp.zones.del", "nyrp.zones.edit", "nyrp.skills", "nyrp.skills.fx", "nyrp.health", "nyrp.health.treat",
+	"nyrp.door.list", "nyrp.door.rent", "nyrp.door.act", "nyrp.door.home", "nyrp.door.resident", "nyrp.mailbox", "nyrp.radio.set", "nyrp.smoke.puff", "nyrp.smoke.drop", "nyrp.cmenu.fall", "nyrp.money.drop", "nyrp.info", "nyrp.zones", "nyrp.zones.save", "nyrp.zones.del", "nyrp.zones.edit", "nyrp.skills", "nyrp.skills.fx", "nyrp.health", "nyrp.health.treat", "nyrp.wp", "nyrp.jobs", "nyrp.jobs.act", "nyrp.jobs.task", "nyrp.fac", "nyrp.fac.act", "nyrp.e911", "nyrp.e911.call", "nyrp.e911.accept", "nyrp.biz", "nyrp.biz.act", "nyrp.npc.menu",
 	-- память (H)
 	"nyrp.memory",
 }

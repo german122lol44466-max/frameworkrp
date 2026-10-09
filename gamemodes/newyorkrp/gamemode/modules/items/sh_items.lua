@@ -59,8 +59,8 @@ Items.Needs = needs
 
 -- ------------------------------------------------- предметы из папки items/ --
 --[[
-	Каждый файл gamemode/items/<папка>/<id>.lua описывает один предмет через таблицу ITEM
-	(программировать не нужно — см. gamemode/items/README.md). Папка — это тип по умолчанию:
+	Каждый файл gamemode/framework/items/<папка>/<id>.lua описывает один предмет через таблицу ITEM
+	(программировать не нужно — см. gamemode/framework/items/README.md). Папка — это тип по умолчанию:
 	food, drinks, medical, clothing, armor, weapons, tools, documents, misc.
 ]]
 local FOLDER_TYPE = {
@@ -135,7 +135,7 @@ function Items.FromTable(id, I, folder)
 end
 
 function Items.LoadFolder()
-	local root = NYRP.Root .. "items/"
+	local root = NYRP.Root .. "framework/items/"
 	local _, dirs = file.Find(root .. "*", "LUA")
 	local n = 0
 	for di = 1, #dirs do

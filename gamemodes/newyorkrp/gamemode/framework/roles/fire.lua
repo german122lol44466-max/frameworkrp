@@ -1,0 +1,13 @@
+ROLE.Name = "Пожарные FDNY"
+ROLE.Description = "Пожарный департамент Нью-Йорка. Тушат пожары, спасают людей, помогают при авариях."
+ROLE.Color = Color(240, 140, 50)
+ROLE.Icon = "r_fire"
+ROLE.Model = nil
+ROLE.Salary = 120
+ROLE.Items = { "radio", "crowbar", "helmet" }
+ROLE.Whitelist = false
+ROLE.MinHours = 1
+ROLE.MinSkills = { strength = 2 }
+ROLE.MaxMembers = 6
+ROLE.Service = "Пожарные"
+ROLE.Calls = { "Пожар в здании", "Возгорание машины", "Запах газа", "Человек заперт", "Спасение (высота)", "Другое" }

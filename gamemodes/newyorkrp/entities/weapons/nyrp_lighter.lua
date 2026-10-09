@@ -13,7 +13,7 @@ SWEP.SlotPos = 3
 SWEP.ViewModel = "models/nyrp/props/v_lighter.mdl"
 SWEP.WorldModel = "models/nyrp/props/w_lighter.mdl"
 SWEP.HoldType = "slam"
-SWEP.WMOffset = { pos = Vector(1.2, 0, -1.0), ang = Angle(-10, 180, 0) }
+SWEP.WMOffset = { pos = Vector(0.3, 0, -1.3), ang = Angle(-10, 180, 0) }
 
 -- кадры анимации use (30 к/с): чирк на 18 и 30, пламя с 30 по 44
 local FLICK1, FLICK2, FLAME_END = 18 / 30, 30 / 30, 44 / 30

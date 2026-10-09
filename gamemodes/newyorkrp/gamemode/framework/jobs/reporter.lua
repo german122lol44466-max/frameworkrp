@@ -1,0 +1,11 @@
+JOB.Name = "Репортёр NY Daily"
+JOB.Description = "Редакция присылает адрес события — приезжайте и снимите репортаж (стойте на месте). Срочные новости стоят дороже."
+JOB.Icon = "j_reporter"
+JOB.Color = Color(200, 200, 210)
+JOB.Type = "report"
+JOB.Pay = 45
+JOB.PayPerMeter = 0.1
+JOB.UseTime = 10
+JOB.UseText = "Снимаю репортаж..."
+JOB.Skill = "intellect"
+JOB.SkillXP = 12

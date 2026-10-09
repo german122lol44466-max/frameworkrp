@@ -1,0 +1,13 @@
+JOB.Name = "Электрик"
+JOB.Description = "В районе искрит электрощиток — почините его (E). Без опыта может ударить током; навык «Интеллект» помогает."
+JOB.Icon = "j_electric"
+JOB.Color = Color(240, 220, 80)
+JOB.Type = "repair"
+JOB.Pay = 55
+JOB.UseTime = 8
+JOB.SpotModel = "models/props_lab/powerbox01a.mdl"
+JOB.Effect = "sparks"
+JOB.FailDamage = 10
+JOB.UseText = "Чиню щиток..."
+JOB.Skill = "intellect"
+JOB.SkillXP = 14

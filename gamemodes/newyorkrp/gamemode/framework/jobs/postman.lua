@@ -1,0 +1,10 @@
+JOB.Name = "Почтальон"
+JOB.Description = "Разносите письма по подъездам района: по 5 адресов за один заход."
+JOB.Icon = "j_mail"
+JOB.Color = Color(80, 120, 200)
+JOB.Type = "deliver"
+JOB.Pay = 14
+JOB.PayPerMeter = 0.15
+JOB.Chain = 5                     -- адресов подряд
+JOB.Skill = "intellect"
+JOB.SkillXP = 6

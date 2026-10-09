@@ -1,0 +1,12 @@
+JOB.Name = "Сантехник"
+JOB.Description = "Прорвало трубу — найдите течь и перекройте её (E). Чем выше навык «Сила», тем быстрее."
+JOB.Icon = "j_plumber"
+JOB.Color = Color(90, 170, 220)
+JOB.Type = "repair"
+JOB.Pay = 50
+JOB.UseTime = 9
+JOB.SpotModel = "models/props_pipes/valve001.mdl"
+JOB.Effect = "water"
+JOB.UseText = "Перекрываю течь..."
+JOB.Skill = "strength"
+JOB.SkillXP = 12

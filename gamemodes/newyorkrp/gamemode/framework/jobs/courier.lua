@@ -1,0 +1,10 @@
+JOB.Name = "Курьер"
+JOB.Description = "Забираете посылку в центре занятости и несёте по адресу. Чем дальше адрес — тем больше платят."
+JOB.Icon = "j_courier"            -- иконка: materials/nyrp/icons/<имя>.png
+JOB.Color = Color(90, 170, 240)
+JOB.Type = "deliver"              -- deliver, taxi, collect, repair, carry, report, rob
+JOB.Pay = 25                      -- база за задание, $
+JOB.PayPerMeter = 0.35            -- доплата за каждый метр пути
+JOB.Pickup = true                 -- сначала забрать посылку у работодателя
+JOB.Skill = "stamina"             -- какой навык качает работа
+JOB.SkillXP = 12

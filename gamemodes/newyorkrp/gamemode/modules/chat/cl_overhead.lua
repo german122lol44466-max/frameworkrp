@@ -105,7 +105,7 @@ end
 local NAME_COL = Color(222, 224, 230)
 -- Табличка: имя (Exo 2 с обводкой) + иконка слева, под именем — описание (до 2 строк).
 -- Нижний край — y; возвращает высоту. Используется и для NPC (modules/npc).
-function O.DrawTag(y, a, text, bold, icon, desc)
+function O.DrawTag(y, a, text, bold, icon, desc, roleIcon, roleCol)
 	local font = NYRP.FontRaw(bold and "tagbold" or "tag", 58)
 	local tw, th = size(text, font)
 	local col = Color(NAME_COL.r, NAME_COL.g, NAME_COL.b, 255 * a)
@@ -125,9 +125,19 @@ function O.DrawTag(y, a, text, bold, icon, desc)
 	end
 	local isz = icon and th * 0.92 or 0
 	local gap = icon and 22 or 0
-	local w = tw + isz + gap
+	-- значок фракции (полиция, EMS, FDNY) — самый левый, в цвете фракции
+	local rsz = roleIcon and th * 1.0 or 0
+	local rgap = roleIcon and 18 or 0
+	local w = tw + isz + gap + rsz + rgap
 	local x = -w / 2
 	local by = y - dh - th + (1 - a) * 18
+	if roleIcon then
+		local ia = UI.Ease(math.Clamp(a * 1.6 - 0.4, 0, 1))
+		local rc = roleCol or col
+		strokeIcon(UI.Mat("nyrp/status/" .. roleIcon .. ".png"), x - (1 - ia) * 20, by + (th - rsz) / 2, rsz,
+			Color(rc.r, rc.g, rc.b, 250 * ia), stroke, 200 * ia)
+		x = x + rsz + rgap
+	end
 	if icon then
 		local ia = UI.Ease(math.Clamp(a * 1.6 - 0.4, 0, 1))
 		strokeIcon(UI.Mat("nyrp/status/" .. icon .. ".png"), x - (1 - ia) * 20, by + (th - isz) / 2, isz,
@@ -140,7 +150,9 @@ end
 local function nameTag(ply, y, a)
 	local known = NYRP.Recog and NYRP.Recog.Knows(ply)
 	local text = known and NYRP.CharName(ply) or "НЕИЗВЕСТНЫЙ"
-	return O.DrawTag(y, a, text, not known, weaponIcon(ply), ply:GetNW2String("nyrp.desc", ""))
+	local ri, rc
+	if NYRP.Roles and NYRP.Roles.TagIcon then ri, rc = NYRP.Roles.TagIcon(ply) end
+	return O.DrawTag(y, a, text, not known, weaponIcon(ply), ply:GetNW2String("nyrp.desc", ""), ri, rc)
 end
 
 local function drawPlayer(ply, me, eye, look, now)
