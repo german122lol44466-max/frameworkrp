@@ -186,7 +186,62 @@ def build_atm():
     assert worst < 0.05
 
 
+def build_handheld(kind):
+    """v_<kind>.mdl (ключи, рация, зажигалка): руки c_arms + кость предмета; последовательности из handheld.py."""
+    import handheld
+    arms = vmlib.Arms()
+    am = MDL(os.path.join(vmlib.CARMS, "c_arms_animations.mdl"))
+    base = arms.pose_from(am, [a["name"] for a in am.anims].index("a_fists_idle_01"), 0)
+    rig = vmlib.Rig(arms, base)
+
+    def frame(fn, f):
+        loc, parts, _ = anims.pose(rig, base, fn, f, "phone")
+        out = [(tuple(map(float, p)), tuple(map(float, q))) for p, q in loc]
+        out.append(local_of(np.eye(4), parts["item"]))
+        return out
+
+    seqs = []
+    for name, fn, n, loop, rev in handheld.seqs(kind):
+        frames = [frame(fn, f) for f in range(n + 1)]
+        if rev:
+            frames = frames[::-1]
+        seqs.append({"name": name, "fps": anims.FPS, "loop": loop, "frames": frames})
+    rest = seqs[1]["frames"][0]
+    bones = [{"name": b["name"], "parent": b["parent"], "pos": rest[i][0], "quat": rest[i][1]} for i, b in enumerate(arms.bones)]
+    ii = len(bones)
+    bones.append({"name": f"nyrp_{kind}", "parent": -1, "pos": rest[ii][0], "quat": rest[ii][1]})
+    rest_w = mdlc_anim.world_matrices(bones, [(b["pos"], b["quat"]) for b in bones])
+    data = np.load(os.path.join(SRC, f"{kind}_vm.npz"))
+    center = np.array(handheld.ITEMS[kind]["center"])
+    meshes = {}
+    m = rest_w[ii]
+    for key in data.files:
+        _, mat = key.split("|")
+        arr = data[key].astype(np.float64)
+        p = (arr[:, :3] - center) @ m[:3, :3].T + m[:3, 3]
+        nrm = arr[:, 3:6] @ m[:3, :3].T
+        tl = meshes.setdefault(mat, [])
+        for t in range(0, len(arr), 3):
+            tl.append([(tuple(p[t + k]), tuple(nrm[t + k]), (float(arr[t + k, 6]), float(arr[t + k, 7])), ii) for k in range(3)])
+    out = os.path.join(ROOT, "gamemodes", "newyorkrp", "content", "models", "nyrp", "props")
+    mdlc_anim.compile_animated(out, f"v_{kind}", f"nyrp/props/v_{kind}.mdl", bones, meshes, seqs, "models/nyrp/props", "plastic")
+    m2 = MDL(os.path.join(out, f"v_{kind}.mdl"))
+    worst = 0
+    for si, sq in enumerate(seqs):
+        for f in range(0, len(sq["frames"]), 3):
+            a = vmlib.fk(m2.bones, m2.anim_frame(si, f))
+            b = vmlib.fk(m2.bones, sq["frames"][f])
+            for i in range(len(bones)):
+                worst = max(worst, float(np.abs(a[i][:3, 3] - b[i][:3, 3]).max()))
+    print(f"v_{kind}: bones", len(m2.bones), "seqs", [x["name"] for x in m2.seqs], "max err", round(worst, 4))
+    assert worst < 0.05
+
+
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["handheld"]:
+        for k in sys.argv[2:] or ["keys", "radio", "lighter"]:
+            build_handheld(k)
+        sys.exit()
     if sys.argv[1:] == ["phone"]:
         build_phone()
         sys.exit()

@@ -337,3 +337,81 @@ function UI.Confirm(title, text, yesText, onYes)
 	no.DoClick = function() bg:Remove() end
 	return bg
 end
+
+-- Окно поверх игры: затемнение, карточка с заголовком/иконкой, крестик; Esc, ПКМ мимо или клик мимо — закрыть.
+-- local win, body = UI.Window("Заголовок", "icon", w, h, { sub = "подзаголовок", onClose = fn })
+-- body — панель содержимого (под шапкой). win:Close() — закрыть с анимацией.
+function UI.Window(title, icon, w, h, opts)
+	opts = opts or {}
+	local bg = vgui.Create("EditablePanel")
+	bg:SetSize(ScrW(), ScrH())
+	bg:MakePopup()
+	bg:SetKeyboardInputEnabled(opts.keyboard or false)
+	bg.Born = RealTime()
+	bg.Paint = function(s, sw, sh)
+		local t = UI.Ease((RealTime() - s.Born) / 0.2)
+		if s.Closing then t = t * (1 - UI.Ease((RealTime() - s.Closing) / 0.2)) end
+		s:SetAlpha(255 * t)
+		UI.BlurPanel(s, 4)
+		surface.SetDrawColor(4, 5, 10, 150)
+		surface.DrawRect(0, 0, sw, sh)
+	end
+	function bg:Close()
+		if self.Closing then return end
+		self.Closing = RealTime()
+		self:SetMouseInputEnabled(false)
+		self:SetKeyboardInputEnabled(false)
+		UI.Sound("close")
+		if opts.onClose then opts.onClose() end
+		timer.Simple(0.2, function() if IsValid(self) then self:Remove() end end)
+	end
+	bg.OnMousePressed = function(s) s:Close() end
+	bg.Think = function(s)
+		if gui.IsGameUIVisible() and not s.Closing then gui.HideGameUI() s:Close() end
+	end
+	local box = vgui.Create("EditablePanel", bg)
+	box:SetSize(UI.S(w), UI.S(h))
+	box:Center()
+	if opts.x then box:SetPos(opts.x, opts.y or (ScrH() - UI.S(h)) / 2) end
+	box.OnMousePressed = function() end
+	box.Paint = function(s, bw, bh)
+		UI.RoundedRect(UI.S(14), 0, 0, bw, bh, Color(12, 14, 22, 245))
+		UI.Outline(UI.S(14), 0, 0, bw, bh, Color(255, 255, 255, 18), 1)
+		surface.SetDrawColor(247, 198, 0, 255)
+		surface.DrawRect(UI.S(22), UI.S(64), UI.S(36), 2)
+		local tx = UI.S(22)
+		if icon then
+			UI.DrawIcon(icon, UI.S(36), UI.S(34), UI.S(26), Color(247, 198, 0))
+			tx = UI.S(60)
+		end
+		draw.SimpleText(title, NYRP.Font("title", 24), tx, UI.S(34), color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		if opts.sub then draw.SimpleText(opts.sub, NYRP.Font("regular", 13), bw - UI.S(56), UI.S(34), UI.Col.dim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER) end
+	end
+	local x = vgui.Create("NYRP.IconButton", box)
+	x:SetSize(UI.S(30), UI.S(30))
+	x:SetPos(UI.S(w) - UI.S(44), UI.S(19))
+	x:SetIcon("close")
+	x.DoClick = function() bg:Close() end
+	local body = vgui.Create("EditablePanel", box)
+	body:SetPos(UI.S(22), UI.S(80))
+	body:SetSize(UI.S(w) - UI.S(44), UI.S(h) - UI.S(98))
+	UI.Sound("open")
+	return bg, body, box
+end
+
+-- Кнопка в стиле режима: UI.AddButton(parent, "Текст", "icon", fn, { dock = TOP, h = 40, accent = Color, style = "solid"|"ghost" })
+function UI.AddButton(parent, text, icon, fn, o)
+	o = o or {}
+	local b = vgui.Create("NYRP.Button", parent)
+	b:SetLabel(text)
+	if icon then b:SetIcon(icon) end
+	b:SetStyle(o.style or "ghost")
+	if o.accent then b:SetAccent(o.accent) end
+	b:SetTall(UI.S(o.h or 40))
+	if o.dock ~= false then
+		b:Dock(o.dock or TOP)
+		b:DockMargin(0, 0, 0, UI.S(o.gap or 8))
+	end
+	b.DoClick = fn
+	return b
+end

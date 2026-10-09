@@ -23,7 +23,18 @@ COLORS = {"phone_frame": (0.12, 0.12, 0.13, 1), "phone_back": (0.03, 0.05, 0.1, 
           "bag_accent": (0.9, 0.6, 0.0, 1), "bag_inner": (0.25, 0.04, 0.04, 1)}
 
 
+PROPS_DIR = os.path.join(ROOT, "gamemodes", "newyorkrp", "content", "models", "nyrp", "props")
+
+
 def load_part(name):
+    if name.startswith("hh_"):
+        import handheld
+        kind = name[3:]
+        base = os.path.join(PROPS_DIR, handheld.ITEMS[kind]["model"])
+        m = MDL(base + ".mdl")
+        verts, tris = m.load_mesh(base)
+        pos = np.array([v[0] for v in verts]) - np.array(handheld.ITEMS[kind]["center"])
+        return pos, {m.textures[k]: v for k, v in tris.items()}
     base = os.path.join(PHONE_DIR if name.startswith("w_phone") else ATM_DIR if name in ("w_bankcard", "atm") else BAGS, name)
     m = MDL(base + ".mdl")
     verts, tris = m.load_mesh(base)
@@ -39,7 +50,13 @@ def load_part(name):
 def main():
     which = sys.argv[1]
     frames = [int(x) for x in sys.argv[2].split(",")]
-    fn = anims.ANIMS[which][0] if which in anims.ANIMS else getattr(anims, which)
+    hh = which.split(":") if which.startswith("hh:") else None   # hh:<предмет>:<последовательность>
+    if hh:
+        import handheld
+        fn = {n: f for n, f, *_ in handheld.seqs(hh[1])}[hh[2]]
+        which = f"{hh[1]}_{hh[2]}"
+    else:
+        fn = anims.ANIMS[which][0] if which in anims.ANIMS else getattr(anims, which)
     arms = vmlib.Arms()
     am = MDL(os.path.join(vmlib.CARMS, "c_arms_animations.mdl"))
     base = arms.pose_from(am, [a["name"] for a in am.anims].index("a_fists_idle_01"), 0)
@@ -55,10 +72,11 @@ def main():
         c.target, c.track_axis, c.up_axis = tgt, "TRACK_NEGATIVE_Z", "UP_Y"
     tris0 = {k: v for k, v in arms.tris.items() if k in (0, 1)}
     arm_ob = preview.mesh_object("arms", arms.pos, tris0, {0: (0.25, 0.3, 0.4, 1), 1: (0.8, 0.6, 0.5, 1)})
-    kind = "phone" if which.startswith("phone") else "atm" if which.startswith("atm") else ("backpack" if "backpack" in which else "waistbag")
+    kind = "item" if hh else "phone" if which.startswith("phone") else "atm" if which.startswith("atm") else ("backpack" if "backpack" in which else "waistbag")
     partnames = {"waistbag": {"root": "waistbag_root", "lid": "waistbag_lid", "zipper": "waistbag_zipper"},
                  "backpack": {"root": "backpack_root", "flap": "backpack_flap"},
-                 "phone": {"phone": "w_phone"}, "atm": {"card": "w_bankcard"}}[kind]
+                 "phone": {"phone": "w_phone"}, "atm": {"card": "w_bankcard"},
+                 "item": {"item": "hh_" + (hh[1] if hh else "")}}[kind]
     bag_obs = {}
     for part, mdl in partnames.items():
         pos, tris = load_part(mdl)
@@ -81,7 +99,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     shots = []
     for f in frames:
-        loc, parts, _ = anims.pose(rig, base, fn, f, kind)
+        loc, parts, _ = anims.pose(rig, base, fn, f, "phone" if kind == "item" else kind)
         preview.set_verts(arm_ob, arms.skin(vmlib.fk(arms.bones, loc)))
         for part, (ob, pos) in bag_obs.items():
             m = parts[part]

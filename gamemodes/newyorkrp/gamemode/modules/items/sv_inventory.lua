@@ -146,6 +146,7 @@ function Inv.ApplyEquipment(ply)
 	ply:SetArmor(math.min(ply:Armor(), armor))
 	ply:SetNW2Bool("nyrp.masked", masked)
 	NYRP.ApplyMovement(ply)
+	hook.Run("NYRP.EquipmentApplied", ply, inv)
 end
 
 local function giveWeapon(ply, it)

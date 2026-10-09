@@ -85,7 +85,21 @@ ICONS = {
     "p_video": "video", "p_rec": "player-record", "p_stop": "player-stop", "p_play": "player-play", "p_pause": "player-pause",
     "p_cash": "cash", "p_card": "credit-card", "p_transfer": "arrows-exchange", "p_wifi": "wifi", "p_battery": "battery-3",
     "p_signal": "antenna-bars-5", "p_up": "chevron-up", "p_down": "chevron-down",
+    # предметы и меню C
+    "radio": "radio", "key": "key", "smoking": "smoking", "flame": "flame", "cash": "cash", "coins": "coins",
+    "mailbox": "mailbox", "fall": "fall", "map_pin": "map-pin", "zone": "map-2",
 }
+
+# Иконки зон (/areaedit): имя файла = имя в Tabler, materials/nyrp/zones/<имя>.png
+ZONE_ICONS = [
+    "building", "building-skyscraper", "building-hospital", "building-store", "building-bank", "building-church",
+    "building-factory", "building-warehouse", "building-bridge", "building-bridge-2", "building-community",
+    "building-estate", "building-arch", "building-castle", "building-stadium", "building-carousel",
+    "building-monument", "building-lighthouse", "building-cottage", "home", "tree", "trees", "fountain", "beach",
+    "anchor", "ship", "plane", "train", "bus", "car", "motorbike", "bike", "parking", "gas-station", "school",
+    "shield", "ambulance", "pill", "coffee", "pizza", "beer", "shopping-cart", "shopping-bag", "tools", "barbell",
+    "book-2", "music", "cards", "skull", "bed",
+]
 
 
 def build_icons():
@@ -96,6 +110,16 @@ def build_icons():
         cairosvg.svg2png(bytestring=svg.encode(), write_to=out("materials", "nyrp", "icons", name + ".png"),
                          output_width=128, output_height=128)
     print("icons ok:", len(ICONS))
+
+
+def build_zone_icons():
+    base = os.path.join(NM, "@tabler", "icons", "icons", "outline")
+    for name in ZONE_ICONS:
+        svg = open(os.path.join(base, name + ".svg")).read()
+        svg = svg.replace('stroke="currentColor"', 'stroke="#ffffff"').replace('stroke-width="2"', 'stroke-width="1.6"')
+        cairosvg.svg2png(bytestring=svg.encode(), write_to=out("materials", "nyrp", "zones", name + ".png"),
+                         output_width=128, output_height=128)
+    print("zone icons ok:", len(ZONE_ICONS))
 
 
 # ----------------------------------------------------------------- sounds ---

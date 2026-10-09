@@ -21,6 +21,7 @@ local COL = {
 	yell = Color(255, 236, 200), me = Color(196, 160, 255), it = Color(232, 204, 140),
 	ooc = Color(255, 138, 36), looc = Color(96, 190, 232), steam = Color(200, 205, 220), system = Color(150, 155, 170),
 	join = Color(104, 200, 120), leave = Color(214, 70, 64), faint = Color(100, 104, 118),
+	radio = Color(96, 220, 110), radioDim = Color(70, 170, 84),
 }
 
 Chat.Modes = {
@@ -45,6 +46,7 @@ Chat.Commands = {
 	{ ".//", "Локальный OOC — коротко" },
 	{ "/познакомиться", "Представиться тому, на кого смотрите" },
 	{ "/introduce", "То же, что /познакомиться" },
+	{ "/r", "Рация: сказать на своей частоте" },
 }
 
 -- msg = { segs = { {Color, "текст"}, ... }, time }
@@ -83,6 +85,15 @@ net.Receive("nyrp.chat.msg", function()
 		segs = { { join and COL.join or COL.leave, "● " }, { COL.steam, nick },
 			{ COL.system, join and " заходит на сервер" or " покинул сервер" } }
 		if reason and reason ~= "" then segs[#segs + 1] = { COL.faint, " · " .. reason } end
+	elseif kind == T.RADIO then
+		-- текст: «частота\nсообщение»; рядом стоящие слышат как обычную речь «в рацию»
+		local freq, msg = string.match(text, "^(.-)\n(.*)$")
+		if freq == "near" then
+			segs = { { COL.name, nameOf(ply) }, { COL.text, " говорит в рацию: " }, { COL.text, "'" .. (msg or "") .. "'" } }
+		else
+			segs = { { COL.radioDim, "[РАЦИЯ: " .. (freq or "?") .. "] " }, { COL.radio, nameOf(ply) }, { COL.radio, " говорит по рации: " },
+				{ COL.radio, "'" .. (msg or text) .. "'" } }
+		end
 	elseif kind == T.LOOC then
 		segs = { { COL.looc, "[LOOC] " }, { COL.steam, IsValid(ply) and ply:Nick() or "?" }, { COL.name, " (" .. nameOf(ply) .. ")" }, { COL.text, ": '" .. text .. "'" } }
 	else

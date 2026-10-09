@@ -44,7 +44,7 @@ NYRP.NetMessages = {
 	-- банкомат
 	"nyrp.atm.open", "nyrp.atm.pin", "nyrp.atm.op", "nyrp.atm.info", "nyrp.atm.close",
 	-- аренда дверей
-	"nyrp.door.list", "nyrp.door.rent", "nyrp.door.act",
+	"nyrp.door.list", "nyrp.door.rent", "nyrp.door.act", "nyrp.door.home", "nyrp.door.resident", "nyrp.mailbox", "nyrp.radio.set",
 	-- память (H)
 	"nyrp.memory",
 }

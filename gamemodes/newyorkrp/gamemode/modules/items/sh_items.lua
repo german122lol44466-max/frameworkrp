@@ -55,101 +55,113 @@ local function needs(ply, hunger, thirst)
 	if hunger then ply:SetNW2Float("nyrp.hunger", math.Clamp(ply:GetNW2Float("nyrp.hunger", 100) + hunger, 0, 100)) end
 	if thirst then ply:SetNW2Float("nyrp.thirst", math.Clamp(ply:GetNW2Float("nyrp.thirst", 100) + thirst, 0, 100)) end
 end
-local function heal(ply, n)
-	ply:SetHealth(math.min(ply:GetMaxHealth(), ply:Health() + n))
+Items.Needs = needs
+
+-- ------------------------------------------------- предметы из папки items/ --
+--[[
+	Каждый файл gamemode/items/<папка>/<id>.lua описывает один предмет через таблицу ITEM
+	(программировать не нужно — см. gamemode/items/README.md). Папка — это тип по умолчанию:
+	food, drinks, medical, clothing, armor, weapons, tools, documents, misc.
+]]
+local FOLDER_TYPE = {
+	food = "food", drinks = "drink", medical = "medical", clothing = "clothing", armor = "armor",
+	weapons = "weapon", tools = "tool", documents = "document", misc = "misc",
+}
+local TYPE_CATEGORY = {
+	food = "food", drink = "food", medical = "medical", clothing = "clothing", armor = "clothing",
+	weapon = "weapon", tool = "weapon", document = "document", misc = "misc",
+}
+
+local function sign(n) return (n > 0 and "+" or "") .. n end
+
+-- ITEM (как в файле) -> описание предмета для Items.Register
+function Items.FromTable(id, I, folder)
+	local typ = string.lower(I.Type or FOLDER_TYPE[folder] or "misc")
+	local def = {
+		name = I.Name or id, desc = I.Description or I.Desc or "", model = I.Model or "models/props_junk/cardboard_box004a.mdl",
+		category = TYPE_CATEGORY[typ] or "misc", type = typ, stack = I.Stack or 1, skin = I.Skin,
+		icon = I.Icon and { ang = I.Icon.Angle or I.Icon.ang or Angle(28, 220, 0), zoom = I.Icon.Zoom or I.Icon.zoom or 1 } or nil,
+		useText = I.UseText, leaves = I.Leaves, buffs = I.Buffs,
+		-- одежда и броня
+		slot = I.Slot, bodygroups = I.Bodygroups, armor = I.Armor, speed = I.Speed, masks = I.HidesFace,
+		protect = I.Protect, heavy = I.Heavy, wear = I.Wear,
+		-- оружие и инструменты
+		weaponSlot = (typ == "weapon" or typ == "tool") and (I.Slot or "melee") or nil, class = I.Weapon, ammo = I.Ammo,
+		-- расходники
+		uses = I.Uses, hunger = I.Hunger, thirst = I.Thirst, heal = I.Health, stamina = I.Stamina, sound = I.UseSound,
+		effects = I.Effects, onUse = I.OnUse, onEquip = I.OnEquip, onUnequip = I.OnUnequip,
+		data = I.Data, price = I.Price,
+	}
+	if def.category == "clothing" then def.slot = def.slot or (typ == "armor" and "vest" or "shirt") end
+	if def.weaponSlot then def.slot = nil end
+	-- плюсы/минусы в описании, если автор их не написал
+	if not def.buffs then
+		local b = {}
+		if I.Hunger and I.Hunger ~= 0 then b[#b + 1] = { sign(I.Hunger) .. " к сытости", I.Hunger > 0 } end
+		if I.Thirst and I.Thirst ~= 0 then b[#b + 1] = { sign(I.Thirst) .. " к жажде", I.Thirst > 0 } end
+		if I.Health and I.Health ~= 0 then b[#b + 1] = { sign(I.Health) .. " к здоровью", I.Health > 0 } end
+		if I.Stamina and I.Stamina ~= 0 then b[#b + 1] = { sign(I.Stamina) .. " к выносливости", I.Stamina > 0 } end
+		if I.Armor and I.Armor ~= 0 then b[#b + 1] = { sign(I.Armor) .. " к броне", true } end
+		if I.Protect then b[#b + 1] = { "Защита от ранений: " .. math.floor(I.Protect * 100) .. "%", true } end
+		if I.Speed and I.Speed ~= 0 then b[#b + 1] = { sign(math.floor(I.Speed * 100)) .. "% к скорости", I.Speed > 0 } end
+		if I.HidesFace then b[#b + 1] = { "Скрывает лицо: вас не узнают", true } end
+		if I.Uses and I.Uses > 1 then b[#b + 1] = { "Использований: " .. I.Uses, true } end
+		def.buffs = b
+	end
+	-- расходник без своего кода: сытость/жажда/здоровье/выносливость + звук
+	local consumable = typ == "food" or typ == "drink" or typ == "medical" or I.Hunger or I.Thirst or I.Health
+	if I.OnUse or consumable then
+		def.useText = def.useText or (typ == "drink" and "Выпить" or typ == "food" and "Съесть" or "Использовать")
+		def.use = function(ply, it)
+			if I.OnUse then
+				local r = I.OnUse(ply, it)
+				if r ~= nil then return r end
+			end
+			if I.Health and I.Health > 0 and ply:Health() >= ply:GetMaxHealth() and not I.Hunger and not I.Thirst then
+				NYRP.Notify(ply, "Вы и так здоровы", "warning")
+				return false
+			end
+			needs(ply, I.Hunger, I.Thirst)
+			if I.Health then ply:SetHealth(math.Clamp(ply:Health() + I.Health, 1, ply:GetMaxHealth())) end
+			if I.Stamina then ply:SetNW2Float("nyrp.stamina", math.Clamp(ply:GetNW2Float("nyrp.stamina", 100) + I.Stamina, 0, 100)) end
+			local snd = I.UseSound or (typ == "drink" and ("nyrp/fx/drink" .. math.random(1, 3) .. ".wav")) or (typ == "food" and "nyrp/fx/eat.wav") or nil
+			if snd then ply:EmitSound(snd, 60, math.random(96, 104)) end
+			hook.Run("NYRP.ItemUsed", ply, id)
+			return true
+		end
+	end
+	return def
 end
 
--- ------------------------------------------------------------ еда/питьё --
-Items.Register("water", {
-	name = "Бутылка воды", desc = "Обычная вода из магазина на углу. Холодная.",
-	model = "models/props_junk/garbage_plasticbottle003a.mdl", category = "food", stack = 5,
-	buffs = { { "+35 к жажде", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, nil, 35) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
-})
-Items.Register("soda", {
-	name = "Liberty Cola", desc = "Сладкая газировка в жестяной банке. Бодрит, но ненадолго.",
-	model = "models/props_junk/PopCan01a.mdl", category = "food", stack = 6,
-	buffs = { { "+20 к жажде", true }, { "+5 к сытости", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, 5, 20) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
-})
-Items.Register("coffee", {
-	name = "Кофе навынос", desc = "Крепкий чёрный кофе из закусочной. Пахнет утренним Бруклином.",
-	model = "models/props_junk/garbage_coffeemug001a.mdl", category = "food", stack = 3,
-	buffs = { { "+15 к жажде", true }, { "+5 к здоровью", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, nil, 15) heal(ply, 5) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
-})
-Items.Register("takeout", {
-	name = "Лапша в коробке", desc = "Китайская лапша из Чайна-тауна. Ещё тёплая.",
-	model = "models/props_junk/garbage_takeoutcarton001a.mdl", category = "food", stack = 3,
-	buffs = { { "+40 к сытости", true }, { "-5 к жажде", false } }, useText = "Съесть",
-	use = function(ply) needs(ply, 40, -5) ply:EmitSound("nyrp/fx/eat.wav", 60, math.random(96, 104)) return true end,
-})
-Items.Register("milk", {
-	name = "Пакет молока", desc = "Литр молока. Срок годности лучше не проверять.",
-	model = "models/props_junk/garbage_milkcarton002a.mdl", category = "food", stack = 3,
-	buffs = { { "+20 к жажде", true }, { "+10 к сытости", true } }, useText = "Выпить",
-	use = function(ply) needs(ply, 10, 20) ply:EmitSound("nyrp/fx/drink" .. math.random(1, 3) .. ".wav", 60, math.random(96, 104)) return true end,
-})
-
--- --------------------------------------------------------------- медицина --
-Items.Register("medkit", {
-	name = "Аптечка", desc = "Бинты, антисептик и обезболивающее. Поможет продержаться до больницы.",
-	model = "models/items/healthkit.mdl", category = "medical", stack = 2,
-	buffs = { { "+40 к здоровью", true } }, useText = "Использовать",
-	use = function(ply)
-		local hurt = NYRP.Cond and (NYRP.Cond.Until(ply, "fracture") > 0 or NYRP.Cond.Until(ply, "bruise") > 0)
-		if ply:Health() >= ply:GetMaxHealth() and not hurt then NYRP.Notify(ply, "Вы и так здоровы", "warning") return false end
-		heal(ply, 40) ply:EmitSound("items/medshot4.wav", 60)
-		hook.Run("NYRP.ItemUsed", ply, "medkit") -- шина на перелом, снимает ушиб (modules/condition)
-		return true
-	end,
-})
-Items.Register("painkillers", {
-	name = "Обезболивающее", desc = "Шприц-тюбик. Снимает боль, но не лечит причину.",
-	model = "models/healthvial.mdl", category = "medical", stack = 4,
-	buffs = { { "+15 к здоровью", true }, { "-5 к жажде", false } }, useText = "Уколоть",
-	use = function(ply) heal(ply, 15) needs(ply, nil, -5) ply:EmitSound("items/smallmedkit1.wav", 60) return true end,
-})
-
--- ------------------------------------------------------------------ одежда --
-local function cloth(id, slot, name, desc, buffs, extra)
-	local def = { name = name, desc = desc, model = "models/nyrp/clothes/" .. id .. ".mdl", category = "clothing", slot = slot, buffs = buffs,
-		icon = { ang = Angle(50, 210, 0) } }
-	if extra then table.Merge(def, extra) end
-	Items.Register(id, def)
+function Items.LoadFolder()
+	local root = NYRP.Root .. "items/"
+	local _, dirs = file.Find(root .. "*", "LUA")
+	local n = 0
+	for di = 1, #dirs do
+		local folder = dirs[di]
+		local files = file.Find(root .. folder .. "/*.lua", "LUA")
+		for fi = 1, #files do
+			local f = files[fi]
+			local id = string.StripExtension and string.StripExtension(f) or string.gsub(f, "%.lua$", "")
+			ITEM = {}
+			if SERVER then AddCSLuaFile(root .. folder .. "/" .. f) end
+			include(root .. folder .. "/" .. f)
+			local I = ITEM
+			ITEM = nil
+			if I and (I.Name or I.Model) and not I.Disabled then
+				id = I.ID or id
+				Items.Register(id, Items.FromTable(id, I, folder))
+				n = n + 1
+			end
+		end
+	end
+	return n
 end
-cloth("cap", "head", "Бейсболка «NY»", "Тёмно-синяя кепка с жёлтой нашивкой. Классика нью-йоркских улиц.", { { "Скрывает причёску", true } })
-cloth("sunglasses", "glasses", "Солнцезащитные очки", "Круглые очки с тёмными стёклами.", { { "Глаза не видно", true } })
-cloth("mask", "mask", "Медицинская маска", "Одноразовая маска. Закрывает половину лица.", { { "Скрывает лицо: вас не узнают", true } }, { masks = true })
-cloth("tshirt", "shirt", "Белая футболка", "Хлопковая футболка с жёлтым принтом.", {})
-cloth("jacket", "jacket", "Кожаная куртка", "Плотная коричневая кожа. Защищает от ветра с Гудзона и не только.",
-	{ { "+15 к броне", true }, { "Тёплая", true } }, { armor = 15 })
-cloth("gloves", "gloves", "Кожаные перчатки", "Чёрные перчатки. Не оставляют отпечатков.", { { "Без отпечатков пальцев", true } })
-cloth("jeans", "pants", "Джинсы", "Синие джинсы прямого кроя.", {})
-cloth("sneakers", "shoes", "Красные кроссовки", "Лёгкие беговые кроссовки.", { { "+5% к скорости бега", true } }, { speed = 0.05 })
 
--- ------------------------------------------------------------------ оружие --
-local function weapon(id, slot, class, name, desc, model, ammo, buffs)
-	Items.Register(id, { name = name, desc = desc, model = model, category = "weapon", weaponSlot = slot, class = class,
-		ammo = ammo, buffs = buffs or {}, icon = { ang = Angle(10, 90, 0), zoom = 1.1 } })
-end
-weapon("pistol", "secondary", "weapon_pistol", "Пистолет 9 мм", "Компактный полуавтоматический пистолет.",
-	"models/weapons/w_pistol.mdl", { "Pistol", 36 }, { { "Урон: средний", true }, { "Шумный", false } })
-weapon("revolver", "secondary", "weapon_357", "Револьвер .357", "Тяжёлый револьвер. Шесть патронов — шесть аргументов.",
-	"models/weapons/w_357.mdl", { "357", 12 }, { { "Урон: высокий", true }, { "Медленная перезарядка", false } })
-weapon("smg", "primary", "weapon_smg1", "Пистолет-пулемёт", "Скорострельный ПП. Трудно контролировать отдачу.",
-	"models/weapons/w_smg1.mdl", { "SMG1", 90 }, { { "Высокая скорострельность", true }, { "Сильная отдача", false } })
-weapon("shotgun", "primary", "weapon_shotgun", "Дробовик", "Помповый дробовик. Аргумент ближнего боя.",
-	"models/weapons/w_shotgun.mdl", { "Buckshot", 12 }, { { "Огромный урон вблизи", true }, { "Бесполезен вдали", false } })
-weapon("crowbar", "melee", "weapon_crowbar", "Монтировка", "Стальная монтировка. Открывает и двери, и разговоры.",
-	"models/weapons/w_crowbar.mdl", nil, { { "Не нужны патроны", true } })
-weapon("baton", "melee", "weapon_stunstick", "Дубинка", "Полицейская дубинка с электрошоком.",
-	"models/weapons/w_stunbaton.mdl", nil, { { "Оглушает", true } })
+-- слоты, которые появились вместе с новыми предметами
+Items.ClothingSlots[#Items.ClothingSlots + 1] = { id = "vest", name = "Бронежилет", icon = "shield" }
+Items.EquipSlot.vest = Items.ClothingSlots[#Items.ClothingSlots]
+Items.WeaponSlots[#Items.WeaponSlots + 1] = { id = "tool", name = "В руке", icon = "hand" }
+Items.EquipSlot.tool = Items.WeaponSlots[#Items.WeaponSlots]
 
--- --------------------------------------------------------------- документы --
-Items.Register("idcard", {
-	name = "Удостоверение личности", desc = "Пластиковая карточка штата Нью-Йорк с фотографией и данными владельца.",
-	model = "models/nyrp/clothes/idcard.mdl", category = "document", stack = 1,
-	buffs = { { "Подтверждает личность", true } }, useText = "Посмотреть",
-	icon = { ang = Angle(70, 180, 0), zoom = 0.9 },
-})
+Items.LoadFolder()
