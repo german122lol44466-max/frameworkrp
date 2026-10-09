@@ -182,6 +182,18 @@ TABS[1] = { "Основное", "user", function(body)
 		E.seqs = E.seqs or sequenceOptions(d.model)
 		return E.seqs
 	end, function() return d.seq end, function(v) d.seq = v end))
+	row("Голос (озвучка реплик)", select(left, "Голос", function()
+		local o = {}
+		for _, v in ipairs(N.Voices) do o[#o + 1] = { v.id, v.name } end
+		return o
+	end, function() return d.voice or "" end, function(v) d.voice = v end))
+	local listen = small(left, "Прослушать голос", function()
+		local node = d.dialog and d.dialog.nodes and d.dialog.nodes[d.dialog.start or "start"]
+		N.Speak(nil, node and node.text or "Привет! Чем могу помочь?", d.voice or "")
+	end)
+	listen:SetParent(left)
+	listen:Dock(TOP)
+	listen:DockMargin(0, UI.S(6), 0, 0)
 
 	-- превью
 	local pv = vgui.Create("DModelPanel", body)

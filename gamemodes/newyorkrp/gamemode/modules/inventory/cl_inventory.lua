@@ -451,7 +451,7 @@ local function paperdoll(parent, x, y, w, h, compact)
 	end
 
 	-- слоты одежды по дуге: снизу слева -> верх -> снизу справа
-	local order = { "pants", "gloves", "jacket", "head", "glasses", "mask", "shirt", "shoes" }
+	local order = { "pants", "gloves", "vest", "jacket", "head", "glasses", "mask", "shirt", "shoes" }
 	local slot = UI.S(compact and 66 or 72)
 	for i, id in ipairs(order) do
 		local def = Items.EquipSlot[id]

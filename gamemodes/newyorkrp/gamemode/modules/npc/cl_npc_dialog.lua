@@ -14,6 +14,7 @@ local function close(silent, fromServer)
 	if D and not D.closing then
 		D.closing = RealTime()
 		gui.EnableScreenClicker(false)
+		if N.StopSpeak then N.StopSpeak() end
 		if not silent then UI.Sound("close") end
 		-- сервер должен знать, что разговор окончен
 		if not fromServer and IsValid(D.ent) then
@@ -37,6 +38,8 @@ net.Receive("nyrp.npc.node", function()
 		born = fresh and RealTime() or D.born, nodeBorn = RealTime(), hover = {} }
 	UI.Sound(fresh and "open" or "swipe")
 	if fresh then gui.EnableScreenClicker(true) end
+	-- озвучка реплики голосом, выбранным в редакторе
+	if N.Speak and IsValid(ent) then N.Speak(ent, text, ent:GetNW2String("nyrp.npcVoice", "")) end
 end)
 
 local function choose()

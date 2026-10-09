@@ -62,9 +62,30 @@ local function num(v, lo, hi, def) return math.Clamp(math.floor(tonumber(v) or d
 local function id(v) return string.sub(string.gsub(tostring(v or ""), "[^%w_%-]", ""), 1, 32) end
 
 -- Очистка данных от клиента-редактора (сервер).
+-- Голоса озвучки реплик (TTS через интернет у клиента). rate меняет высоту/темп голоса.
+N.Voices = {
+	{ id = "", name = "Без озвучки" },
+	{ id = "maxim", name = "Максим — мужской", provider = "se", voice = "Maxim", rate = 1.0 },
+	{ id = "maxim_low", name = "Максим — низкий, басовитый", provider = "se", voice = "Maxim", rate = 0.86 },
+	{ id = "maxim_old", name = "Старик", provider = "se", voice = "Maxim", rate = 0.78 },
+	{ id = "maxim_fast", name = "Максим — быстрый, нервный", provider = "se", voice = "Maxim", rate = 1.15 },
+	{ id = "tatyana", name = "Татьяна — женский", provider = "se", voice = "Tatyana", rate = 1.0 },
+	{ id = "tatyana_low", name = "Татьяна — низкий", provider = "se", voice = "Tatyana", rate = 0.9 },
+	{ id = "tatyana_young", name = "Девушка — высокий", provider = "se", voice = "Tatyana", rate = 1.14 },
+	{ id = "child", name = "Ребёнок", provider = "se", voice = "Tatyana", rate = 1.32 },
+	{ id = "google", name = "Диктор (Google)", provider = "google", rate = 1.0 },
+	{ id = "google_low", name = "Диктор — низкий (Google)", provider = "google", rate = 0.85 },
+	{ id = "robot", name = "Автоответчик", provider = "google", rate = 0.72 },
+	{ id = "en_brian", name = "Брайан — английский акцент", provider = "se", voice = "Brian", rate = 1.0 },
+	{ id = "en_joanna", name = "Джоанна — английский акцент", provider = "se", voice = "Joanna", rate = 1.0 },
+}
+N.VoiceById = {}
+for _, v in ipairs(N.Voices) do N.VoiceById[v.id] = v end
+
 function N.Sanitize(d)
 	if type(d) ~= "table" then return end
 	local out = {
+		voice = N.VoiceById[d.voice or ""] and d.voice or "",
 		kind = N.Kinds[d.kind] and d.kind or "talk",
 		name = str(d.name, 48), desc = str(d.desc, 200),
 		model = str(d.model, 128), seq = str(d.seq, 64),

@@ -18,6 +18,7 @@ local function applyData(ent, d)
 	ent:SetNW2String("nyrp.npcKind", d.kind)
 	ent:SetNW2String("nyrp.npcSeq", d.seq)
 	ent:SetNW2String("nyrp.npcId", d.id)
+	ent:SetNW2String("nyrp.npcVoice", d.voice or "")
 	ent:ApplySequence()
 end
 
