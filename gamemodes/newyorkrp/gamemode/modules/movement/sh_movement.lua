@@ -13,7 +13,9 @@ if SERVER then
 	function NYRP.ApplyMovement(ply)
 		local skills = ply.nyrpChar and ply.nyrpChar.skills or {}
 		local runBonus = 1 + (skills.stamina or 0) * 0.02 + (ply.nyrpSpeedBonus or 0)
-		ply:SetWalkSpeed(M.Walk)
+		-- тяжёлая броня/одежда (отрицательная скорость) замедляет и шаг
+		local slow = math.min(0, ply.nyrpSpeedBonus or 0)
+		ply:SetWalkSpeed(M.Walk * (1 + slow * 0.7))
 		ply:SetRunSpeed(M.Run * runBonus)
 		ply:SetSlowWalkSpeed(M.SlowWalk)
 		ply:SetCrouchedWalkSpeed(M.CrouchFactor)

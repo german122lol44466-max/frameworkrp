@@ -17,6 +17,8 @@ C.Types = {
 	fridge = { name = "Холодильник", model = "models/props_c17/FurnitureFridge001a.mdl", cols = 4, rows = 4 },
 	cabinet = { name = "Картотека", model = "models/props_wasteland/controlroom_filecabinet002a.mdl", cols = 4, rows = 3 },
 	ammo = { name = "Армейский ящик", model = "models/items/ammocrate_smg1.mdl", cols = 5, rows = 3 },
+	-- сумка, выпавшая при смерти (не сохраняется, исчезает через 15 минут или когда опустеет)
+	deathbag = { name = "Выпавшая сумка", model = "models/props_c17/BriefCase001a.mdl", cols = 5, rows = 4, temp = true },
 }
 
 -- Лут: раз в Interval секунд в каждом контейнере (если в нём меньше Max вещей) с шансом Chance

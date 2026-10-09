@@ -24,9 +24,11 @@ local function savePath() return DIR .. "/" .. game.GetMap() .. ".json" end
 function C.SaveAll()
 	local list = {}
 	for _, ent in ipairs(ents.FindByClass("nyrp_container")) do
-		local slots = {}
-		for i, it in pairs(ent.Slots or {}) do slots[tostring(i)] = it end
-		list[#list + 1] = { type = ent:GetNW2String("nyrp.ctype", "crate"), pos = ent:GetPos(), ang = ent:GetAngles(), slots = slots }
+		if not C.TypeOf(ent).temp then
+			local slots = {}
+			for i, it in pairs(ent.Slots or {}) do slots[tostring(i)] = it end
+			list[#list + 1] = { type = ent:GetNW2String("nyrp.ctype", "crate"), pos = ent:GetPos(), ang = ent:GetAngles(), slots = slots }
+		end
 	end
 	file.CreateDir(DIR)
 	file.Write(savePath(), util.TableToJSON(list, true))

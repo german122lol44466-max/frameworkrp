@@ -84,7 +84,7 @@ function Items.FromTable(id, I, folder)
 		useText = I.UseText, leaves = I.Leaves, buffs = I.Buffs,
 		-- одежда и броня
 		slot = I.Slot, bodygroups = I.Bodygroups, armor = I.Armor, speed = I.Speed, masks = I.HidesFace,
-		protect = I.Protect, heavy = I.Heavy, wear = I.Wear,
+		protect = I.Protect, protectZone = I.ProtectZone, heavy = I.Heavy, wear = I.Wear,
 		-- оружие и инструменты
 		weaponSlot = (typ == "weapon" or typ == "tool") and (I.Slot or "melee") or nil, class = I.Weapon, ammo = I.Ammo,
 		-- расходники
