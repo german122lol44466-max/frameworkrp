@@ -204,7 +204,7 @@ hook.Add("Think", "nyrp.atm.flow", function()
 	if not IsValid(A.ent) or not LocalPlayer():Alive() then finish() return end
 	if A.stage == "insert" and A.seq == "insert" and seqDone() then
 		playSeq("reach")
-	elseif A.stage == "insert" and A.seq == "reach" and seqDone() then
+	elseif A.stage == "insert" and ((A.seq == "reach" and seqDone()) or now() - A.born > 4) then
 		A.stage = "pin"
 		playSeq("keys")
 		setClicker(true)
@@ -313,7 +313,21 @@ hook.Add("Think", "nyrp.atm.keys", function()
 		if A.page and A.page ~= "main" then A.page = "main" else leave() end
 		return
 	end
-	-- сумму можно набрать и цифрами клавиатуры; PIN — только мышью по клавишам банкомата
+	-- PIN можно набрать и цифрами клавиатуры — рука всё равно нажимает клавишу банкомата
+	if A.stage == "pin" and not A.seg then
+		local want
+		for d = 0, 9 do
+			if pressedKey(KEY_0 + d) or pressedKey(KEY_PAD_0 + d) then want = tostring(d) end
+		end
+		if pressedKey(KEY_BACKSPACE) then want = "clear" end
+		if pressedKey(KEY_ENTER) or pressedKey(KEY_PAD_ENTER) then want = "enter" end
+		if want then
+			for i, k in ipairs(B.Keys) do
+				if k.key == want then pressKey(k, i) break end
+			end
+		end
+	end
+	-- сумму можно набрать и цифрами клавиатуры
 	if A.stage == "menu" and A.page == "amount" then
 		for d = 0, 9 do
 			local a, b = pressedKey(KEY_0 + d), pressedKey(KEY_PAD_0 + d)

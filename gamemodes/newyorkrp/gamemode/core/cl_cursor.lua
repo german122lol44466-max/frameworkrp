@@ -63,6 +63,51 @@ end
 
 function gui.NYRPCatcher() return catcher end
 
+-- Сторож свободной мыши: если что-то (движок, другая панель, смена фокуса) снова захватило мышь,
+-- пока она должна быть свободной, — возвращаем. Не чаще 4 раз в секунду, чтобы не мерцало.
+local nextFix = 0
+hook.Add("Think", "nyrp.cursor.keep", function()
+	if not NYRP.ScreenClicker or gui.IsGameUIVisible() then return end
+	if not IsValid(catcher) or not catcher:IsVisible() then
+		if IsValid(catcher) then catcher:Remove() end
+		catcher = nil
+		gui.EnableScreenClicker(true)
+		return
+	end
+end)
+
+-- Если мышь всё же захвачена игрой, движения приходят сюда как повороты камеры —
+-- это и есть признак «мышь пропала»: камеру не крутим и снова освобождаем курсор.
+hook.Add("InputMouseApply", "nyrp.cursor.keep", function(cmd, x, y)
+	if not NYRP.ScreenClicker or gui.IsGameUIVisible() then return end
+	if (x ~= 0 or y ~= 0) and RealTime() > nextFix then
+		nextFix = RealTime() + 0.5
+		origClicker(false)
+		origClicker(true)
+	end
+	cmd:SetMouseX(0)
+	cmd:SetMouseY(0)
+	return true
+end)
+
+-- Отладка: nyrp_debug_cursor 1 — кто держит мышь (видно на скриншоте).
+local dbg = CreateClientConVar("nyrp_debug_cursor", "0", false, false)
+hook.Add("PostRenderVGUI", "nyrp.cursor.debug", function()
+	if not dbg:GetBool() then return end
+	local hov = vgui.GetHoveredPanel()
+	local foc = vgui.GetKeyboardFocus()
+	local lines = {
+		"ScreenClicker: " .. tostring(NYRP.ScreenClicker),
+		"CursorVisible: " .. tostring(vgui.CursorVisible()),
+		"catcher: " .. tostring(IsValid(catcher)) .. (IsValid(catcher) and (" visible=" .. tostring(catcher:IsVisible())) or ""),
+		"hovered: " .. (IsValid(hov) and (hov:GetClassName() .. " " .. tostring(hov.NYRPCursor)) or "-"),
+		"focus: " .. (IsValid(foc) and foc:GetClassName() or "-"),
+	}
+	for i, l in ipairs(lines) do
+		draw.SimpleTextOutlined(l, "DermaDefault", 12, 12 + i * 16, Color(255, 255, 120), 0, 0, 1, color_black)
+	end
+end)
+
 hook.Add("Initialize", "nyrp.cursor", function()
 	hide(GetHUDPanel and GetHUDPanel())
 end)

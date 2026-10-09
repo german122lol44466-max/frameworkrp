@@ -185,7 +185,7 @@ function SLOTP:Paint(w, h)
 		-- мягкая подсветка под предметом, чтобы он читался на тёмном фоне
 		local s = math.min(w, h)
 		surface.SetMaterial(UI.Mat("nyrp/ui/glow.png"))
-		surface.SetDrawColor(255, 255, 255, 16 + self.Hover * 14)
+		surface.SetDrawColor(255, 255, 255, 34 + self.Hover * 20)
 		surface.DrawTexturedRect(w / 2 - s * 0.5, h / 2 - s * 0.5, s, s)
 		local pad = UI.S(3)
 		NYRP.DrawItemIcon(it.id, pad, pad, w - pad * 2, h - pad * 2)

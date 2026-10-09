@@ -244,15 +244,18 @@ if CLIENT then
 		local m = owner:GetBoneMatrix(bone)
 		if not m then return end
 		local hp = m:GetTranslation()
-		local fwd, right, up = m:GetForward(), m:GetRight(), m:GetUp()
-		-- модель телефона: X — нормаль экрана, Z — длинная сторона
-		local mm = Matrix()
-		mm:SetForward(right)   -- экран смотрит от ладони
-		mm:SetUp(fwd)          -- длинная сторона вдоль пальцев
-		mm:SetRight(up)
-		mm:SetTranslation(hp + fwd * 3.0 + right * 1.5)
-		self:SetRenderOrigin(mm:GetTranslation())
-		self:SetRenderAngles(mm:GetAngles())
+		local fwd, right = m:GetForward(), m:GetRight()
+		-- модель телефона: X — нормаль экрана (от ладони), Z — длинная сторона (вдоль пальцев).
+		-- Угол строим через Angle + поворот вокруг оси: матрица с левой тройкой векторов давала
+		-- «прыгающие» углы — отсюда странный вид и мерцание текстуры.
+		local a = right:Angle()
+		local u, r = a:Up(), a:Right()
+		local roll = math.deg(math.atan2(fwd:Dot(r), fwd:Dot(u)))
+		a:RotateAroundAxis(right, roll)
+		if a:Up():Dot(fwd) < 0.9 then a:RotateAroundAxis(right, -2 * roll) end
+		self:SetRenderOrigin(hp + fwd * 3.0 + right * 1.5)
+		self:SetRenderAngles(a)
+		self:SetupBones()
 		self:DrawModel()
 		self:SetRenderOrigin()
 		self:SetRenderAngles()

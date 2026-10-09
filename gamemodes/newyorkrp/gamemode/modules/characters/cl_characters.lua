@@ -525,7 +525,7 @@ end)
 
 -- Страховка: если модели сцены выбора пропали (их удалила очистка карты / другая часть
 -- интерфейса) или сцена не построилась — пересобираем её.
-hook.Add("Think", "nyrp.chars.scene", function()
+hook.Add("Think", "nyrp.chars.rebuild", function()
 	if NYRP.State ~= "select" then return end
 	local spots = NYRP.ClientPoints.spots or {}
 	if #spots == 0 then return end

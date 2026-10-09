@@ -87,7 +87,22 @@ P.Register("camera", {
 		local vy = y - S(28)
 		local vh = h + S(28)
 		local origin, ang, viewer = camView(st.front)
+		-- от первого лица голова игрока сжата (чтобы не мешала обзору) — на фронталку возвращаем её
+		local ply, hb = LocalPlayer(), nil
+		if viewer then
+			hb = ply:LookupBone("ValveBiped.Bip01_Head1")
+			if hb and ply:GetManipulateBoneScale(hb).x < 0.5 then
+				ply:ManipulateBoneScale(hb, Vector(1, 1, 1))
+				ply:InvalidateBoneCache()
+			else
+				hb = nil
+			end
+		end
 		render.RenderView({ origin = origin, angles = ang, x = x, y = vy, w = w, h = vh, fov = 62, drawviewmodel = false, drawhud = false, drawviewer = viewer })
+		if hb then
+			ply:ManipulateBoneScale(hb, Vector(0.001, 0.001, 0.001))
+			ply:InvalidateBoneCache()
+		end
 		processCaptures(x, vy, w, vh)
 		-- сетка
 		surface.SetDrawColor(255, 255, 255, 30)
@@ -388,6 +403,10 @@ P.Register("bank", {
 
 -- --------------------------------------------------------------------- Игры --
 local function best(id) return (P.Settings().games or {})[id] or 0 end
+-- конец игры: «новый рекорд» или «проигрыш» (раньше звучал гудок «занято», как при сбросе)
+local function gameOverSound(newBest)
+	surface.PlaySound(newBest and "nyrp/phone/game_record.wav" or "nyrp/phone/game_over.wav")
+end
 local function saveBest(id, score)
 	local s = P.Settings()
 	s.games = s.games or {}
@@ -429,7 +448,7 @@ P.Register("game_snake", {
 				if dead then
 					st.state = "over"
 					st.newBest = saveBest("snake", st.score)
-					surface.PlaySound("nyrp/phone/busy.wav")
+					gameOverSound(st.newBest)
 				else
 					table.insert(st.body, 1, { nx, ny })
 					if nx == st.food[1] and ny == st.food[2] then
@@ -530,6 +549,7 @@ local function g2048slide(st, dr, dc)
 		if not canMove then
 			st.state = "over"
 			st.newBest = saveBest("g2048", st.score)
+			gameOverSound(st.newBest)
 		end
 	end
 end
@@ -619,7 +639,7 @@ P.Register("game_taxi", {
 				elseif c.lane == st.lane and c.y + carH > rh - carH - S(14) and c.y < rh - S(14) then
 					st.state = "over"
 					st.newBest = saveBest("taxi", math.floor(st.score))
-					surface.PlaySound("nyrp/phone/busy.wav")
+					gameOverSound(st.newBest)
 				end
 			end
 		end

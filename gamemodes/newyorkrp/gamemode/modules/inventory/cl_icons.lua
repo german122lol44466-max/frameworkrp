@@ -5,6 +5,7 @@
 
 local cache = {}
 local iconEnts = {}
+local solid = CreateMaterial("nyrp_icon_solid", "UnlitGeneric", { ["$basetexture"] = "color/white", ["$model"] = 1 })
 
 local function model(path)
 	local e = iconEnts[path]
@@ -33,10 +34,13 @@ local function render3D(def, size)
 	local pos = center - ang:Forward() * dist
 
 	cam.Start3D(pos, ang, fov, 0, 0, size, size, 1, dist * 4)
+	-- тонмаппинг карты (ночью он сильно затемняет) не должен влиять на иконку
+	local tm = render.GetToneMappingScaleLinear()
+	render.SetToneMappingScaleLinear(Vector(1, 1, 1))
 	render.SuppressEngineLighting(true)
 	render.SetLightingOrigin(center)
 	-- светлее, чем раньше: тёмные модели терялись на тёмном фоне ячеек
-	render.ResetModelLighting(0.52, 0.53, 0.58)
+	render.ResetModelLighting(0.62, 0.63, 0.68)
 	render.SetModelLighting(BOX_TOP, 1.7, 1.65, 1.55)
 	render.SetModelLighting(BOX_FRONT, 1.2, 1.2, 1.25)
 	render.SetModelLighting(BOX_BACK, 0.9, 0.95, 1.1)
@@ -45,8 +49,18 @@ local function render3D(def, size)
 	render.SetColorModulation(1, 1, 1)
 	render.SetBlend(1)
 	ent:SetupBones()
+	-- цвет без записи альфы, затем силуэт сплошной альфой: иначе альфа-канал текстуры
+	-- (маска бликов) делает предмет полупрозрачным и он почти не виден на тёмной ячейке
+	render.OverrideAlphaWriteEnable(true, false)
 	ent:DrawModel()
+	render.OverrideAlphaWriteEnable(true, true)
+	render.OverrideColorWriteEnable(true, false)
+	render.MaterialOverride(solid)
+	ent:DrawModel()
+	render.MaterialOverride()
+	render.OverrideColorWriteEnable(false)
 	render.SuppressEngineLighting(false)
+	render.SetToneMappingScaleLinear(tm)
 	cam.End3D()
 	return true
 end

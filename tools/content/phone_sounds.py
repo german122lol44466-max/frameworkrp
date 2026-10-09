@@ -98,6 +98,12 @@ def main():
     save("key.wav", tone((1500,), 0.02, 0.001, 0.015), peak=0.25)
     save("rec_start.wav", melody([76, 83], 0.08, 0.5, 0.4), peak=0.45)
     save("rec_stop.wav", melody([83, 76], 0.08, 0.5, 0.4), peak=0.45)
+    # игры: проигрыш — короткая нисходящая «8-битная» фраза, новый рекорд — восходящее арпеджио
+    def square(f, d):
+        tt = t(d)
+        return env(np.sign(np.sin(2 * np.pi * f * tt)) * 0.5 + np.sin(2 * np.pi * f * tt) * 0.5, 0.003, 0.03)
+    save("game_over.wav", np.concatenate([square(440 * 2 ** ((n - 69) / 12), 0.11) for n in (72, 67, 64, 60)]), peak=0.35)
+    save("game_record.wav", melody([72, 76, 79, 84, 88], 0.07, 1.0, 0.9), peak=0.5)
     print("phone sounds ok")
 
 
