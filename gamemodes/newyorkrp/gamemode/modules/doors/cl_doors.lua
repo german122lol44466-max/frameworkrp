@@ -33,7 +33,10 @@ hook.Add("HUDPaint", "nyrp.doors", function()
 			UI.DrawIcon(owner == "" and "home" or "lock", x + UI.S(38), y + h / 2, UI.S(24), Color(255, 255, 255, 230 * a))
 			draw.SimpleText(name, NYRP.Font("bold", 17), x + UI.S(60), y + UI.S(14), Color(240, 241, 245, 255 * a))
 			local sub
-			if owner == "" then sub = "Сдаётся: " .. NYRP.Money.Format(ent:GetNW2Int("nyrp.rent", 0)) .. " в день · телефон → NY Homes"
+			local biz = ent:GetNW2Bool("nyrp.business")
+			if biz and owner == "" then sub = "Коммерческое помещение · " .. NYRP.Money.Format(ent:GetNW2Int("nyrp.rent", 0)) .. "/день · оформить в ратуше"
+			elseif biz then sub = (ent:GetNW2Bool("nyrp.bizOpen") and "ОТКРЫТО" or "Закрыто") .. " · " .. ent:GetNW2String("nyrp.bizType", "бизнес") .. (mine and " · F1 — управление" or "")
+			elseif owner == "" then sub = "Сдаётся: " .. NYRP.Money.Format(ent:GetNW2Int("nyrp.rent", 0)) .. " в день · телефон → NY Homes"
 			elseif mine then sub = (ent:GetNW2Bool("nyrp.locked") and "Заперто" or "Открыто") .. " · ключи — ЛКМ, F1 — жильцы"
 			else sub = "Арендовано" end
 			draw.SimpleText(sub, NYRP.Font("medium", 13), x + UI.S(60), y + UI.S(42), Color(200, 204, 214, 230 * a))
@@ -52,6 +55,7 @@ net.Receive("nyrp.door.home", function()
 	local residents = net.ReadTable()
 	local near = {}
 	for i = 1, net.ReadUInt(8) do near[i] = net.ReadEntity() end
+	local isBiz, bizOpen = net.ReadBool(), net.ReadBool()
 	if IsValid(NYRP.DoorWin) then NYRP.DoorWin:Remove() end
 	local win, body = UI.Window(name ~= "" and name or "Квартира", "home", 460, 520, { sub = locked and "заперто" or "открыто" })
 	NYRP.DoorWin = win
@@ -62,6 +66,12 @@ net.Receive("nyrp.door.home", function()
 		net.WriteEntity(ent or NULL)
 		net.WriteString(cid or "")
 		net.SendToServer()
+	end
+	if isBiz then
+		UI.AddButton(body, bizOpen and "Закрыть бизнес (табличка «Закрыто»)" or "Открыть бизнес — пойдёт выручка", bizOpen and "lock" or "store", function()
+			net.Start("nyrp.biz.act") net.WriteString("toggle") net.WriteString(id) net.WriteString("") net.SendToServer()
+			win:Close()
+		end, { style = "solid", accent = bizOpen and UI.Col.red or Color(240, 160, 60), h = 44 })
 	end
 	local scroll = vgui.Create("DScrollPanel", body)
 	scroll:Dock(FILL)

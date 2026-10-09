@@ -51,6 +51,8 @@ local binds = {
 		press = function() NYRP.Camera.OpenMenu() end },
 	{ cvar = "nyrp_bind_health", name = "Состояние здоровья", desc = "Ранения по частям тела, лечение предметами из сумки",
 		press = function() if NYRP.Health and NYRP.Health.Toggle then NYRP.Health.Toggle() end end, always = true },
+	{ cvar = "nyrp_bind_911", name = "Принять вызов 911", desc = "Для служб и таксистов: принять верхний вызов",
+		press = function() end },
 }
 
 local function buildBinds(parent)

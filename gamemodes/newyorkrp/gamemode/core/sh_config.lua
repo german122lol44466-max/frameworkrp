@@ -129,4 +129,5 @@ if CLIENT then
 	CreateClientConVar("nyrp_bind_thirdperson", tostring(KEY_F3), true, false, "Клавиша: третье лицо")
 	CreateClientConVar("nyrp_bind_tpmenu", tostring(KEY_F4), true, false, "Клавиша: меню третьего лица")
 	CreateClientConVar("nyrp_bind_health", tostring(KEY_J), true, false, "Клавиша: состояние здоровья")
+	CreateClientConVar("nyrp_bind_911", tostring(KEY_F6), true, false, "Клавиша: принять вызов 911")
 end
