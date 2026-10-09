@@ -184,7 +184,12 @@ TABS[1] = { "Основное", "user", function(body)
 	end, function() return d.seq end, function(v) d.seq = v end))
 	row("Голос (озвучка реплик)", select(left, "Голос", function()
 		local o = {}
-		for _, v in ipairs(N.Voices) do o[#o + 1] = { v.id, v.name } end
+		local srv = GetConVar("nyrp_tts_server") and GetConVar("nyrp_tts_server"):GetString() or ""
+		for _, v in ipairs(N.Voices) do
+			local name = v.name
+			if v.engine == "piper" and srv == "" then name = name .. " — нужен сервер nyrp_tts_server" end
+			o[#o + 1] = { v.id, name }
+		end
 		return o
 	end, function() return d.voice or "" end, function(v) d.voice = v end))
 	local listen = small(left, "Прослушать голос", function()

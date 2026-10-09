@@ -63,24 +63,50 @@ local function id(v) return string.sub(string.gsub(tostring(v or ""), "[^%w_%-]"
 
 -- Очистка данных от клиента-редактора (сервер).
 -- Голоса озвучки реплик (TTS через интернет у клиента). rate меняет высоту/темп голоса.
+-- Голоса озвучки. Разные «движки» — это разные дикторы, а не один голос с другой интонацией:
+--   polly  — Amazon Polly через ttsmp3.com: Максим (муж.), Татьяна (жен.);
+--   ispeech — iSpeech: свои мужской и женский голос;
+--   yandex — голос Яндекс.Переводчика;
+--   google — диктор Google (ru и дикторы соседних языков, читающие кириллицу — с акцентом);
+--   piper  — нейросетевые голоса Piper на своём сервере (Денис, Дмитрий, Ирина, Руслан):
+--            tools/tts/piper_server.py, адрес — серверная переменная nyrp_tts_server.
+-- Если сервис не ответил, реплика всё равно прозвучит голосом Google (с той же высотой).
 N.Voices = {
 	{ id = "", name = "Без озвучки" },
-	{ id = "google", name = "Диктор", lang = "ru", rate = 1.0 },
-	{ id = "maxim", name = "Мужской (ниже)", lang = "ru", rate = 0.84 },
-	{ id = "maxim_low", name = "Бас", lang = "ru", rate = 0.76 },
-	{ id = "maxim_old", name = "Старик (медленно)", lang = "ru", rate = 0.7 },
-	{ id = "maxim_fast", name = "Нервный (быстро)", lang = "ru", rate = 1.18 },
-	{ id = "tatyana", name = "Женский", lang = "ru", rate = 1.05 },
-	{ id = "tatyana_young", name = "Девушка", lang = "ru", rate = 1.15 },
-	{ id = "child", name = "Ребёнок", lang = "ru", rate = 1.32 },
-	{ id = "uk", name = "С украинским акцентом", lang = "uk", rate = 1.0 },
-	{ id = "uk_low", name = "С украинским акцентом — низкий", lang = "uk", rate = 0.82 },
-	{ id = "bg", name = "С болгарским акцентом", lang = "bg", rate = 1.0 },
-	{ id = "sr", name = "С сербским акцентом", lang = "sr", rate = 0.92 },
-	{ id = "robot", name = "Автоответчик", lang = "ru", rate = 0.66 },
+	-- Amazon Polly
+	{ id = "maxim", name = "Максим — мужской", engine = "polly", voice = "Maxim", rate = 1.0, group = "Polly" },
+	{ id = "maxim_low", name = "Максим — бас", engine = "polly", voice = "Maxim", rate = 0.86, group = "Polly" },
+	{ id = "maxim_old", name = "Максим — старик", engine = "polly", voice = "Maxim", rate = 0.76, group = "Polly" },
+	{ id = "maxim_fast", name = "Максим — нервный", engine = "polly", voice = "Maxim", rate = 1.16, group = "Polly" },
+	{ id = "tatyana", name = "Татьяна — женский", engine = "polly", voice = "Tatyana", rate = 1.0, group = "Polly" },
+	{ id = "tatyana_low", name = "Татьяна — женщина постарше", engine = "polly", voice = "Tatyana", rate = 0.9, group = "Polly" },
+	{ id = "tatyana_young", name = "Татьяна — девушка", engine = "polly", voice = "Tatyana", rate = 1.12, group = "Polly" },
+	-- iSpeech
+	{ id = "isp_m", name = "Виктор — мужской (iSpeech)", engine = "ispeech", voice = "rurussianmale", rate = 1.0, group = "iSpeech" },
+	{ id = "isp_m_low", name = "Виктор — хриплый бас (iSpeech)", engine = "ispeech", voice = "rurussianmale", rate = 0.84, group = "iSpeech" },
+	{ id = "isp_f", name = "Ольга — женский (iSpeech)", engine = "ispeech", voice = "rurussianfemale", rate = 1.0, group = "iSpeech" },
+	-- Яндекс
+	{ id = "yandex", name = "Яндекс — диктор", engine = "yandex", rate = 1.0, group = "Яндекс" },
+	{ id = "yandex_low", name = "Яндекс — низкий", engine = "yandex", rate = 0.85, group = "Яндекс" },
+	-- Google
+	{ id = "google", name = "Google — дикторша", engine = "google", lang = "ru", rate = 1.0, group = "Google" },
+	{ id = "child", name = "Google — ребёнок", engine = "google", lang = "ru", rate = 1.3, group = "Google" },
+	{ id = "robot", name = "Google — автоответчик", engine = "google", lang = "ru", rate = 0.66, group = "Google" },
+	{ id = "uk", name = "Украинский акцент", engine = "google", lang = "uk", rate = 1.0, group = "Акценты" },
+	{ id = "bg", name = "Болгарский акцент", engine = "google", lang = "bg", rate = 1.0, group = "Акценты" },
+	{ id = "sr", name = "Сербский акцент", engine = "google", lang = "sr", rate = 0.92, group = "Акценты" },
+	{ id = "mk", name = "Македонский акцент", engine = "google", lang = "mk", rate = 1.0, group = "Акценты" },
+	-- Piper (свой сервер)
+	{ id = "piper_denis", name = "Денис — нейросеть (Piper)", engine = "piper", voice = "ru_RU-denis-medium", rate = 1.0, group = "Piper" },
+	{ id = "piper_dmitri", name = "Дмитрий — нейросеть (Piper)", engine = "piper", voice = "ru_RU-dmitri-medium", rate = 1.0, group = "Piper" },
+	{ id = "piper_ruslan", name = "Руслан — нейросеть (Piper)", engine = "piper", voice = "ru_RU-ruslan-medium", rate = 1.0, group = "Piper" },
+	{ id = "piper_irina", name = "Ирина — нейросеть (Piper)", engine = "piper", voice = "ru_RU-irina-medium", rate = 1.0, group = "Piper" },
+	{ id = "piper_old", name = "Дмитрий — старик (Piper)", engine = "piper", voice = "ru_RU-dmitri-medium", rate = 0.82, group = "Piper" },
 }
 -- старые id голосов из прошлых версий
-N.VoiceAlias = { tatyana_low = "tatyana", google_low = "maxim", en_brian = "maxim", en_joanna = "tatyana" }
+N.VoiceAlias = { google_low = "maxim_low", en_brian = "maxim", en_joanna = "tatyana", uk_low = "uk" }
+-- адрес своего TTS-сервера Piper (видят клиенты): nyrp_tts_server "http://1.2.3.4:5002"
+CreateConVar("nyrp_tts_server", "", { FCVAR_ARCHIVE, FCVAR_REPLICATED }, "Адрес TTS-сервера Piper для голосов NPC")
 N.VoiceById = {}
 for _, v in ipairs(N.Voices) do N.VoiceById[v.id] = v end
 

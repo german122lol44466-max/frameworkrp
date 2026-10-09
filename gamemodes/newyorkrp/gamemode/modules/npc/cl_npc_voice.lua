@@ -1,5 +1,5 @@
 --[[
-	Озвучка реплик NPC (TTS Google у клиента; разные голоса — высота/темп и дикторы других языков): голос выбирается в редакторе NPC (вкладка «Основное»).
+	Озвучка реплик NPC (TTS у клиента: Amazon Polly, iSpeech, Яндекс, Google, свой сервер Piper — см. N.Voices в sh_npc.lua): голос выбирается в редакторе NPC (вкладка «Основное»).
 	Звук идёт из NPC (3D), губы двигаются по громкости. Отключить: nyrp_npc_voice 0, громкость — nyrp_npc_voice_volume.
 ]]
 
@@ -29,12 +29,65 @@ local function chunks(text, limit)
 	return out
 end
 
-local function urlsFor(text, v)
+local function google(text, lang)
 	local list = {}
 	for _, c in ipairs(chunks(text, 190)) do
-		list[#list + 1] = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=" .. (v.lang or "ru") .. "&q=" .. urlencode(c)
+		list[#list + 1] = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=" .. (lang or "ru") .. "&q=" .. urlencode(c)
 	end
 	return list
+end
+
+-- ответы ttsmp3 (ссылка на готовый mp3) кэшируем: одни и те же реплики не запрашиваем дважды
+local pollyCache = {}
+
+-- cb(список ссылок) — для голоса v; nil — сервис не ответил
+local function resolve(text, v, cb)
+	if v.engine == "polly" then
+		local parts = chunks(text, 2900)
+		local out, left, failed = {}, #parts, false
+		for i, c in ipairs(parts) do
+			local key = v.voice .. "|" .. c
+			if pollyCache[key] then
+				out[i] = pollyCache[key]
+				left = left - 1
+				if left == 0 then cb(out) end
+			else
+				HTTP({ method = "POST", url = "https://ttsmp3.com/makemp3_new.php",
+					parameters = { msg = c, lang = v.voice, source = "ttsmp3" },
+					success = function(code, body)
+						local j = util.JSONToTable(body or "")
+						if code == 200 and j and j.URL and j.URL ~= "" and tonumber(j.Error) == 0 then
+							pollyCache[key] = j.URL
+							out[i] = j.URL
+						else failed = true end
+						left = left - 1
+						if left == 0 then cb(not failed and out or nil) end
+					end,
+					failed = function() failed = true left = left - 1 if left == 0 then cb(nil) end end })
+			end
+		end
+		return
+	end
+	local list = {}
+	if v.engine == "ispeech" then
+		for _, c in ipairs(chunks(text, 250)) do
+			list[#list + 1] = "https://www.ispeech.org/p/generic/getaudio?text=" .. urlencode(c) .. "&voice=" .. v.voice .. "&speed=0&action=convert"
+		end
+	elseif v.engine == "yandex" then
+		for _, c in ipairs(chunks(text, 400)) do
+			list[#list + 1] = "https://tts.voicetech.yandex.net/tts?format=mp3&quality=hi&platform=web&application=translate&lang=ru_RU&text=" .. urlencode(c)
+		end
+	elseif v.engine == "piper" then
+		local srv = string.Trim(GetConVar("nyrp_tts_server"):GetString())
+		if srv == "" then cb(nil) return end
+		srv = string.gsub(srv, "/+$", "")
+		for _, c in ipairs(chunks(text, 600)) do
+			list[#list + 1] = srv .. "/tts?voice=" .. urlencode(v.voice) .. "&text=" .. urlencode(c)
+		end
+	else
+		list = google(text, v.lang)
+	end
+	cb(list)
 end
 
 function N.StopSpeak()
@@ -52,8 +105,14 @@ local function playNext(my)
 	sound.PlayURL(url, flags, function(ch, err)
 		if not cur or cur.token ~= my then if IsValid(ch) then ch:Stop() end return end
 		if not IsValid(ch) then
-			-- сервис недоступен — молча без звука
-			N.StopSpeak()
+			-- этот сервис не ответил — дочитываем голосом Google (той же высоты)
+			if not cur.fallback then
+				cur.fallback = true
+				cur.queue = google(cur.text, "ru")
+				playNext(my)
+			else
+				N.StopSpeak()
+			end
 			return
 		end
 		cur.channel = ch
@@ -78,12 +137,21 @@ function N.Speak(ent, text, voiceId)
 	text = string.Trim(string.gsub(text, "%s+", " "))
 	if text == "" then return end
 	token = token + 1
-	cur = { ent = ent, queue = urlsFor(text, v), voice = v, token = token }
+	local my = token
+	cur = { ent = ent, queue = {}, voice = v, token = my, text = text }
 	if IsValid(ent) then
 		local jaw = ent:GetFlexIDByName("jaw_drop")
 		cur.jaw = jaw and jaw >= 0 and jaw or nil
 	end
-	playNext(token)
+	resolve(text, v, function(list)
+		if not cur or cur.token ~= my then return end
+		if not list or #list == 0 then
+			cur.fallback = true
+			list = google(text, "ru")
+		end
+		cur.queue = list
+		playNext(my)
+	end)
 end
 
 hook.Add("Think", "nyrp.npc.voice", function()
