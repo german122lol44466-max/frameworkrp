@@ -91,6 +91,7 @@ function Items.FromTable(id, I, folder)
 		uses = I.Uses, hunger = I.Hunger, thirst = I.Thirst, heal = I.Health, stamina = I.Stamina, sound = I.UseSound,
 		effects = I.Effects, onUse = I.OnUse, onEquip = I.OnEquip, onUnequip = I.OnUnequip,
 		data = I.Data, price = I.Price,
+		treats = I.Treats, treatSkill = I.Skill, treatSkillHead = I.SkillHead, treatTime = I.TreatTime, difficulty = I.Difficulty,
 	}
 	if def.category == "clothing" then def.slot = def.slot or (typ == "armor" and "vest" or "shirt") end
 	if def.weaponSlot then def.slot = nil end
@@ -109,7 +110,7 @@ function Items.FromTable(id, I, folder)
 		def.buffs = b
 	end
 	-- расходник без своего кода: сытость/жажда/здоровье/выносливость + звук
-	local consumable = typ == "food" or typ == "drink" or typ == "medical" or I.Hunger or I.Thirst or I.Health
+	local consumable = typ == "food" or typ == "drink" or (typ == "medical" and not I.Treats) or I.Hunger or I.Thirst or I.Health
 	if I.OnUse or consumable then
 		def.useText = def.useText or (typ == "drink" and "Выпить" or typ == "food" and "Съесть" or "Использовать")
 		def.use = function(ply, it)

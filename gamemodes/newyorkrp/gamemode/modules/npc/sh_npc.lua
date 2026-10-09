@@ -65,27 +65,29 @@ local function id(v) return string.sub(string.gsub(tostring(v or ""), "[^%w_%-]"
 -- Голоса озвучки реплик (TTS через интернет у клиента). rate меняет высоту/темп голоса.
 N.Voices = {
 	{ id = "", name = "Без озвучки" },
-	{ id = "maxim", name = "Максим — мужской", provider = "se", voice = "Maxim", rate = 1.0 },
-	{ id = "maxim_low", name = "Максим — низкий, басовитый", provider = "se", voice = "Maxim", rate = 0.86 },
-	{ id = "maxim_old", name = "Старик", provider = "se", voice = "Maxim", rate = 0.78 },
-	{ id = "maxim_fast", name = "Максим — быстрый, нервный", provider = "se", voice = "Maxim", rate = 1.15 },
-	{ id = "tatyana", name = "Татьяна — женский", provider = "se", voice = "Tatyana", rate = 1.0 },
-	{ id = "tatyana_low", name = "Татьяна — низкий", provider = "se", voice = "Tatyana", rate = 0.9 },
-	{ id = "tatyana_young", name = "Девушка — высокий", provider = "se", voice = "Tatyana", rate = 1.14 },
-	{ id = "child", name = "Ребёнок", provider = "se", voice = "Tatyana", rate = 1.32 },
-	{ id = "google", name = "Диктор (Google)", provider = "google", rate = 1.0 },
-	{ id = "google_low", name = "Диктор — низкий (Google)", provider = "google", rate = 0.85 },
-	{ id = "robot", name = "Автоответчик", provider = "google", rate = 0.72 },
-	{ id = "en_brian", name = "Брайан — английский акцент", provider = "se", voice = "Brian", rate = 1.0 },
-	{ id = "en_joanna", name = "Джоанна — английский акцент", provider = "se", voice = "Joanna", rate = 1.0 },
+	{ id = "google", name = "Диктор", lang = "ru", rate = 1.0 },
+	{ id = "maxim", name = "Мужской (ниже)", lang = "ru", rate = 0.84 },
+	{ id = "maxim_low", name = "Бас", lang = "ru", rate = 0.76 },
+	{ id = "maxim_old", name = "Старик (медленно)", lang = "ru", rate = 0.7 },
+	{ id = "maxim_fast", name = "Нервный (быстро)", lang = "ru", rate = 1.18 },
+	{ id = "tatyana", name = "Женский", lang = "ru", rate = 1.05 },
+	{ id = "tatyana_young", name = "Девушка", lang = "ru", rate = 1.15 },
+	{ id = "child", name = "Ребёнок", lang = "ru", rate = 1.32 },
+	{ id = "uk", name = "С украинским акцентом", lang = "uk", rate = 1.0 },
+	{ id = "uk_low", name = "С украинским акцентом — низкий", lang = "uk", rate = 0.82 },
+	{ id = "bg", name = "С болгарским акцентом", lang = "bg", rate = 1.0 },
+	{ id = "sr", name = "С сербским акцентом", lang = "sr", rate = 0.92 },
+	{ id = "robot", name = "Автоответчик", lang = "ru", rate = 0.66 },
 }
+-- старые id голосов из прошлых версий
+N.VoiceAlias = { tatyana_low = "tatyana", google_low = "maxim", en_brian = "maxim", en_joanna = "tatyana" }
 N.VoiceById = {}
 for _, v in ipairs(N.Voices) do N.VoiceById[v.id] = v end
 
 function N.Sanitize(d)
 	if type(d) ~= "table" then return end
 	local out = {
-		voice = N.VoiceById[d.voice or ""] and d.voice or "",
+		voice = N.VoiceById[N.VoiceAlias[d.voice or ""] or d.voice or ""] and (N.VoiceAlias[d.voice or ""] or d.voice) or "",
 		kind = N.Kinds[d.kind] and d.kind or "talk",
 		name = str(d.name, 48), desc = str(d.desc, 200),
 		model = str(d.model, 128), seq = str(d.seq, 64),

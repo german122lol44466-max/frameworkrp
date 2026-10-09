@@ -13,7 +13,7 @@ SWEP.SlotPos = 3
 SWEP.ViewModel = "models/nyrp/props/v_lighter.mdl"
 SWEP.WorldModel = "models/nyrp/props/w_lighter.mdl"
 SWEP.HoldType = "slam"
-SWEP.WMOffset = { pos = Vector(3.0, -1.4, -0.4), ang = Angle(0, -90, -90) }
+SWEP.WMOffset = { pos = Vector(1.2, 0, -1.0), ang = Angle(-10, 180, 0) }
 
 -- кадры анимации use (30 к/с): чирк на 18 и 30, пламя с 30 по 44
 local FLICK1, FLICK2, FLAME_END = 18 / 30, 30 / 30, 44 / 30
@@ -73,7 +73,7 @@ if CLIENT then
 				local bone = ply:LookupBone("ValveBiped.Bip01_R_Hand")
 				local m = bone and ply:GetBoneMatrix(bone)
 				if m then
-					local pos = LocalToWorld(Vector(3.0, -1.4, 1.6), Angle(), m:GetTranslation(), m:GetAngles())
+					local pos = m:GetTranslation() + Angle(0, ply:GetRenderAngles().y, 0):Forward() * 1.2 + Vector(0, 0, 1.6)
 					flame(pos, 1)
 					local dl = DynamicLight(ply:EntIndex() + 4000)
 					if dl then

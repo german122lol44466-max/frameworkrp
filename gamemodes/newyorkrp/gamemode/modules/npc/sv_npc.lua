@@ -297,6 +297,7 @@ net.Receive("nyrp.npc.choose", function(_, ply)
 		end
 		NYRP.Chars.Save(ply)
 		N.SyncQuests(ply)
+		if NYRP.Skills then NYRP.Skills.AddXP(ply, "intellect", 25) end
 		NYRP.Notify(ply, "Задание выполнено: " .. q.name .. (#got > 0 and (" · награда: " .. table.concat(got, ", ")) or ""), "success", 7)
 		sendNode(ply, ent, "#back", { text = q.done ~= "" and q.done or "Спасибо, выручил.", options = { { i = 1, text = "Обращайся.", act = "goto" } } })
 	end

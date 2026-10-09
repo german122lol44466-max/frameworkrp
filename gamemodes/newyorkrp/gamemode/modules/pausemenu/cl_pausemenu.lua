@@ -49,6 +49,8 @@ local binds = {
 		press = function() NYRP.Camera.ToggleThirdPerson() end },
 	{ cvar = "nyrp_bind_tpmenu", name = "Меню третьего лица", desc = "Дистанция, смещение, плавность",
 		press = function() NYRP.Camera.OpenMenu() end },
+	{ cvar = "nyrp_bind_health", name = "Состояние здоровья", desc = "Ранения по частям тела, лечение предметами из сумки",
+		press = function() if NYRP.Health and NYRP.Health.Toggle then NYRP.Health.Toggle() end end, always = true },
 }
 
 local function buildBinds(parent)

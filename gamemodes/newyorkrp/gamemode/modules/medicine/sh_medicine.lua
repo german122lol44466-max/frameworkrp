@@ -17,10 +17,10 @@ CB.WoundTime = { leg = 240, arm = 240, body = 300, head = 180 }
 
 function CB.Wound(ply, part) return Cond.Until(ply, "wound_" .. part) > 0 end
 
--- множитель разброса/отдачи: навык 0 → 1.3, 5 → 0.7; рука ранена → ×1.6
+-- множитель разброса/отдачи: навык 0 → 1.3, 10 → 0.7; рука ранена → ×1.6
 function CB.AimFactor(ply)
 	local sk = ply.nyrpChar and ply.nyrpChar.skills and ply.nyrpChar.skills.combat or ply:GetNW2Int("nyrp.skillCombat", 0)
-	local f = 1.3 - sk * 0.12
+	local f = 1.3 - math.min(sk, 10) * 0.06
 	if CB.Wound(ply, "arm") then f = f * 1.6 end
 	if Cond.Until(ply, "concussion") > 0 then f = f * 1.25 end
 	return f

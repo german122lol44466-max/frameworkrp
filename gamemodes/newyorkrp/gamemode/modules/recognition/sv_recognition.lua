@@ -38,6 +38,7 @@ function R.Introduce(ply)
 	end
 	R.Add(target, ply)
 	NYRP.Notify(ply, "Вы представились", "success")
+	if NYRP.Skills then NYRP.Skills.AddXP(ply, "intellect", 10) end
 end
 
 concommand.Add("nyrp_introduce", function(ply) if IsValid(ply) then R.Introduce(ply) end end)

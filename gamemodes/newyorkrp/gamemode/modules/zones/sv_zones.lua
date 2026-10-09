@@ -69,3 +69,21 @@ net.Receive("nyrp.zones.del", function(_, ply)
 		end
 	end
 end)
+
+-- новые места: первый визит в зону — опыт интеллекта
+timer.Create("nyrp.zones.discover", 2, 0, function()
+	for _, ply in ipairs(player.GetAll()) do
+		local c = ply.nyrpChar
+		if c and ply:Alive() then
+			local z = Z.At(ply:GetPos())
+			if z then
+				c.flags = c.flags or {}
+				c.flags.zonesSeen = c.flags.zonesSeen or {}
+				if not c.flags.zonesSeen[z.id] then
+					c.flags.zonesSeen[z.id] = true
+					hook.Run("NYRP.ZoneDiscovered", ply, z)
+				end
+			end
+		end
+	end
+end)

@@ -30,6 +30,7 @@ ICONS = {
     # курение, ранения по частям тела, броня, боевой навык
     "smoking": "cigarette", "cough": "lungs", "wound_leg": "leg", "wound_arm": "arm-sling", "wound_body": "bleeding-wound",
     "wound_head": "headshot", "bleeding": "bloody-stash", "armor": "kevlar-vest", "heavy": "weight", "combat": "crossed-swords",
+    "skills": "upgrade", "insight": "light-bulb", "body_front": "body-balance", "bandage": "bandage-roll", "splint": "leg-armor", "syringe": "syringe",
 }
 
 

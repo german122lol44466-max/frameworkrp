@@ -101,7 +101,8 @@ C.Skills = {
 	{ id = "combat", name = "Стрельба", icon = "crosshair", desc = "Меньше отдача и разброс, твёрже рука" },
 }
 C.SkillPoints = 10
-C.SkillMax = 5
+C.SkillMax = 5      -- максимум при создании персонажа
+C.SkillCap = 10     -- максимум, до которого навык прокачивается опытом
 
 C.HeightMin, C.HeightMax = 160, 200   -- рост, см
 
@@ -127,4 +128,5 @@ if CLIENT then
 	CreateClientConVar("nyrp_bind_gestures", tostring(KEY_G), true, false, "Клавиша: меню жестов")
 	CreateClientConVar("nyrp_bind_thirdperson", tostring(KEY_F3), true, false, "Клавиша: третье лицо")
 	CreateClientConVar("nyrp_bind_tpmenu", tostring(KEY_F4), true, false, "Клавиша: меню третьего лица")
+	CreateClientConVar("nyrp_bind_health", tostring(KEY_J), true, false, "Клавиша: состояние здоровья")
 end

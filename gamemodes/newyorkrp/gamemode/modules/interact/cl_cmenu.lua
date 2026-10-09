@@ -37,6 +37,10 @@ function CM.Open()
 		surface.DrawTexturedRect(0, 0, UI.S(420), h)
 	end
 	p.OnMousePressed = function() CM.Close() end
+	p.Think = function(s)
+		if gui.IsGameUIVisible() and not s.Closing then gui.HideGameUI() CM.Close() end
+		if not LocalPlayer():Alive() then CM.Close() end
+	end
 	local bh, gap = UI.S(50), UI.S(10)
 	local total = #list * (bh + gap) - gap
 	local y0 = ScrH() / 2 - total / 2
@@ -169,8 +173,9 @@ function CM.Info()
 			local v = info and info.skills and info.skills[s.id] or 0
 			UI.DrawIcon(s.icon, UI.S(10), y + UI.S(9), UI.S(18), UI.Col.accent)
 			draw.SimpleText(s.name, NYRP.Font("semibold", 14), UI.S(28), y, UI.Col.text)
-			for k = 1, NYRP.Config.SkillMax do
-				UI.RoundedRect(UI.S(3), w - (NYRP.Config.SkillMax - k + 1) * UI.S(22), y + UI.S(4), UI.S(18), UI.S(10),
+			local cap = NYRP.Config.SkillCap or NYRP.Config.SkillMax
+			for k = 1, cap do
+				UI.RoundedRect(UI.S(3), w - (cap - k + 1) * UI.S(16), y + UI.S(4), UI.S(12), UI.S(10),
 					k <= v and UI.Col.accent or Color(255, 255, 255, 20))
 			end
 			y = y + UI.S(26)
@@ -178,13 +183,13 @@ function CM.Info()
 	end
 end
 
--- C удерживается — меню открыто
+-- C — открыть/закрыть меню (не нужно держать: отпустили C — меню остаётся, чтобы спокойно кликнуть).
+-- Админам C открывает ещё и стандартное контекстное меню, пока C зажата.
 local function adminMenu() return LocalPlayer():IsAdmin() end
 function GM:OnContextMenuOpen()
-	CM.Open()
+	if IsValid(CM.Panel) and not CM.Panel.Closing then CM.Close() else CM.Open() end
 	if adminMenu() then return self.BaseClass.OnContextMenuOpen(self) end
 end
 function GM:OnContextMenuClose()
-	CM.Close()
 	if adminMenu() then return self.BaseClass.OnContextMenuClose(self) end
 end

@@ -42,3 +42,9 @@ bleeding.png <- bloody-stash
 armor.png <- kevlar-vest
 heavy.png <- weight
 combat.png <- crossed-swords
+skills.png <- upgrade
+insight.png <- light-bulb
+body_front.png <- body-balance
+bandage.png <- bandage-roll
+splint.png <- leg-armor
+syringe.png <- syringe

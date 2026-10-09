@@ -21,7 +21,8 @@ SWEP.DrawAmmo = false
 SWEP.DrawCrosshair = false
 SWEP.HoldType = "slam"
 SWEP.NYRPHandheld = true
-SWEP.WMOffset = { pos = Vector(3, -1.5, 0), ang = Angle(0, 0, 0) }
+-- от третьего лица: позиция от кисти, поворот — от направления корпуса (x — вперёд, y — влево, z — вверх)
+SWEP.WMOffset = { pos = Vector(1, 0, 0), ang = Angle(0, 0, 0) }
 SWEP.LoopSeqs = { idle = true, idle_use = true }
 SWEP.NextSeq = { draw = "idle", use = "idle", unuse = "idle" }
 
@@ -194,7 +195,7 @@ if CLIENT then
 		cam.End3D()
 	end)
 
-	-- от третьего лица — в правой ладони (смещение от кости кисти задаёт наследник)
+	-- от третьего лица — в правой ладони (смещение задаёт наследник)
 	function SWEP:DrawWorldModel()
 		local owner = self:GetOwner()
 		if not IsValid(owner) then self:DrawModel() return end
@@ -202,7 +203,10 @@ if CLIENT then
 		local bone = owner:LookupBone("ValveBiped.Bip01_R_Hand")
 		local m = bone and owner:GetBoneMatrix(bone)
 		if not m then return end
-		local pos, ang = LocalToWorld(self.WMOffset.pos, self.WMOffset.ang, m:GetTranslation(), m:GetAngles())
+		-- кость кисти у разных моделей и поз повёрнута по-разному (предметы ложились горизонтально),
+		-- поэтому ориентация берётся от корпуса, а от кисти — только положение
+		local body = Angle(0, owner:GetRenderAngles().y, 0)
+		local pos, ang = LocalToWorld(self.WMOffset.pos, self.WMOffset.ang, m:GetTranslation(), body)
 		self:SetRenderOrigin(pos)
 		self:SetRenderAngles(ang)
 		self:SetupBones()

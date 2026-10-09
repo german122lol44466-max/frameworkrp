@@ -25,12 +25,12 @@ C.Types = {
 -- появляется 1–2 предмета из его таблицы. Таблица: { id, вес, [мин], [макс] }.
 C.Loot = {
 	Interval = 300, Chance = 0.6,
-	crate = { Max = 4, { "water", 5 }, { "soda", 4 }, { "takeout", 3 }, { "crowbar", 1 }, { "gloves", 2 }, { "painkillers", 2 } },
+	crate = { Max = 4, { "water", 5 }, { "soda", 4 }, { "takeout", 3 }, { "crowbar", 1 }, { "gloves", 2 }, { "painkillers", 2 }, { "bandage", 3 }, { "cigpack", 2 }, { "lighter", 1 } },
 	locker = { Max = 6, { "tshirt", 4 }, { "jacket", 2 }, { "jeans", 3 }, { "sneakers", 3 }, { "cap", 3 }, { "gloves", 3 },
 		{ "sunglasses", 2 }, { "mask", 1 }, { "baton", 1 } },
 	dumpster = { Max = 5, { "takeout", 5 }, { "soda", 4 }, { "milk", 2 }, { "tshirt", 2 }, { "sneakers", 1 }, { "crowbar", 1 } },
 	fridge = { Max = 6, { "water", 6, 1, 2 }, { "soda", 5, 1, 2 }, { "milk", 4 }, { "takeout", 4 }, { "coffee", 3 } },
-	cabinet = { Max = 3, { "painkillers", 4 }, { "medkit", 2 }, { "coffee", 3 }, { "sunglasses", 1 } },
+	cabinet = { Max = 4, { "painkillers", 4 }, { "medkit", 2 }, { "coffee", 3 }, { "sunglasses", 1 }, { "bandage", 5, 1, 2 }, { "splint", 2 }, { "surgery_kit", 1 } },
 	ammo = { Max = 3, { "pistol", 3 }, { "revolver", 2 }, { "smg", 1 }, { "shotgun", 1 }, { "baton", 3 }, { "medkit", 3 } },
 }
 

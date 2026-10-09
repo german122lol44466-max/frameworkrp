@@ -4,6 +4,10 @@ ITEM.Model = "models/items/healthkit.mdl"
 ITEM.Stack = 2
 ITEM.Health = 40
 ITEM.UseSound = "items/medshot4.wav"
+ITEM.Treats = { head = true, body = true, arm = true, leg = true }   -- в меню состояния (J) — на любую часть тела
+ITEM.Skill = 0
+ITEM.TreatTime = 6
+ITEM.Difficulty = 0.05
 ITEM.Buffs = { { "+40 к здоровью", true }, { "Шина на перелом, снимает ушиб и кровотечение", true } }
 -- можно и при полном здоровье, если есть травма
 ITEM.OnUse = function(ply)

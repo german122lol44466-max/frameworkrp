@@ -180,7 +180,7 @@ function Chars.StartIntro()
 	pnl:MakePopup()
 	pnl:SetKeyboardInputEnabled(true)
 	pnl:SetCursor("blank")
-	gui.EnableScreenClicker(false)
+	NYRP.FreeMouse("legacy", false)
 	pnl.Born = RealTime()
 	local finished = false
 	local function finish()

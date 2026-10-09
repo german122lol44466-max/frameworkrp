@@ -127,11 +127,11 @@ end)
 -- ---------------------------------------------------------------- сеанс --
 local function setClicker(on)
 	if A then A.clicker = on end
-	gui.EnableScreenClicker(on)
+	NYRP.FreeMouse("atm", on)
 end
 
 local function finish()
-	if A and A.clicker then gui.EnableScreenClicker(false) end
+	if A and A.clicker then NYRP.FreeMouse("atm", false) end
 	A = nil
 	freeModels()
 end

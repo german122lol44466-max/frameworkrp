@@ -132,7 +132,7 @@ function M.Open()
 	-- левая колонка: «Воспоминания» и подкатегории
 	local col = vgui.Create("DPanel", f)
 	col:SetPos(UI.S(40), H * 0.28 + UI.S(210))
-	col:SetSize(leftW - UI.S(80), UI.S(320))
+	col:SetSize(leftW - UI.S(80), UI.S(380))
 	col.Paint = nil
 	col:SetAlpha(0)
 
@@ -181,6 +181,8 @@ function M.Open()
 			function() f.Cat = "people" buildContent() end, UI.S(26))
 		subs[2] = catButton(col, UI.S(148), UI.S(58), "Мысли", nil, "mem_thought", function() return f.Cat == "thoughts" end,
 			function() f.Cat = "thoughts" buildContent() end, UI.S(26))
+		subs[3] = catButton(col, UI.S(214), UI.S(58), "Навыки", nil, "skills", function() return f.Cat == "skills" end,
+			function() f.Cat = "skills" if NYRP.Skills.Request then NYRP.Skills.Request() end buildContent() end, UI.S(26))
 		for _, s in ipairs(subs) do s:SetAlpha(0) s:SetVisible(false) end
 		f.Subs = subs
 	end
@@ -191,6 +193,10 @@ function M.Open()
 		content:SetAlpha(0)
 		content:AlphaTo(255, 0.25)
 		local cw = content:GetWide()
+		if f.Cat == "skills" then
+			M.BuildSkills(content)
+			return
+		end
 		if f.Cat == "people" then
 			local head = vgui.Create("DPanel", content)
 			head:Dock(TOP)
@@ -366,3 +372,66 @@ hook.Add("Think", "nyrp.memory.key", function()
 	if not LocalPlayer():Alive() then return end
 	M.Open()
 end)
+
+-- ------------------------------------------------------------------ Навыки --
+-- уровни, опыт до следующего, «практика дня», как качать и что даёт каждый уровень
+function M.BuildSkills(content)
+	local SK = NYRP.Skills
+	local head = vgui.Create("DPanel", content)
+	head:Dock(TOP)
+	head:SetTall(UI.S(70))
+	head.Paint = function(_, w, h)
+		icon("skills", UI.S(22), UI.S(26), UI.S(34), GOLD)
+		draw.SimpleText("НАВЫКИ", NYRP.Font("title", 30), UI.S(52), UI.S(26), INK, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Навыки растут от дела. За сутки первые " .. SK.DailyFull .. " опыта навыка идут полностью, дальше — вполовину. Иногда приходит озарение ×2.",
+			NYRP.Font("regular", 14), UI.S(2), UI.S(56), DIM, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+	end
+	local scroll = vgui.Create("NYRP.Scroll", content)
+	scroll:Dock(FILL)
+	local cap = NYRP.Config.SkillCap or 10
+	for i, s in ipairs(NYRP.Config.Skills) do
+		local info = SK.Info[s.id] or { how = {}, perks = {} }
+		local card = scroll:Add("DPanel")
+		card:Dock(TOP)
+		card:DockMargin(0, 0, UI.S(10), UI.S(12))
+		local perkN = table.Count(info.perks)
+		card:SetTall(UI.S(118) + math.max(#info.how, perkN) * UI.S(20))
+		card.Born = RealTime() + i * 0.05
+		card.Paint = function(p, w, h)
+			p:SetAlpha(255 * math.Clamp((RealTime() - p.Born) / 0.3, 0, 1))
+			local d = SK.Data
+			local lvl = d and d.skills[s.id] or SK.Level(LocalPlayer(), s.id)
+			local xp = d and d.xp[s.id] or 0
+			local need = SK.Need(lvl)
+			local got = d and d.today[s.id] or 0
+			UI.RoundedRect(UI.S(14), 0, 0, w, h, Color(255, 255, 255, 10))
+			UI.DrawIcon(s.icon, UI.S(30), UI.S(32), UI.S(28), GOLD)
+			draw.SimpleText(s.name, NYRP.Font("title", 24), UI.S(56), UI.S(20), INK)
+			draw.SimpleText(s.desc, NYRP.Font("regular", 13), UI.S(56), UI.S(48), DIM)
+			draw.SimpleText("Уровень " .. lvl .. " / " .. cap, NYRP.Font("bold", 18), w - UI.S(20), UI.S(18), GOLD, TEXT_ALIGN_RIGHT)
+			-- шкала опыта
+			local bx, by, bw = UI.S(56), UI.S(74), w - UI.S(76)
+			UI.RoundedRect(UI.S(4), bx, by, bw, UI.S(8), Color(0, 0, 0, 120))
+			local fr = lvl >= cap and 1 or math.Clamp(xp / need, 0, 1)
+			if fr > 0 then UI.RoundedRect(UI.S(4), bx, by, math.max(UI.S(8), bw * fr), UI.S(8), Color(150, 120, 255)) end
+			draw.SimpleText(lvl >= cap and "Максимум" or (math.floor(xp) .. " / " .. need .. " опыта"), NYRP.Font("medium", 12), bx, by + UI.S(12), DIM)
+			local tired = got >= SK.DailyFull
+			draw.SimpleText("Сегодня: " .. math.floor(got) .. (tired and " — устал, опыт вполовину" or (" из " .. SK.DailyFull .. " полного")),
+				NYRP.Font("medium", 12), bx + bw, by + UI.S(12), tired and Color(230, 150, 90) or DIM, TEXT_ALIGN_RIGHT)
+			-- как качать / перки
+			local y = UI.S(110)
+			local half = (w - UI.S(76)) / 2
+			draw.SimpleText("КАК КАЧАТЬ", NYRP.Font("bold", 11), bx, y - UI.S(6), Color(200, 190, 255))
+			for k, t in ipairs(info.how) do draw.SimpleText("• " .. t, NYRP.Font("regular", 13), bx, y + k * UI.S(20) - UI.S(8), INK) end
+			draw.SimpleText("ЧТО ДАЁТ", NYRP.Font("bold", 11), bx + half, y - UI.S(6), Color(200, 190, 255))
+			local lv = table.GetKeys(info.perks)
+			table.sort(lv)
+			for k, L in ipairs(lv) do
+				local open = lvl >= L
+				draw.SimpleText((open and "• " or "· ") .. "ур. " .. L .. ": " .. info.perks[L], NYRP.Font("regular", 13), bx + half, y + k * UI.S(20) - UI.S(8),
+					open and Color(150, 230, 140) or Color(150, 148, 170))
+			end
+		end
+	end
+	SK.OnChange = function() end
+end

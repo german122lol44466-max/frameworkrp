@@ -6,3 +6,5 @@ ITEM.Health = 15
 ITEM.Thirst = -5
 ITEM.UseText = "Уколоть"
 ITEM.UseSound = "items/smallmedkit1.wav"
+ITEM.Treats = { head = true }      -- в меню состояния (J): снимает сотрясение
+ITEM.TreatTime = 2

@@ -1,5 +1,5 @@
 --[[
-	Озвучка реплик NPC (TTS из интернета у клиента): голос выбирается в редакторе NPC (вкладка «Основное»).
+	Озвучка реплик NPC (TTS Google у клиента; разные голоса — высота/темп и дикторы других языков): голос выбирается в редакторе NPC (вкладка «Основное»).
 	Звук идёт из NPC (3D), губы двигаются по громкости. Отключить: nyrp_npc_voice 0, громкость — nyrp_npc_voice_volume.
 ]]
 
@@ -31,14 +31,8 @@ end
 
 local function urlsFor(text, v)
 	local list = {}
-	if v.provider == "google" then
-		for _, c in ipairs(chunks(text, 190)) do
-			list[#list + 1] = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ru&q=" .. urlencode(c)
-		end
-	else
-		for _, c in ipairs(chunks(text, 480)) do
-			list[#list + 1] = "https://api.streamelements.com/kappa/v2/speech?voice=" .. v.voice .. "&text=" .. urlencode(c)
-		end
+	for _, c in ipairs(chunks(text, 190)) do
+		list[#list + 1] = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=" .. (v.lang or "ru") .. "&q=" .. urlencode(c)
 	end
 	return list
 end
@@ -76,7 +70,7 @@ end
 -- ent — NPC (nil — проиграть «в ушах», для прослушивания в редакторе)
 function N.Speak(ent, text, voiceId)
 	N.StopSpeak()
-	local v = N.VoiceById[voiceId or ""]
+	local v = N.VoiceById[N.VoiceAlias[voiceId or ""] or voiceId or ""]
 	if not v or v.id == "" or not enabled:GetBool() or not text or text == "" then return end
 	-- в речи не нужны ремарки в звёздочках и скобках
 	text = string.gsub(text, "%*[^%*]*%*", " ")

@@ -12,7 +12,7 @@ function R.OpenUI()
 	local freq = ply:GetNW2Float("nyrp.radioSet", 150)
 	if freq <= 0 then freq = 150 end
 	local on = R.Freq(ply) > 0
-	local win, body = UI.Window("Рация", "radio", 420, 380, { sub = "100.0 – 300.0 МГц", keyboard = true })
+	local win, body = UI.Window("Рация", "radio", 440, 500, { sub = "100.0 – 300.0 МГц", keyboard = true })
 	R.Win = win
 	local lcd = vgui.Create("DPanel", body)
 	lcd:Dock(TOP)

@@ -342,6 +342,7 @@ net.Receive("nyrp.body.act", function(_, ply)
 			if IsValid(owner) and Cond.KO(owner) and owner.nyrpKO and owner.nyrpKO.rag == rag then
 				Cond.WakeUp(owner)
 				NYRP.Notify(owner, "Вам помогли подняться", "success")
+				if NYRP.Skills then NYRP.Skills.AddXP(ply, "medicine", 10) end
 			end
 		end, "user")
 	elseif act == "treat" then
@@ -359,6 +360,7 @@ net.Receive("nyrp.body.act", function(_, ply)
 			Cond.WakeUp(owner, hp)
 			NYRP.Notify(owner, "Вам оказали первую помощь", "success")
 			NYRP.Notify(ply, "Вы оказали первую помощь", "success")
+			if NYRP.Skills then NYRP.Skills.AddXP(ply, "medicine", 25) end
 		end, "medkit")
 	end
 end)

@@ -30,61 +30,62 @@ function vgui.CreateFromTable(...)
 	return hide(origFromTable(...))
 end
 
--- Свободная мышь (gui.EnableScreenClicker): «пустой» курсор у панели мира заставляет движок снова
--- захватывать мышь под обзор. Поэтому свободная мышь — это невидимая панель на весь экран поверх игры:
--- курсор у неё наш, клики уходят в обычный хук GUIMousePressed/GUIMouseReleased, клавиатура остаётся у игры.
-local origClicker = gui.NYRPOrigClicker or gui.EnableScreenClicker
-gui.NYRPOrigClicker = origClicker
-NYRP.ScreenClicker = NYRP.ScreenClicker or false
+-- Свободная мышь. Штатный gui.EnableScreenClicker у части клиентов не срабатывает (видно в отладке),
+-- поэтому мышь освобождает своя невидимая панель-«ловушка» на весь экран (как у инвентаря — popup).
+-- Кто просит мышь: NYRP.FreeMouse("phone", true/false) — мышь свободна, пока её просит хоть кто-то.
+-- Клики уходят в GUIMousePressed/GUIMouseReleased, колесо — в NYRP.MouseWheel, клавиатура остаётся у игры.
+NYRP.MouseOwners = NYRP.MouseOwners or {}
+NYRP.ScreenClicker = false
 local catcher
 
-function gui.EnableScreenClicker(on)
-	NYRP.ScreenClicker = on and true or false
-	origClicker(on)                         -- штатное освобождение мыши движком
-	if on then
-		if IsValid(catcher) then return end
-		catcher = origCreate("EditablePanel")
-		catcher:SetSize(ScrW(), ScrH())
-		catcher:SetPos(0, 0)
-		catcher:MakePopup()
-		catcher:SetKeyboardInputEnabled(false)
-		catcher:SetMouseInputEnabled(true)
-		catcher:SetCursor("arrow")
-		catcher.Paint = function() end
-		catcher.OnMousePressed = function(_, code) hook.Run("GUIMousePressed", code, gui.ScreenToVector(gui.MousePos())) end
-		catcher.OnMouseReleased = function(_, code) hook.Run("GUIMouseReleased", code, gui.ScreenToVector(gui.MousePos())) end
-		catcher.OnMouseWheeled = function(_, delta) hook.Run("NYRP.MouseWheel", delta) end
-		catcher.OnScreenSizeChanged = function(s) s:SetSize(ScrW(), ScrH()) end
-	else
-		if IsValid(catcher) then catcher:Remove() end
+local function makeCatcher()
+	catcher = origCreate("EditablePanel")
+	catcher:SetSize(ScrW(), ScrH())
+	catcher:SetPos(0, 0)
+	catcher:MakePopup()
+	catcher:SetKeyboardInputEnabled(false)
+	catcher:SetMouseInputEnabled(true)
+	catcher:SetCursor("arrow")
+	catcher.Paint = function() end
+	catcher.OnMousePressed = function(_, code) hook.Run("GUIMousePressed", code, gui.ScreenToVector(gui.MousePos())) end
+	catcher.OnMouseReleased = function(_, code) hook.Run("GUIMouseReleased", code, gui.ScreenToVector(gui.MousePos())) end
+	catcher.OnMouseWheeled = function(_, delta) hook.Run("NYRP.MouseWheel", delta) end
+	catcher.OnScreenSizeChanged = function(s) s:SetSize(ScrW(), ScrH()) end
+end
+
+local function update()
+	local any = next(NYRP.MouseOwners) ~= nil
+	NYRP.ScreenClicker = any
+	if any then
+		if not IsValid(catcher) then makeCatcher() end
+	elseif IsValid(catcher) then
+		catcher:Remove()
 		catcher = nil
 	end
 end
 
+function NYRP.FreeMouse(owner, on)
+	NYRP.MouseOwners[owner or "?"] = on and true or nil
+	update()
+end
+
+-- совместимость: старые вызовы и аддоны
+function gui.EnableScreenClicker(on) NYRP.FreeMouse("legacy", on) end
+
 function gui.NYRPCatcher() return catcher end
 
--- Сторож свободной мыши: если что-то (движок, другая панель, смена фокуса) снова захватило мышь,
--- пока она должна быть свободной, — возвращаем. Не чаще 4 раз в секунду, чтобы не мерцало.
-local nextFix = 0
+-- Сторож: ловушку удалили/спрятали, пока мышь нужна, — создаём заново.
 hook.Add("Think", "nyrp.cursor.keep", function()
-	if not NYRP.ScreenClicker or gui.IsGameUIVisible() then return end
+	if not NYRP.ScreenClicker then return end
 	if not IsValid(catcher) or not catcher:IsVisible() then
 		if IsValid(catcher) then catcher:Remove() end
-		catcher = nil
-		gui.EnableScreenClicker(true)
-		return
+		makeCatcher()
 	end
 end)
 
--- Если мышь всё же захвачена игрой, движения приходят сюда как повороты камеры —
--- это и есть признак «мышь пропала»: камеру не крутим и снова освобождаем курсор.
-hook.Add("InputMouseApply", "nyrp.cursor.keep", function(cmd, x, y)
+-- пока мышь свободна, камера мышью не крутится
+hook.Add("InputMouseApply", "nyrp.cursor.keep", function(cmd)
 	if not NYRP.ScreenClicker or gui.IsGameUIVisible() then return end
-	if (x ~= 0 or y ~= 0) and RealTime() > nextFix then
-		nextFix = RealTime() + 0.5
-		origClicker(false)
-		origClicker(true)
-	end
 	cmd:SetMouseX(0)
 	cmd:SetMouseY(0)
 	return true
@@ -97,7 +98,7 @@ hook.Add("PostRenderVGUI", "nyrp.cursor.debug", function()
 	local hov = vgui.GetHoveredPanel()
 	local foc = vgui.GetKeyboardFocus()
 	local lines = {
-		"ScreenClicker: " .. tostring(NYRP.ScreenClicker),
+		"ScreenClicker: " .. tostring(NYRP.ScreenClicker) .. " (" .. table.concat(table.GetKeys(NYRP.MouseOwners), ",") .. ")",
 		"CursorVisible: " .. tostring(vgui.CursorVisible()),
 		"catcher: " .. tostring(IsValid(catcher)) .. (IsValid(catcher) and (" visible=" .. tostring(catcher:IsVisible())) or ""),
 		"hovered: " .. (IsValid(hov) and (hov:GetClassName() .. " " .. tostring(hov.NYRPCursor)) or "-"),

@@ -13,7 +13,7 @@ local ORANGE = Color(247, 198, 0) -- жёлтый «такси», как в ло
 local function close(silent, fromServer)
 	if D and not D.closing then
 		D.closing = RealTime()
-		gui.EnableScreenClicker(false)
+		NYRP.FreeMouse("npc", false)
 		if N.StopSpeak then N.StopSpeak() end
 		if not silent then UI.Sound("close") end
 		-- сервер должен знать, что разговор окончен
@@ -37,7 +37,7 @@ net.Receive("nyrp.npc.node", function()
 	D = { ent = ent, text = text, opts = opts, sel = 1, acc = 0, typed = 0,
 		born = fresh and RealTime() or D.born, nodeBorn = RealTime(), hover = {} }
 	UI.Sound(fresh and "open" or "swipe")
-	if fresh then gui.EnableScreenClicker(true) end
+	if fresh then NYRP.FreeMouse("npc", true) end
 	-- озвучка реплики голосом, выбранным в редакторе
 	if N.Speak and IsValid(ent) then N.Speak(ent, text, ent:GetNW2String("nyrp.npcVoice", "")) end
 end)

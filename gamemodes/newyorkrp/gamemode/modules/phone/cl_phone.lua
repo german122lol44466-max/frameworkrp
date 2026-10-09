@@ -128,7 +128,7 @@ function P.CloseUI(instant)
 	if P.Prompt then P.CancelPrompt() end
 	P.Open = false
 	closing = RealTime()
-	if P.Mouse then P.Mouse = false gui.EnableScreenClicker(false) end
+	if P.Mouse then P.Mouse = false NYRP.FreeMouse("phone", false) end
 	if P.OnClose then P.OnClose() end
 	surface.PlaySound("nyrp/phone/lock.wav")
 	if instant then closing = nil end
@@ -279,7 +279,7 @@ function P.ToggleMouse(on)
 	P.LastToggle = RealTime()
 	if on == nil then on = not P.Mouse end
 	P.Mouse = on
-	gui.EnableScreenClicker(on)
+	NYRP.FreeMouse("phone", on)
 	if on then
 		local x, y, w, h = P.Rect()
 		input.SetCursorPos(math.floor(x + w / 2), math.floor(y + h * 0.55))

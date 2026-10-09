@@ -14,7 +14,7 @@ SWEP.SlotPos = 3
 SWEP.ViewModel = "models/nyrp/props/v_keys.mdl"
 SWEP.WorldModel = "models/nyrp/props/w_keys.mdl"
 SWEP.HoldType = "slam"
-SWEP.WMOffset = { pos = Vector(3.2, -1.6, -0.6), ang = Angle(0, 0, 90) }
+SWEP.WMOffset = { pos = Vector(1.2, 0, -0.4), ang = Angle(0, 90, 0) }
 
 local RANGE = 90
 

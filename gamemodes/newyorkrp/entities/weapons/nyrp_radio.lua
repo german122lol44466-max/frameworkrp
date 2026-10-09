@@ -13,7 +13,7 @@ SWEP.SlotPos = 2
 SWEP.ViewModel = "models/nyrp/props/v_radio.mdl"
 SWEP.WorldModel = "models/nyrp/props/w_radio.mdl"
 SWEP.HoldType = "slam"
-SWEP.WMOffset = { pos = Vector(3.4, -1.4, -2.4), ang = Angle(0, -90, -90) }
+SWEP.WMOffset = { pos = Vector(1.6, 0, -2.6), ang = Angle(-8, 0, 0) }
 SWEP.NextSeq = { draw = "idle", use = "idle_use", unuse = "idle" }
 
 function SWEP:PrimaryAttack()
