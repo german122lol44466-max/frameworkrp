@@ -52,3 +52,22 @@ concommand.Add("nyrp_givemoney", function(ply, _, args)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
 	if IsValid(ply) then M.Add(ply, tonumber(args[1]) or 100) end
 end)
+
+-- Выбросить наличные (меню C): пачка денег у ног.
+net.Receive("nyrp.money.drop", function(_, ply)
+	if (ply.nyrpMoneyNext or 0) > CurTime() then return end
+	ply.nyrpMoneyNext = CurTime() + 1
+	local amount = math.floor(net.ReadUInt(32))
+	if not NYRP.HasCharacter(ply) or not ply:Alive() or amount <= 0 then return end
+	if M.Get(ply) < amount then NYRP.Notify(ply, "У вас нет такой суммы", "error") return end
+	M.Set(ply, M.Get(ply) - amount)
+	local e = ents.Create("nyrp_money")
+	local tr = util.TraceLine({ start = ply:EyePos(), endpos = ply:EyePos() + ply:GetAimVector() * 50, filter = ply })
+	e:SetPos(tr.HitPos + tr.HitNormal * 4)
+	e:SetAngles(Angle(0, ply:EyeAngles().y + math.random(-20, 20), 0))
+	e:Spawn()
+	e:SetAmount(amount)
+	ply:EmitSound("nyrp/fx/money.wav", 55)
+	ply:AnimRestartGesture(GESTURE_SLOT_CUSTOM, ACT_GMOD_GESTURE_ITEM_DROP, true)
+	NYRP.Notify(ply, "Вы выбросили " .. M.Format(amount), "item", 3)
+end)

@@ -98,6 +98,7 @@ C.Skills = {
 	{ id = "agility", name = "Ловкость", icon = "walk", desc = "+3% к силе прыжка за очко" },
 	{ id = "intellect", name = "Интеллект", icon = "info", desc = "Дольше помните имена знакомых" },
 	{ id = "medicine", name = "Медицина", icon = "medkit", desc = "Точнее пульс, быстрее первая помощь" },
+	{ id = "combat", name = "Стрельба", icon = "crosshair", desc = "Меньше отдача и разброс, твёрже рука" },
 }
 C.SkillPoints = 10
 C.SkillMax = 5

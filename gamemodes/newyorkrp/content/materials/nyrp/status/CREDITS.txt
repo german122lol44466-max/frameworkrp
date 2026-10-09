@@ -32,3 +32,13 @@ mem_people.png <- shaking-hands
 mem_thought.png <- thought-bubble
 mem_done.png <- scroll-unfurled
 mem_eye.png <- semi-closed-eye
+smoking.png <- cigarette
+cough.png <- lungs
+wound_leg.png <- leg
+wound_arm.png <- arm-sling
+wound_body.png <- bleeding-wound
+wound_head.png <- headshot
+bleeding.png <- bloody-stash
+armor.png <- kevlar-vest
+heavy.png <- weight
+combat.png <- crossed-swords

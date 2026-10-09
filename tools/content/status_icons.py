@@ -27,12 +27,19 @@ ICONS = {
     # меню памяти (H)
     "mem_brain": "brain", "mem_think": "think", "mem_memories": "spiral-bloom", "mem_people": "shaking-hands",
     "mem_thought": "thought-bubble", "mem_done": "scroll-unfurled", "mem_eye": "semi-closed-eye",
+    # курение, ранения по частям тела, броня, боевой навык
+    "smoking": "cigarette", "cough": "lungs", "wound_leg": "leg", "wound_arm": "arm-sling", "wound_body": "bleeding-wound",
+    "wound_head": "headshot", "bleeding": "bloody-stash", "armor": "kevlar-vest", "heavy": "weight", "combat": "crossed-swords",
 }
 
 
 def main():
-    meta = json.load(urllib.request.urlopen("https://registry.npmjs.org/@iconify-json/game-icons/latest"))
-    data = urllib.request.urlopen(meta["dist"]["tarball"]).read()
+    cached = os.environ.get("NYRP_GI_TGZ")
+    if cached and os.path.exists(cached):
+        data = open(cached, "rb").read()
+    else:
+        meta = json.load(urllib.request.urlopen("https://registry.npmjs.org/@iconify-json/game-icons/latest"))
+        data = urllib.request.urlopen(meta["dist"]["tarball"]).read()
     with tarfile.open(fileobj=io.BytesIO(data)) as t:
         icons = json.load(t.extractfile("package/icons.json"))
     size = icons.get("width", 512)

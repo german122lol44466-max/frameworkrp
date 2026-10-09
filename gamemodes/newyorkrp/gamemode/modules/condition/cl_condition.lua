@@ -167,7 +167,7 @@ hook.Add("Think", "nyrp.condition.fx", function()
 	fatigue = UI.Approach(fatigue, wantF, wantF > fatigue and 2 or 0.8)
 	local hp = ply:Health()
 	local wantW = alive and math.Clamp((50 - hp) / 45, 0, 1) or 0
-	if Cond.KO(ply) then wantW = math.max(wantW, ply:GetNW2Bool("nyrp.koCritical") and 0.85 or 0.3) end
+	if Cond.KO(ply) and not ply:GetNW2Bool("nyrp.koSoft") then wantW = math.max(wantW, ply:GetNW2Bool("nyrp.koCritical") and 0.85 or 0.3) end
 	wound = UI.Approach(wound, wantW, 3)
 
 	local conc = alive and math.Clamp(Cond.Until(ply, "concussion") / 20, 0, 1) or 0

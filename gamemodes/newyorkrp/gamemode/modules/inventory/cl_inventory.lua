@@ -192,6 +192,11 @@ function SLOTP:Paint(w, h)
 		if it.n > 1 then
 			draw.SimpleText("×" .. it.n, NYRP.Font("bold", 14), w - UI.S(6), h - UI.S(4), UI.Col.text, TEXT_ALIGN_RIGHT, TEXT_ALIGN_BOTTOM)
 		end
+		local idef = Items.Get(it.id)
+		if idef and idef.uses and idef.uses > 1 then
+			local left = it.data and it.data.uses or idef.uses
+			draw.SimpleText(left .. "/" .. idef.uses, NYRP.Font("bold", 12), UI.S(6), h - UI.S(4), UI.Col.accent, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
+		end
 		if Inv.DetailRef and Inv.DetailRef.kind == self.Kind and tostring(Inv.DetailRef.key) == tostring(self.Key) then
 			UI.Outline(r, 0, 0, w, h, UI.Col.accent, 2)
 		end
@@ -877,13 +882,7 @@ function GM:OnSpawnMenuClose()
 	end
 end
 
--- Контекстное меню (C) только у админов.
-function GM:OnContextMenuOpen()
-	if LocalPlayer():IsAdmin() then return self.BaseClass.OnContextMenuOpen(self) end
-end
-function GM:OnContextMenuClose()
-	if LocalPlayer():IsAdmin() then return self.BaseClass.OnContextMenuClose(self) end
-end
+-- Контекстное меню (C) — modules/interact/cl_cmenu.lua.
 
 hook.Add("NYRP.StateChanged", "nyrp.inv", function(state)
 	if state ~= "playing" then Inv.Close() end

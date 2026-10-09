@@ -112,7 +112,9 @@ end
 net.Receive("nyrp.inv.anim", function()
 	local ply = net.ReadEntity()
 	local act = net.ReadUInt(16)
-	if IsValid(ply) then ply:AnimRestartGesture(GESTURE_SLOT_CUSTOM, act, true) end
+	if not IsValid(ply) then return end
+	if act == 0 then ply:AnimResetGestureSlot(GESTURE_SLOT_CUSTOM) return end   -- прервать (танец, когда пошёл)
+	ply:AnimRestartGesture(GESTURE_SLOT_CUSTOM, act, true)
 end)
 
 -- Камера при открытии: поясная — взгляд вниз на сумку, рюкзак — через плечо.

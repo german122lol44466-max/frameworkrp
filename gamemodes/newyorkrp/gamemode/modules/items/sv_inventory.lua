@@ -334,8 +334,39 @@ net.Receive("nyrp.inv.use", function(_, ply)
 	if not it then return end
 	local def = Items.Get(it.id)
 	if not def.use then return end
-	if def.use(ply, it) then Inv.Take(ply, slot, 1) end
+	if not def.use(ply, it) then return end
+	-- предмет на несколько использований (пачка сигарет, зажигалка): тратим заряд
+	if def.uses and def.uses > 1 then
+		it.data = it.data or {}
+		it.data.uses = (it.data.uses or def.uses) - 1
+		if it.data.uses > 0 then
+			if it.n > 1 then
+				-- отделяем начатый от стопки
+				local rest = it.n - 1
+				it.n = 1
+				local free = Inv.FreeSlot(ply)
+				if free then inv.slots[free] = { id = it.id, n = rest, data = {} } else it.n = it.n + rest end
+			end
+			Inv.Sync(ply)
+			return
+		end
+	end
+	Inv.Take(ply, slot, 1)
+	-- что остаётся после (пустая бутылка и т.п.)
+	if def.leaves and Items.Get(def.leaves) then
+		if Inv.Add(ply, def.leaves, 1) <= 0 then Inv.DropNew(ply, def.leaves, 1) end
+	end
 end)
+
+-- выбросить новый предмет к ногам (когда в сумке нет места)
+function Inv.DropNew(ply, id, n, data)
+	local e = ents.Create("nyrp_item")
+	if not IsValid(e) then return end
+	e:SetItem(id, n or 1, data)
+	e:SetPos(ply:GetPos() + ply:GetForward() * 20 + Vector(0, 0, 20))
+	e:Spawn()
+	return e
+end
 
 function Inv.Drop(ply, kind, key, all)
 	local inv = Inv.Get(ply)

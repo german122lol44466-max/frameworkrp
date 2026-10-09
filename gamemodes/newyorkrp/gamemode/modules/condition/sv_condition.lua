@@ -45,6 +45,18 @@ timer.Create("nyrp.condition", TICK, 0, function()
 			end
 			st = math.Clamp(st, 0, cap)
 			ply:SetNW2Float("nyrp.stamina", st)
+			-- пытается бежать, когда сил нет: может споткнуться и упасть
+			local tryRun = ply:KeyDown(IN_SPEED) and ply:KeyDown(IN_FORWARD) and speed > 40 and ply:OnGround()
+			if tryRun and (st <= 1 or Cond.Exhausted(ply)) then
+				ply.nyrpTryRun = (ply.nyrpTryRun or 0) + TICK
+				if ply.nyrpTryRun > 1.5 and math.random() < 0.035 then
+					ply.nyrpTryRun = 0
+					Cond.Fall(ply, false, 2.5)
+					NYRP.Notify(ply, "Вы споткнулись от усталости", "warning", 3)
+				end
+			else
+				ply.nyrpTryRun = 0
+			end
 			if st <= 0 and not Cond.Exhausted(ply) then
 				ply:SetNW2Bool("nyrp.exhausted", true)
 			elseif st >= S.Recover and Cond.Exhausted(ply) then
@@ -166,12 +178,31 @@ function Cond.KnockOut(ply, critical)
 	rag:EmitSound("nyrp/fx/body_fall.wav", 70)
 end
 
+-- Упасть: voluntary — сам лёг (C-меню → «Упасть»), встать — Пробел; иначе споткнулся (без сознания не теряет).
+function Cond.Fall(ply, voluntary, duration)
+	if Cond.KO(ply) or not ply:Alive() then return end
+	Cond.KnockOut(ply, false)
+	if not Cond.KO(ply) then return end
+	ply.nyrpKO.soft = true
+	ply:SetNW2Bool("nyrp.koSoft", true)
+	ply:SetNW2Bool("nyrp.koVoluntary", voluntary and true or false)
+	ply:SetNW2Float("nyrp.koUntil", CurTime() + (duration or (voluntary and 600 or 2.5)))
+end
+
+hook.Add("KeyPress", "nyrp.condition.getup", function(ply, key)
+	if key ~= IN_JUMP or not ply.nyrpKO or not ply.nyrpKO.soft or not ply:GetNW2Bool("nyrp.koVoluntary") then return end
+	if CurTime() - ply:GetNW2Float("nyrp.koStart", 0) < 1.5 then return end
+	Cond.WakeUp(ply)
+end)
+
 function cleanupKO(ply)
 	local ko = ply.nyrpKO
 	ply.nyrpKO = nil
 	if ko and IsValid(ko.rag) then ko.rag:Remove() end
 	ply:SetNW2Bool("nyrp.ko", false)
 	ply:SetNW2Bool("nyrp.koCritical", false)
+	ply:SetNW2Bool("nyrp.koSoft", false)
+	ply:SetNW2Bool("nyrp.koVoluntary", false)
 	ply:SetNW2Entity("nyrp.koRag", NULL)
 	ply:SetNoDraw(false)
 	ply:SetNotSolid(false)
@@ -197,11 +228,13 @@ end
 
 function Cond.WakeUp(ply, hp)
 	if not Cond.KO(ply) then return end
+	local soft = ply.nyrpKO and ply.nyrpKO.soft
 	local rag = ply.nyrpKO and ply.nyrpKO.rag
 	local pos = IsValid(rag) and standPos(ply, ragdollCenter(rag) - Vector(0, 0, 30)) or ply:GetPos()
 	cleanupKO(ply)
 	ply:SetPos(pos)
 	if hp then ply:SetHealth(math.max(ply:Health(), hp)) end
+	if soft then return end   -- просто лежал / споткнулся: без сотрясения
 	setUntil(ply, "concussion", 60)
 	ply:SetNW2Float("nyrp.stamina", 30)
 	local c = ply.nyrpChar
@@ -358,4 +391,12 @@ hook.Add("NYRP.CharacterLoaded", "nyrp.condition.ko", function(ply) if ply.nyrpK
 concommand.Add("nyrp_knockout", function(ply, _, args)
 	if IsValid(ply) and not ply:IsAdmin() then return end
 	if IsValid(ply) then Cond.KnockOut(ply, args[1] == "crit") end
+end)
+
+-- C-меню → «Упасть»: лечь на землю (встать — Пробел)
+net.Receive("nyrp.cmenu.fall", function(_, ply)
+	if (ply.nyrpFallNext or 0) > CurTime() or not NYRP.HasCharacter(ply) or not ply:Alive() then return end
+	ply.nyrpFallNext = CurTime() + 3
+	if ply:InVehicle() or not ply:OnGround() then return end
+	Cond.Fall(ply, true)
 end)

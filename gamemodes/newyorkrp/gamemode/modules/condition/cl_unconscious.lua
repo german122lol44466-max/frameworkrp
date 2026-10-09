@@ -22,6 +22,14 @@ hook.Add("NYRP.CalcView", "nyrp.unconscious", function(ply, origin, angles, fov)
 	local att = r:LookupAttachment("eyes")
 	local eyes = att > 0 and r:GetAttachment(att)
 	if not eyes then return end
+	-- сам лёг или споткнулся: камера чуть сзади-сверху тела, крутится мышью
+	if ply:GetNW2Bool("nyrp.koSoft") then
+		local ang = ply:EyeAngles()
+		local c = r:WorldSpaceCenter()
+		local tr = util.TraceHull({ start = c, endpos = c - ang:Forward() * 70 + Vector(0, 0, 18), filter = { ply, r },
+			mins = Vector(-4, -4, -4), maxs = Vector(4, 4, 4), mask = MASK_SOLID_BRUSHONLY })
+		return { origin = tr.HitPos, angles = ang, fov = fov, znear = 1, drawviewer = false }
+	end
 	smoothAng = smoothAng and LerpAngle(1 - math.exp(-10 * FrameTime()), smoothAng, eyes.Ang) or eyes.Ang
 	return { origin = eyes.Pos + eyes.Ang:Forward() * 1.5, angles = smoothAng, fov = fov, znear = 1, drawviewer = false }
 end)
@@ -31,14 +39,15 @@ hook.Add("Think", "nyrp.unconscious.head", function()
 	local ply = LocalPlayer()
 	if not IsValid(ply) then return end
 	local r = rag(ply)
-	if r and r ~= ply.nyrpKORagHidden then
+	if r and r ~= ply.nyrpKORagHidden and not ply:GetNW2Bool("nyrp.koSoft") then
 		local b = r:LookupBone("ValveBiped.Bip01_Head1")
 		if b then r:ManipulateBoneScale(b, Vector(0.001, 0.001, 0.001)) end
 		ply.nyrpKORagHidden = r
 	end
 	-- пришёл в себя — открываем глаза
 	local ko = Cond.KO(ply)
-	if ply.nyrpWasKO and not ko and ply:Alive() and NYRP.Wakeup then
+	if ko then ply.nyrpWasSoft = ply:GetNW2Bool("nyrp.koSoft") end
+	if ply.nyrpWasKO and not ko and ply:Alive() and NYRP.Wakeup and not ply.nyrpWasSoft then
 		NYRP.Wakeup(ply:GetNW2String("nyrp.gender", "male"), true) -- звук играет сервер
 	end
 	ply.nyrpWasKO = ko
@@ -52,6 +61,18 @@ end
 hook.Add("HUDPaintBackground", "nyrp.unconscious", function()
 	local ply = LocalPlayer()
 	if not IsValid(ply) or not ply:Alive() or not Cond.KO(ply) then return end
+	if ply:GetNW2Bool("nyrp.koSoft") then
+		-- в сознании: только подсказка
+		if ply:GetNW2Bool("nyrp.koVoluntary") then
+			local w, h = ScrW(), ScrH()
+			local a = UI.Ease((CurTime() - ply:GetNW2Float("nyrp.koStart", CurTime()) - 1.2) / 0.4)
+			if a > 0 then
+				UI.RoundedRect(UI.S(10), w / 2 - UI.S(130), h - UI.S(120), UI.S(260), UI.S(44), Color(10, 12, 20, 210 * a))
+				draw.SimpleText("ПРОБЕЛ — встать", NYRP.Font("bold", 18), w / 2, h - UI.S(98), Color(255, 255, 255, 255 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			end
+		end
+		return
+	end
 	local w, h = ScrW(), ScrH()
 	local t = CurTime() - ply:GetNW2Float("nyrp.koStart", CurTime())
 	local crit = ply:GetNW2Bool("nyrp.koCritical")
