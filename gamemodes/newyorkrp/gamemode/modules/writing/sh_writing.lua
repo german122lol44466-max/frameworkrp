@@ -56,7 +56,7 @@ end
 function W.NearPost(ply)
 	local pos = ply:GetPos()
 	for cls in pairs(W.PostClasses) do
-		for _, e in ipairs(ents.FindByClass(cls)) do
+		for _, e in pairs(ents.FindByClass(cls)) do
 			if e:GetPos():DistToSqr(pos) <= W.PostRange * W.PostRange then return e end
 		end
 	end

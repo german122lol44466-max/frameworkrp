@@ -360,7 +360,7 @@ function H.Open(tab)
 		local t
 		for _, x in ipairs(TABS) do if x.id == H.Tab then t = x end end
 		t = t or TABS[1]
-		local q = lowerRu(string.Trim(search:GetValue() or ""))
+		local q = lowerRu(string.Trim(tostring(search:GetValue() or "")))
 		buildList(scroll, t.rows(), q, body:GetWide() - UI.S(10))
 	end
 	search.OnValueChange = function() rebuild() end

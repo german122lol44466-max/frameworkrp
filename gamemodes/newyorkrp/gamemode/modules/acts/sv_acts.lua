@@ -117,7 +117,7 @@ end)
 
 -- без сознания, сел, надели наручники, сдвинули — выходим
 timer.Create("nyrp.acts.check", 0.5, 0, function()
-	for _, ply in ipairs(player.GetAll()) do
+	for _, ply in pairs(player.GetAll()) do
 		if ply.nyrpAct then
 			local cuffed = NYRP.Factions and NYRP.Factions.Cuffed and NYRP.Factions.Cuffed(ply)
 			if not ply:Alive() or (NYRP.Cond and NYRP.Cond.KO(ply)) or cuffed or (NYRP.Sit and NYRP.Sit.Sitting(ply))

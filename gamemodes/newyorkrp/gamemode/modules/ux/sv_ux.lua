@@ -29,7 +29,7 @@ local function listeners(ply, kind)
 	local out = {}
 	local r = UX.TypingRange(kind)
 	local pos = ply:GetPos()
-	for _, p in ipairs(player.GetAll()) do
+	for _, p in pairs(player.GetAll()) do
 		if p == ply or p:GetPos():DistToSqr(pos) <= r * r then out[p] = true end
 	end
 	return out
@@ -198,13 +198,13 @@ hook.Add("EntityRemoved", "nyrp.ux.clip", function(ent)
 end)
 
 local function storeClips(ply)
-	for _, w in ipairs(ply:GetWeapons()) do
+	for _, w in pairs(ply:GetWeapons()) do
 		if w.nyrpItem then storeClip(w) end
 	end
 end
 
 timer.Create("nyrp.ux.clips", 0.5, 0, function()
-	for _, ply in ipairs(player.GetAll()) do
+	for _, ply in pairs(player.GetAll()) do
 		if ply:Alive() then storeClips(ply) end
 	end
 end)

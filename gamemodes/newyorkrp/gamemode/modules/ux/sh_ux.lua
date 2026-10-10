@@ -61,7 +61,7 @@ end
 
 function SF.Applies(wep)
 	if not IsValid(wep) then return false end
-	local cls = wep:GetClass()
+	local cls = tostring(wep:GetClass())
 	if string.sub(cls, 1, 5) == "nyrp_" then return false end   -- ключи, рация, телефон, руки и т.д.
 	return SF.Classes()[cls] == true
 end

@@ -198,7 +198,7 @@ timer.Create("nyrp.writing.deliver", 5, 0, function()
 		if not l.notified and delivered(l) then
 			l.notified = true
 			changed = true
-			for _, p in ipairs(player.GetAll()) do
+			for _, p in pairs(player.GetAll()) do
 				if NYRP.HasCharacter(p) and D.HasAccess(p, l.door) then
 					NYRP.Notify(p, "В почтовый ящик пришло письмо (" .. l.to .. "). Заберите его у почтовых ящиков.", "info", 8)
 					p:EmitSound("nyrp/fx/zone_bell.wav", 40, 120, 0.4)
