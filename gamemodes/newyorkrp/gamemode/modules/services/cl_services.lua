@@ -97,3 +97,29 @@ P.Register("e911reason", {
 		end)
 	end,
 })
+
+-- 911 окном (таксофон): службы → причина → комментарий
+function E.OpenWindow(title)
+	net.Start("nyrp.e911") net.SendToServer()
+	local win, body = UI.Window(title or "911", "urgent", 520, 520, { keyboard = true })
+	E.Win = win
+	local function show(list)
+		body:Clear()
+		for _, s in ipairs(list) do
+			UI.AddButton(body, s.name .. "  ·  " .. (s.online > 0 and (s.online .. " на линии") or "нет свободных"), s.job and s.icon or "urgent", function()
+				body:Clear()
+				for _, reason in ipairs(s.calls) do
+					UI.AddButton(body, reason, "chevron_right", function()
+						net.Start("nyrp.e911.call") net.WriteString(s.key) net.WriteString(reason) net.WriteString("Звонок с таксофона") net.SendToServer()
+						win:Close()
+					end, { h = 42 })
+				end
+			end, { h = 48, accent = s.color })
+		end
+	end
+	win.Think = function(s)
+		if gui.IsGameUIVisible() and not s.Closing then gui.HideGameUI() s:Close() end
+		if not s.Shown and E.ServiceList then s.Shown = true show(E.ServiceList) end
+	end
+	E.ServiceList = nil
+end

@@ -60,24 +60,35 @@ hook.Add("NYRP.NewDay", "nyrp.roles", function()
 	end
 end)
 
+-- /setrole <роль>  — себе;  /setrole <часть имени> <роль> — другому. Без аргументов — список ролей.
 NYRP.Chat.AddCommand("/setrole", function(ply, raw)
 	if not ply:IsAdmin() then NYRP.Notify(ply, "Только для администрации", "error") return end
-	local name, id = string.match(raw, "^%S+%s+(.-)%s+(%S+)$")
-	if not name then
-		local ids = table.concat(Roles.Order, ", ")
-		NYRP.Notify(ply, "/setrole <имя персонажа> <роль>. Роли: " .. ids, "info", 8)
-		return
-	end
-	if not Roles.List[id] then NYRP.Notify(ply, "Нет роли «" .. id .. "»", "error") return end
-	name = string.lower(name)
-	for _, p in ipairs(player.GetAll()) do
-		if NYRP.HasCharacter(p) and string.find(string.lower(NYRP.CharName(p)), name, 1, true) then
-			Roles.Set(p, id)
-			NYRP.Notify(ply, NYRP.CharName(p) .. " — " .. Roles.List[id].Name, "success")
-			return
+	local args = {}
+	for w in string.gmatch(raw, "%S+") do args[#args + 1] = w end
+	table.remove(args, 1)
+	local ids = {}
+	for _, id in ipairs(Roles.Order) do ids[#ids + 1] = id .. " (" .. Roles.List[id].Name .. ")" end
+	if #args == 0 then NYRP.Notify(ply, "/setrole [имя] <роль>. Роли: " .. table.concat(ids, ", "), "info", 10) return end
+	local id = string.lower(args[#args])
+	-- роль можно написать и названием: «полиция», «police»
+	if not Roles.List[id] then
+		for rid, r in pairs(Roles.List) do
+			if string.find(string.lower(r.Name), id, 1, true) then id = rid break end
 		end
 	end
-	NYRP.Notify(ply, "Персонаж не найден", "error")
+	if not Roles.List[id] then NYRP.Notify(ply, "Нет роли «" .. args[#args] .. "». Роли: " .. table.concat(ids, ", "), "error", 10) return end
+	local target = ply
+	if #args > 1 then
+		local name = string.lower(table.concat(args, " ", 1, #args - 1))
+		target = nil
+		for _, p in ipairs(player.GetAll()) do
+			if NYRP.HasCharacter(p) and (string.find(string.lower(NYRP.CharName(p)), name, 1, true) or string.find(string.lower(p:Nick()), name, 1, true)) then target = p break end
+		end
+		if not target then NYRP.Notify(ply, "Персонаж «" .. name .. "» не найден", "error") return end
+	end
+	if not NYRP.HasCharacter(target) then return end
+	Roles.Set(target, id)
+	NYRP.Notify(ply, NYRP.CharName(target) .. " — " .. Roles.List[id].Name, "success")
 end)
 
 -- Меню C → «Информация»: данные персонажа

@@ -10,3 +10,6 @@ JOB.SpotModel = "models/props_junk/garbage_bag001a.mdl"
 JOB.UseText = "Собираю мусор..."
 JOB.Skill = "strength"
 JOB.SkillXP = 4
+JOB.StationModel = "models/nyrp/city/trash_basket.mdl"
+JOB.DropModel = "models/props_junk/TrashDumpster01a.mdl"   -- собранное отнести сюда
+JOB.DropText = "Выбросить мешки в мусорный контейнер"

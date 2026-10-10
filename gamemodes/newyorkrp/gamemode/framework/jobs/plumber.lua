@@ -10,3 +10,4 @@ JOB.Effect = "water"
 JOB.UseText = "Перекрываю течь..."
 JOB.Skill = "strength"
 JOB.SkillXP = 12
+JOB.StationModel = "models/props_pipes/valve002.mdl"

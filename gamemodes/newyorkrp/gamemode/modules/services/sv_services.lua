@@ -1,5 +1,6 @@
 local E = NYRP.E911
-local W = NYRP.Waypoint
+NYRP.Waypoint = NYRP.Waypoint or {}
+local W = NYRP.Waypoint   -- модуль меток грузится позже (по алфавиту) — берём общую таблицу заранее
 E.Calls = E.Calls or {}
 local lastId = 0
 

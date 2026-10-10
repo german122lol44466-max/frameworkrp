@@ -1,5 +1,6 @@
 local J = NYRP.Jobs
-local W = NYRP.Waypoint
+NYRP.Waypoint = NYRP.Waypoint or {}
+local W = NYRP.Waypoint   -- модуль меток грузится позже (по алфавиту) — берём общую таблицу заранее
 
 -- ------------------------------------------------------------------ точки --
 -- У дверей карты (подъезды, магазины) — точки на тротуаре; плюс свои точки админа на профессию.
@@ -93,9 +94,10 @@ local function clearSpots(ply)
 	ply.nyrpJobSpots = {}
 end
 
-local function spawnSpot(ply, kind, pos, model, job)
+local function spawnSpot(ply, kind, pos, model, job, scale)
 	local e = ents.Create("nyrp_jobspot")
 	if not IsValid(e) then return end
+	if istable(model) then model = model[math.random(#model)] end
 	local m = model or "models/props_junk/cardboard_box004a.mdl"
 	if not util.IsValidModel(m) then m = job and job.SpotFallback or "models/props_junk/cardboard_box004a.mdl" end
 	e:SetModel(m)
@@ -105,6 +107,7 @@ local function spawnSpot(ply, kind, pos, model, job)
 	e:SetOwnerPly(ply)
 	e:SetEffect(job and job.Effect or "")
 	e:Spawn()
+	if scale and scale ~= 1 then e:SetModelScale(scale, 0) end
 	ply.nyrpJobSpots = ply.nyrpJobSpots or {}
 	table.insert(ply.nyrpJobSpots, e)
 	return e
@@ -143,7 +146,8 @@ local Types = {}
 
 -- доставка: (забрать) → адрес(а)
 Types.deliver = function(ply, job)
-	local depot = ply.nyrpJobDepot or ply:GetPos()
+	local st = J.NearestStation(job.id, ply:GetPos())
+	local depot = IsValid(st) and st:GetPos() or ply.nyrpJobDepot or ply:GetPos()
 	local function goDeliver(left)
 		local from = ply:GetPos()
 		local dest = J.Spot(job.id, from, 600, 3500)
@@ -151,9 +155,14 @@ Types.deliver = function(ply, job)
 		local started = CurTime()
 		local limit = job.TimeLimit and (dist / 2.6 + 30) or nil
 		ply.nyrpJobLimit = limit and (CurTime() + limit) or nil
-		task(ply, "Отнесите заказ по адресу" .. (left and left > 1 and (" (ещё " .. left .. ")") or "") .. (limit and (" · успеть за " .. math.floor(limit) .. " с") or ""), job.Icon)
-		W.Set(ply, "job", dest, "Адрес доставки", job.Icon, job.Color, { radius = 90, onReach = function()
+		task(ply, "Отнесите заказ по адресу и передайте (E)" .. (left and left > 1 and (" (ещё " .. left .. ")") or "") .. (limit and (" · успеть за " .. math.floor(limit) .. " с") or ""), job.Icon)
+		local target = spawnSpot(ply, job.TargetModel and (string.find(tostring(istable(job.TargetModel) and job.TargetModel[1] or job.TargetModel), "Humans") and "customer" or "drop") or "customer",
+			dest, job.TargetModel or { "models/Humans/Group01/Male_02.mdl", "models/Humans/Group01/Female_01.mdl" }, job, job.TargetScale)
+		W.Set(ply, "job", dest, "Адрес доставки", job.Icon, job.Color, {})
+		local function handOver()
 			NYRP.Action(ply, "Передаю заказ...", 2.5, function()
+				if IsValid(target) then target:Remove() end
+				W.Clear(ply, "job")
 				local money = (job.Pay or 0) + dist * (job.PayPerMeter or 0)
 				local why = "доставка " .. math.floor(dist) .. " м"
 				if limit then
@@ -164,7 +173,12 @@ Types.deliver = function(ply, job)
 				ply.nyrpJobLimit = nil
 				if left and left > 1 then goDeliver(left - 1) else nextTask(ply) end
 			end, job.Icon)
-		end })
+		end
+		if IsValid(target) then
+			target.OnUsed = function(_, user) if user == ply and not target.Busy then target.Busy = true handOver() timer.Simple(3, function() if IsValid(target) then target.Busy = false end end) end end
+		else
+			W.Set(ply, "job", dest, "Адрес доставки", job.Icon, job.Color, { radius = 90, onReach = handOver })
+		end
 	end
 	if job.Pickup then
 		task(ply, "Заберите заказ у работодателя", job.Icon)
@@ -204,11 +218,32 @@ Types.taxi = function(ply, job, fare)
 	end
 end
 
--- собрать N предметов по району
+-- собрать N предметов по району (если есть JOB.DropModel — собранное отнести к контейнеру, оплата там)
 Types.collect = function(ply, job)
 	clearSpots(ply)
 	local avoid = {}
-	local left = job.Count or 5
+	local total = job.Count or 5
+	local left = total
+	local function toDrop()
+		local st = J.NearestStation(job.id, ply:GetPos())
+		local base = IsValid(st) and st:GetPos() or ply:GetPos()
+		local p = J.Spot(job.id, base, 100, 600)
+		local bin = spawnSpot(ply, "drop", p, job.DropModel, job)
+		task(ply, (job.DropText or "Отнесите собранное") .. " (E)", job.Icon)
+		W.Set(ply, "job", p, job.DropText or "Сдать", "trash", job.Color, {})
+		if IsValid(bin) then
+			bin.OnUsed = function(_, user)
+				if user ~= ply or bin.Busy then return end
+				bin.Busy = true
+				NYRP.Action(ply, "Сдаю...", 2, function()
+					if IsValid(bin) then bin:Remove() end
+					W.Clear(ply, "job")
+					pay(ply, job, (job.Pay or 10) * total, "сдано " .. total .. " шт.")
+					nextTask(ply)
+				end, "trash")
+			end
+		end
+	end
 	for i = 1, left do
 		local p = J.Spot(job.id, ply:GetPos(), 300, 2200, avoid)
 		avoid[p] = true
@@ -221,8 +256,10 @@ Types.collect = function(ply, job)
 					if not IsValid(e) then return end
 					e:Remove()
 					left = left - 1
-					pay(ply, job, job.Pay, nil)
-					if left <= 0 then nextTask(ply) else task(ply, "Осталось собрать: " .. left, job.Icon) end
+					if not job.DropModel then pay(ply, job, job.Pay, nil) end
+					if left <= 0 then
+						if job.DropModel then toDrop() else nextTask(ply) end
+					else task(ply, "Осталось собрать: " .. left, job.Icon) end
 				end, job.Icon)
 				timer.Simple((job.UseTime or 3) + 0.2, function() if IsValid(e) then e.Busy = false end end)
 			end
@@ -280,6 +317,16 @@ Types.carry = function(ply, job)
 		e.nyrpJobBox = { ply = ply, target = target }
 		table.insert(ply.nyrpJobSpots, e)
 	end
+	if job.TargetModel then
+		local van = spawnSpot(ply, "van", target, job.TargetModel, job, job.TargetScale)
+		if IsValid(van) then
+			van:SetSolid(SOLID_VPHYSICS)
+			van:PhysicsInit(SOLID_VPHYSICS)
+			local ph = van:GetPhysicsObject()
+			if IsValid(ph) then ph:EnableMotion(false) end
+			target = van:GetPos()
+		end
+	end
 	ply.nyrpJobCarry = { target = target, left = left, job = job }
 	task(ply, "Перенесите ящики к фургону: " .. left .. " (ПКМ — взять руками)", job.Icon)
 	W.Set(ply, "job", target, "Фургон", "j_loader", job.Color, {})
@@ -291,8 +338,10 @@ Types.report = function(ply, job)
 	local p = J.Spot(job.id, from, 800, 4000)
 	local dist = meters(from, p)
 	task(ply, "Редакция: событие по адресу — снимите репортаж", job.Icon)
+	if job.TargetModel then spawnSpot(ply, "scene", p + Vector(0, 140, 0), job.TargetModel, job, job.TargetScale) end
 	W.Set(ply, "job", p, "Событие", "camera", job.Color, { radius = 140, onReach = function()
 		NYRP.Action(ply, job.UseText or "Снимаю...", job.UseTime or 10, function()
+			clearSpots(ply)
 			pay(ply, job, (job.Pay or 0) + dist * (job.PayPerMeter or 0), "репортаж в редакции")
 			nextTask(ply)
 		end, "camera")
@@ -331,6 +380,7 @@ Types.rob = function(ply, job)
 				c.flags.robNext = os.time() + (job.Cooldown or 600)
 				ply:SetNW2Float("nyrp.wantedUntil", CurTime() + (job.WantedTime or 300))
 				NYRP.Notify(ply, "Вы в розыске! Полиция видит метку, где вас видели.", "warning", 8)
+				if NYRP.Street.AddNews then NYRP.Street.AddNews("Ограбление кассы: неизвестный скрылся с выручкой, NYPD ведёт поиск") end
 				nextTask(ply)
 			end, "j_robber")
 			timer.Simple((job.UseTime or 20) + 0.5, function() if IsValid(e) then e.Busy = false end end)
@@ -356,7 +406,7 @@ timer.Create("nyrp.jobs.carry", 0.5, 0, function()
 		local cr = ply.nyrpJobCarry
 		if cr then
 			for _, e in ipairs(ply.nyrpJobSpots or {}) do
-				if IsValid(e) and e.nyrpJobBox and e:GetPos():Distance(cr.target) < 90 then
+				if IsValid(e) and e.nyrpJobBox and e:GetPos():Distance(cr.target) < 150 then
 					e:Remove()
 					cr.left = cr.left - 1
 					pay(ply, cr.job, cr.job.Pay, "ящик погружен")
@@ -367,6 +417,72 @@ timer.Create("nyrp.jobs.carry", 0.5, 0, function()
 		end
 	end
 end)
+
+-- ------------------------------------------------------------ точки начала смены --
+local ST_FILE = function() return "nyrp/jobstations_" .. game.GetMap() .. ".json" end
+
+function J.SaveStations()
+	if J.StLoading then return end
+	local out = {}
+	for _, e in ipairs(ents.FindByClass("nyrp_jobstation")) do
+		local p, a = e:GetPos(), e:GetAngles()
+		out[#out + 1] = { job = e:GetJobId(), pos = { p.x, p.y, p.z }, ang = { a.p, a.y, a.r } }
+	end
+	file.CreateDir("nyrp")
+	file.Write(ST_FILE(), util.TableToJSON(out, true))
+end
+
+function J.SpawnStation(job, pos, ang)
+	local e = ents.Create("nyrp_jobstation")
+	e:SetJobId(job)
+	e:SetPos(pos)
+	e:SetAngles(ang)
+	e:Spawn()
+	return e
+end
+
+local function loadStations()
+	J.StLoading = true
+	for _, e in ipairs(ents.FindByClass("nyrp_jobstation")) do e:Remove() end
+	for _, t in ipairs(util.JSONToTable(file.Read(ST_FILE(), "DATA") or "") or {}) do
+		if J.List[t.job] then J.SpawnStation(t.job, Vector(t.pos[1], t.pos[2], t.pos[3]), Angle(t.ang[1], t.ang[2], t.ang[3])) end
+	end
+	J.StLoading = false
+end
+hook.Add("InitPostEntity", "nyrp.jobs.st", function() timer.Simple(1.5, loadStations) end)
+hook.Add("PostCleanupMap", "nyrp.jobs.st", function() timer.Simple(0.5, loadStations) end)
+
+function J.NearestStation(job, pos)
+	local best, bd
+	for _, e in ipairs(ents.FindByClass("nyrp_jobstation")) do
+		if e:GetJobId() == job then
+			local d = e:GetPos():Distance(pos)
+			if not bd or d < bd then best, bd = e, d end
+		end
+	end
+	return best, bd
+end
+
+NYRP.Chat.AddCommand("/jobstation", function(ply, raw)
+	if not ply:IsAdmin() then return end
+	local id = string.match(raw, "^%S+%s+(%S+)")
+	if not J.List[id or ""] then NYRP.Notify(ply, "/jobstation <профессия>: " .. table.concat(J.Order, ", "), "info", 10) return end
+	local tr = ply:GetEyeTrace()
+	local e = J.SpawnStation(id, tr.HitPos, Angle(0, ply:EyeAngles().y + 180, 0))
+	undo.Create("Точка работы") undo.AddEntity(e) undo.SetPlayer(ply) undo.Finish()
+	J.SaveStations()
+	NYRP.Notify(ply, "Точка начала смены «" .. J.List[id].Name .. "» поставлена", "success")
+end)
+
+local function markStation(ply, job)
+	local st = J.NearestStation(job.id, ply:GetPos())
+	if IsValid(st) then
+		W.Set(ply, "jobstation", st:GetPos(), "Начать смену: " .. job.Name, job.Icon, job.Color, { radius = 110, onReach = function()
+			NYRP.Notify(ply, "Вы на месте. E по точке — начать смену.", "info", 5)
+		end })
+	end
+end
+J.MarkStation = markStation
 
 -- ------------------------------------------------------------ смена и найм --
 local function stopShift(ply, quiet)
@@ -429,7 +545,8 @@ net.Receive("nyrp.jobs.act", function(_, ply)
 		c.flags.job = id
 		ply:SetNW2String("nyrp.job", id)
 		ply:EmitSound("nyrp/fx/stamp.wav", 55)
-		NYRP.Notify(ply, "Вы устроились: " .. j.Name .. ". Начните смену (кнопка в меню или /shift).", "success", 7)
+		NYRP.Notify(ply, "Вы устроились: " .. j.Name .. ". Идите к точке работы (метка) и начните смену.", "success", 7)
+		markStation(ply, j)
 		sendMenu(ply)
 	elseif act == "quit" then
 		stopShift(ply, true)
@@ -442,10 +559,18 @@ net.Receive("nyrp.jobs.act", function(_, ply)
 	end
 end)
 
-function J.ToggleShift(ply)
+function J.ToggleShift(ply, fromStation)
 	local job = J.Of(ply)
 	if not job then NYRP.Notify(ply, "Сначала устройтесь на работу в центре занятости", "warning") return end
 	if ply.nyrpShift then stopShift(ply) return end
+	-- если у профессии есть точки — смена начинается у точки
+	local st, d = J.NearestStation(job.id, ply:GetPos())
+	if IsValid(st) and d > 200 and not fromStation then
+		NYRP.Notify(ply, "Смену начинают у точки работы — метка поставлена", "warning", 5)
+		markStation(ply, job)
+		return
+	end
+	W.Clear(ply, "jobstation")
 	ply.nyrpShift = true
 	ply.nyrpShiftEarned = 0
 	ply.nyrpJobSpots = {}

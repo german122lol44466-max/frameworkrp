@@ -14,3 +14,4 @@ JOB.Criminal = true
 JOB.MinHours = 1                  -- требования
 JOB.Skill = "agility"
 JOB.SkillXP = 25
+JOB.StationModel = "models/props_junk/trashbin01a.mdl"     -- «точка» у мусорки в переулке

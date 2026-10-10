@@ -8,3 +8,5 @@ JOB.Count = 4
 JOB.SpotModel = "models/props_junk/cardboard_box001a.mdl"
 JOB.Skill = "strength"
 JOB.SkillXP = 8
+JOB.StationModel = "models/props_junk/wood_crate001a.mdl"
+JOB.TargetModel = "models/nyrp/city/van.mdl"            -- фургон 5.2 м: ящики подносить к нему

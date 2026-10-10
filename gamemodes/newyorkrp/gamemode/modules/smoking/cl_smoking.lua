@@ -31,7 +31,7 @@ local function mouthPose(ply)
 		ang:RotateAroundAxis(ang:Right(), -14)       -- кончик чуть вниз
 		ang:RotateAroundAxis(ang:Up(), 8)            -- и в уголок рта
 		-- фильтр зажат губами: начало сигареты чуть внутри рта
-		return m.Pos - ang:Forward() * 0.6 - e.Ang:Up() * 0.3, ang
+		return m.Pos - ang:Forward() * 0.6 + e.Ang:Up() * 0.25, ang
 	end
 	if e then
 		local ang = e.Ang

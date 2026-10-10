@@ -9,3 +9,5 @@ JOB.UseTime = 10
 JOB.UseText = "Снимаю репортаж..."
 JOB.Skill = "intellect"
 JOB.SkillXP = 12
+JOB.StationModel = "models/nyrp/city/newsbox.mdl"
+JOB.TargetModel = "models/nyrp/city/van.mdl"            -- репортёрский фургон на месте события

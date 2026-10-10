@@ -89,6 +89,10 @@ net.Receive("nyrp.biz.act", function(_, ply)
 		if d.bizOpen then d.locked = false end
 		D.Save()
 		D.Apply(a1)
+		if d.bizOpen and NYRP.Street.AddNews and not d.bizAnnounced then
+			d.bizAnnounced = true
+			NYRP.Street.AddNews("Новое заведение: «" .. (d.bizName or d.name) .. "» (" .. (d.bizType or "бизнес") .. ") открыло двери для гостей")
+		end
 		NYRP.Notify(ply, d.bizOpen and "«" .. (d.bizName or d.name) .. "» открыт. Выручка идёт, пока вы рядом." or "Бизнес закрыт", "success")
 	end
 end)

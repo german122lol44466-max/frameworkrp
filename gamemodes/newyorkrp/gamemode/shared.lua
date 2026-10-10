@@ -17,7 +17,12 @@ NYRP.Root = GM.FolderName .. "/gamemode/"
 -- Пространства имён создаются заранее: файлы делают «local UI = NYRP.UI» при загрузке,
 -- и таблица должна существовать независимо от порядка подключения.
 for _, ns in ipairs({ "UI", "Config", "Chars", "Chat", "Items", "Inv", "Inventory", "Bags", "Camera",
-	"Interact", "Recog", "Overhead", "Points", "DB" }) do
+	"Interact", "Recog", "Overhead", "Points", "DB",
+	-- модули грузятся по алфавиту, а ссылаются друг на друга при загрузке (local W = NYRP.Waypoint):
+	-- все общие таблицы создаём заранее, чтобы порядок файлов был неважен
+	"Bags", "Bank", "Business", "Camera", "Combat", "Cond", "Containers", "Doors", "E911", "Gestures", "Health",
+	"Jobs", "Money", "NPC", "Phone", "Radio", "Roles", "Skills", "Smoking", "Time", "Voice", "Waypoint", "Zones",
+	"Police", "Fire", "EMS", "Street", "Factions" }) do
 	NYRP[ns] = NYRP[ns] or {}
 end
 

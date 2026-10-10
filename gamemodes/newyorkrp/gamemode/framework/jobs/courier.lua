@@ -8,3 +8,5 @@ JOB.PayPerMeter = 0.35            -- доплата за каждый метр �
 JOB.Pickup = true                 -- сначала забрать посылку у работодателя
 JOB.Skill = "stamina"             -- какой навык качает работа
 JOB.SkillXP = 12
+JOB.StationModel = "models/props_junk/wood_crate002a.mdl"   -- точка начала смены: склад посылок
+JOB.TargetModel = { "models/Humans/Group01/Male_02.mdl", "models/Humans/Group01/Female_03.mdl", "models/Humans/Group02/Male_06.mdl" }  -- получатель у двери (E)

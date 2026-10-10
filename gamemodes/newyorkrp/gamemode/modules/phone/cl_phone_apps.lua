@@ -127,6 +127,12 @@ end
 local function dial(number)
 	number = P.Digits(number)
 	if number == "" then return end
+	-- экстренные номера: диспетчер 911 (выбор службы и причины)
+	if number == "911" or number == "112" or number == "999" then
+		surface.PlaySound("nyrp/fx/dispatch.wav")
+		P.Push("e911", { from = "dial911" })
+		return
+	end
 	net.Start("nyrp.phone.call")
 	net.WriteString(number)
 	net.SendToServer()

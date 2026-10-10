@@ -11,3 +11,4 @@ JOB.FailDamage = 10
 JOB.UseText = "Чиню щиток..."
 JOB.Skill = "intellect"
 JOB.SkillXP = 14
+JOB.StationModel = "models/props_lab/powerbox02a.mdl"

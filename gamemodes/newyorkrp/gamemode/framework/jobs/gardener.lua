@@ -11,3 +11,6 @@ JOB.SpotFallback = "models/props_junk/garbage_bag001a.mdl"
 JOB.UseText = "Стригу кусты..."
 JOB.Skill = "agility"
 JOB.SkillXP = 4
+JOB.StationModel = "models/props_junk/wood_crate001a.mdl"
+JOB.DropModel = "models/props_junk/TrashDumpster01a.mdl"
+JOB.DropText = "Сдать листву в контейнер"

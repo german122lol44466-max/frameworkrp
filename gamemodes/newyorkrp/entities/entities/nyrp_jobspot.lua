@@ -19,7 +19,8 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Entity", 0, "OwnerPly")
 end
 
-local TEXT = { collect = "Собрать", repair = "Починить", passenger = "Посадить пассажира", register = "Вскрыть кассу" }
+local TEXT = { collect = "Собрать", repair = "Починить", passenger = "Посадить пассажира", register = "Вскрыть кассу",
+	customer = "Передать заказ", drop = "Сдать / опустить", van = "Фургон: поднесите ящики", scene = "Место события" }
 function ENT:GetInteractText() return TEXT[self:GetKind()] or "Взаимодействовать" end
 
 -- взаимодействие только у своего работника
@@ -35,7 +36,7 @@ if SERVER then
 		-- поставить на пол
 		local tr = util.TraceLine({ start = self:GetPos() + Vector(0, 0, 20), endpos = self:GetPos() - Vector(0, 0, 80), filter = self })
 		if tr.Hit then self:SetPos(tr.HitPos - Vector(0, 0, self:OBBMins().z)) end
-		if self:GetKind() == "passenger" then
+		if self:GetKind() == "passenger" or self:GetKind() == "customer" then
 			local seq = self:LookupSequence("idle_subtle")
 			if seq < 0 then seq = self:LookupSequence("Idle01") end
 			if seq >= 0 then self:ResetSequence(seq) end
@@ -57,7 +58,7 @@ else
 	function ENT:Draw()
 		-- чужим работникам точки не видны (мусор/пассажир — только для себя)
 		if self:GetOwnerPly() ~= LocalPlayer() and self:GetKind() ~= "register" then return end
-		if self:GetKind() == "passenger" then self:FrameAdvance() end
+		if self:GetKind() == "passenger" or self:GetKind() == "customer" then self:FrameAdvance() end
 		self:DrawModel()
 	end
 

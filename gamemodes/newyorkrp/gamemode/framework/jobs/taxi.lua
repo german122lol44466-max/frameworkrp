@@ -10,3 +10,4 @@ JOB.Service = "Такси"             -- можно вызвать через 9
 JOB.Calls = { "Нужно такси", "Срочно, опаздываю", "Нужна машина побольше" }
 JOB.Skill = "agility"
 JOB.SkillXP = 10
+JOB.StationModel = "models/nyrp/city/bus_stop.mdl"

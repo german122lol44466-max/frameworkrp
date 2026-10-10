@@ -8,3 +8,6 @@ JOB.PayPerMeter = 0.15
 JOB.Chain = 5                     -- адресов подряд
 JOB.Skill = "intellect"
 JOB.SkillXP = 6
+JOB.StationModel = "models/nyrp/city/usps_box.mdl"      -- письма забирают из ящика USPS
+JOB.TargetModel = "models/nyrp/city/usps_box.mdl"
+JOB.TargetScale = 0.6

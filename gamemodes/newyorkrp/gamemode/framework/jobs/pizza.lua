@@ -10,3 +10,5 @@ JOB.TimeLimit = true              -- есть время на доставку
 JOB.Tip = 20                      -- чаевые за скорость
 JOB.Skill = "agility"
 JOB.SkillXP = 12
+JOB.StationModel = "models/nyrp/city/hotdog_cart.mdl"
+JOB.TargetModel = { "models/Humans/Group01/Male_04.mdl", "models/Humans/Group02/Female_02.mdl", "models/Humans/Group01/Male_09.mdl" }
