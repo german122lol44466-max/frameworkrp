@@ -122,6 +122,21 @@ function A.Lower(s)
 	return ok and out or s
 end
 
+-- Верхний регистр с кириллицей.
+function A.Upper(s)
+	s = string.upper(tostring(s or ""))
+	local ok, out = pcall(function()
+		local buf = {}
+		for _, cp in utf8.codes(s) do
+			if cp >= 0x430 and cp <= 0x44F then cp = cp - 0x20
+			elseif cp == 0x451 then cp = 0x401 end
+			buf[#buf + 1] = utf8.char(cp)
+		end
+		return table.concat(buf)
+	end)
+	return ok and out or s
+end
+
 -- «2 д 3 ч», «15 мин», «навсегда»
 function A.FormatDuration(sec)
 	if not sec or sec <= 0 then return "навсегда" end

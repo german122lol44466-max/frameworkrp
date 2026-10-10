@@ -116,7 +116,7 @@ function A.Prompt(title, desc, fields, okText, onOk, accent)
 		lbl:SetPos(UI.S(24), y)
 		lbl:SetFont(NYRP.Font("semibold", 13))
 		lbl:SetTextColor(UI.Col.dim)
-		lbl:SetText(string.upper(f.label or ""))
+		lbl:SetText(A.Upper(f.label or ""))
 		lbl:SizeToContents()
 		y = y + UI.S(20)
 		local e = vgui.Create("NYRP.TextEntry", box)
@@ -640,17 +640,21 @@ local function buildLogs(parent)
 				local tx = UI.S(118)
 				local tw = UI.S(78)
 				UI.RoundedRect(UI.S(3), tx, h / 2 - UI.S(8), tw, UI.S(16), Color(c.col.r, c.col.g, c.col.b, 40))
-				draw.SimpleText(string.upper(c.name), NYRP.Font("bold", 10), tx + tw / 2, h / 2, c.col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-				local text = e.x or ""
+				draw.SimpleText(A.Upper(c.name), NYRP.Font("bold", 10), tx + tw / 2, h / 2, c.col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 				local f = NYRP.Font("regular", 13)
 				local maxw = w - tx - tw - UI.S(20)
+				if s.CacheW ~= w then
+				s.CacheW = w
+				local text = e.x or ""
 				if UI.TextSize(text, f) > maxw then
 					-- обрезаем по символам UTF-8
 					local n = utf8.len(text) or #text
 					while n > 1 and UI.TextSize(string.sub(text, 1, (utf8.offset(text, n) or #text + 1) - 1) .. "…", f) > maxw do n = n - 4 end
 					text = string.sub(text, 1, (utf8.offset(text, math.max(n, 1)) or #text + 1) - 1) .. "…"
 				end
-				draw.SimpleText(text, f, tx + tw + UI.S(10), h / 2, UI.Col.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+				s.CacheText = text
+				end
+				draw.SimpleText(s.CacheText or "", f, tx + tw + UI.S(10), h / 2, UI.Col.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 				return true
 			end
 			row.DoClick = function()

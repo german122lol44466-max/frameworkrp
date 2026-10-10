@@ -42,6 +42,6 @@ net.Receive("nyrp.tip.open", function()
 	local baseThink = win.Think
 	win.Think = function(s)
 		if baseThink then baseThink(s) end
-		if not s.Closing and not IsValid(e) or e:GetPos():Distance(LocalPlayer():GetPos()) > 170 then s:Close() end
+		if not s.Closing and (not IsValid(e) or e:GetPos():Distance(LocalPlayer():GetPos()) > 170) then s:Close() end
 	end
 end)
