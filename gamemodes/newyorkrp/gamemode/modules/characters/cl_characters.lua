@@ -22,9 +22,21 @@ function Chars.SetState(state)
 end
 
 -- ---------------------------------------------------------------- сеть --
+local readySent
 hook.Add("InitPostEntity", "nyrp.chars", function()
+	readySent = RealTime()
 	net.Start("nyrp.ready")
 	net.SendToServer()
+end)
+-- сервер не ответил (ошибка в модуле, потерянный пакет) — повторяем запрос каждые 8 с
+timer.Create("nyrp.chars.retry", 2, 0, function()
+	if NYRP.State ~= "loading" then timer.Remove("nyrp.chars.retry") return end
+	if readySent and RealTime() - readySent > 8 then
+		readySent = RealTime()
+		Chars.Retries = (Chars.Retries or 0) + 1
+		net.Start("nyrp.ready")
+		net.SendToServer()
+	end
 end)
 
 net.Receive("nyrp.points", function()
@@ -160,6 +172,10 @@ hook.Add("HUDPaintBackground", "nyrp.chars.loading", function()
 	surface.DrawTexturedRect(ScrW() / 2 - s / 2, ScrH() / 2 - s / 2 - UI.S(20), s, s)
 	local dots = string.rep(".", math.floor(t * 2) % 4)
 	draw.SimpleText("Загрузка города" .. dots, NYRP.Font("medium", 18), ScrW() / 2, ScrH() / 2 + s / 2 + UI.S(10), UI.Col.dim, TEXT_ALIGN_CENTER)
+	if (Chars.Retries or 0) >= 2 then
+		draw.SimpleText("Сервер долго не отвечает — повторяем запрос (" .. Chars.Retries .. "). Если не проходит, администратору стоит посмотреть ошибки Lua в консоли сервера.",
+			NYRP.Font("regular", 13), ScrW() / 2, ScrH() / 2 + s / 2 + UI.S(40), Color(230, 120, 90), TEXT_ALIGN_CENTER)
+	end
 end)
 
 function Chars.CloseAll()

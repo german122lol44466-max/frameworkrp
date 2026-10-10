@@ -187,16 +187,18 @@ function Chars.Load(ply, id)
 	-- выдача стартовых вещей (удостоверение, телефон, карта): ошибка в одном модуле не должна ломать вход
 	ProtectedCall(function() issueID(ply, c) end)
 	ProtectedCall(function() hook.Run("NYRP.CharInventoryReady", ply, c) end)
-	Chars.Save(ply) -- сразу запоминаем выданное и отметки «уже выдано»
+	-- ошибка Lua в чужом хуке (сохранение, спавн, загрузка) не должна оставлять игрока на экране загрузки:
+	-- каждый шаг — отдельно, ответ клиенту уходит в любом случае, ошибка — в консоль сервера
+	ProtectedCall(function() Chars.Save(ply) end) -- сразу запоминаем выданное и отметки «уже выдано»
 
 	ply.nyrpSpawnHealth = math.max(c.health, 25)
-	ply:Spawn()
-	savePlaytime(ply)
+	ProtectedCall(function() ply:Spawn() end)
+	ProtectedCall(function() savePlaytime(ply) end)
 
 	net.Start("nyrp.char.loaded")
 	net.WriteString(c.gender)
 	net.Send(ply)
-	hook.Run("NYRP.CharacterLoaded", ply, c)
+	ProtectedCall(function() hook.Run("NYRP.CharacterLoaded", ply, c) end)
 	return true
 end
 
@@ -231,13 +233,18 @@ function Chars.AutoLoad(ply)
 end
 
 -- ----------------------------------------------------------------- сеть --
+-- клиент шлёт «готов» после загрузки карты и повторяет, если ответа долго нет (повтор — не чаще раза в 5 с
+-- и только пока персонаж не загружен)
 net.Receive("nyrp.ready", function(_, ply)
-	if ply.nyrpReady then return end
+	if ply.nyrpReady and (NYRP.HasCharacter(ply) or (ply.nyrpReadyAt or 0) > CurTime()) then return end
+	local retry = ply.nyrpReady
 	ply.nyrpReady = true
+	ply.nyrpReadyAt = CurTime() + 5
+	if retry then NYRP.Print("Повторный запрос загрузки от " .. ply:Nick() .. " — смотрите ошибки выше в консоли") end
 	NYRP.Points.Send(ply)
 	Chars.SendList(ply)
 	if not NYRP.Points.Configured() then
-		Chars.AutoLoad(ply)
+		ProtectedCall(function() Chars.AutoLoad(ply) end)
 	end
 end)
 
