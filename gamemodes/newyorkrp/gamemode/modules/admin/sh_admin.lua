@@ -5,7 +5,7 @@
 	- список настроек сервера, которые можно менять в игре (вкладка «Настройки»);
 	- режим наблюдателя: блокировка обычного noclip (V у админа включает наблюдателя), тихие шаги.
 
-	Меню: /admin, консоль nyrp_admin, F4 (только админам).
+	Меню: /admin, консоль nyrp_admin, F7 (только админам).
 	Команды: /goto /bring /return /freeze /unfreeze /slay /hp /addmoney /kick /ban /unban /warn /warns
 	         /observer /spectate /charkill — подробности в sv_admin.lua.
 ]]

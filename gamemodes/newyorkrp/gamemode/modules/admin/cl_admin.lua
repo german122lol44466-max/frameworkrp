@@ -1,5 +1,5 @@
 --[[
-	Админ-меню (клиент): /admin, консоль nyrp_admin, F4 (nyrp_bind_admin) — только администраторам.
+	Админ-меню (клиент): /admin, консоль nyrp_admin, F7 (nyrp_bind_admin) — только администраторам.
 	Вкладки: «Игроки» (поиск, карточка игрока, действия), «Баны», «Логи», «Настройки», «Предупреждения».
 	Все действия уходят на сервер (nyrp.admin.act) и там же проверяются права.
 	Также: приём настроек сервера (nyrp.admin.cfg) — применяются к NYRP.Config у всех игроков.
@@ -11,7 +11,7 @@ local UI = NYRP.UI
 local GOLD = Color(247, 198, 0)
 local PINK = Color(255, 90, 140)
 
-local bindCvar = CreateClientConVar("nyrp_bind_admin", tostring(KEY_F4), true, false, "Клавиша: админ-меню")
+local bindCvar = CreateClientConVar("nyrp_bind_admin", tostring(KEY_F7), true, false, "Клавиша: админ-меню")
 
 A.Data = A.Data or {}
 A.CfgValues = A.CfgValues or {}
@@ -644,15 +644,15 @@ local function buildLogs(parent)
 				local f = NYRP.Font("regular", 13)
 				local maxw = w - tx - tw - UI.S(20)
 				if s.CacheW ~= w then
-				s.CacheW = w
-				local text = e.x or ""
-				if UI.TextSize(text, f) > maxw then
-					-- обрезаем по символам UTF-8
-					local n = utf8.len(text) or #text
-					while n > 1 and UI.TextSize(string.sub(text, 1, (utf8.offset(text, n) or #text + 1) - 1) .. "…", f) > maxw do n = n - 4 end
-					text = string.sub(text, 1, (utf8.offset(text, math.max(n, 1)) or #text + 1) - 1) .. "…"
-				end
-				s.CacheText = text
+					s.CacheW = w
+					local text = e.x or ""
+					if UI.TextSize(text, f) > maxw then
+						-- обрезаем по символам UTF-8
+						local n = utf8.len(text) or #text
+						while n > 1 and UI.TextSize(string.sub(text, 1, (utf8.offset(text, n) or #text + 1) - 1) .. "…", f) > maxw do n = n - 4 end
+						text = string.sub(text, 1, (utf8.offset(text, math.max(n, 1)) or #text + 1) - 1) .. "…"
+					end
+					s.CacheText = text
 				end
 				draw.SimpleText(s.CacheText or "", f, tx + tw + UI.S(10), h / 2, UI.Col.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 				return true
@@ -932,7 +932,7 @@ function A.OpenMenu(tab)
 	hint.Paint = function(_, w, h)
 		local f = NYRP.Font("regular", 12)
 		draw.SimpleText("V — наблюдатель", f, 0, UI.S(8), UI.Col.faint)
-		draw.SimpleText("F4 / /admin — это меню", f, 0, UI.S(26), UI.Col.faint)
+		draw.SimpleText("F7 / /admin — это меню", f, 0, UI.S(26), UI.Col.faint)
 		draw.SimpleText("Онлайн: " .. player.GetCount() .. " / " .. game.MaxPlayers(), f, 0, UI.S(44), UI.Col.faint)
 	end
 	local obs = UI.AddButton(side, "Наблюдатель", "eye", function()
@@ -969,7 +969,7 @@ concommand.Add("nyrp_admin", function()
 	A.ToggleMenu()
 end)
 
--- F4 (настраивается: nyrp_bind_admin) — только у администраторов
+-- F7 (настраивается: nyrp_bind_admin) — только у администраторов
 hook.Add("PlayerButtonDown", "nyrp.admin.menu", function(ply, key)
 	if not IsFirstTimePredicted() or ply ~= LocalPlayer() then return end
 	if key ~= bindCvar:GetInt() or not ply:IsAdmin() then return end
