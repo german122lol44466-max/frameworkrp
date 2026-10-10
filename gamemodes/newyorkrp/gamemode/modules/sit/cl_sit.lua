@@ -19,6 +19,7 @@ end
 hook.Add("PrePlayerDraw", "nyrp.sit", function(ply)
 	if not S.Sitting(ply) then return end
 	local origin, ang = target(ply)
+	ply.nyrpSitOldAng = ply:GetRenderAngles()
 	ply:SetRenderOrigin(origin)
 	ply:SetRenderAngles(ang)
 	ply:InvalidateBoneCache()
@@ -39,7 +40,9 @@ hook.Add("PostPlayerDraw", "nyrp.sit", function(ply)
 		end
 	end
 	ply:SetRenderOrigin()
-	ply:SetRenderAngles()
+	-- у игрока SetRenderAngles без аргумента нельзя — возвращаем прежний угол
+	if ply.nyrpSitOldAng then ply:SetRenderAngles(ply.nyrpSitOldAng) end
+	ply.nyrpSitOldAng = nil
 end)
 
 hook.Add("HUDPaint", "nyrp.sit", function()

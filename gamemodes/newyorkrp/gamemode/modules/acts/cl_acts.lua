@@ -10,6 +10,7 @@ local UI = NYRP.UI
 hook.Add("PrePlayerDraw", "nyrp.acts", function(ply)
 	if not A.Current(ply) or (NYRP.Sit and NYRP.Sit.Sitting(ply)) then return end
 	local yaw = ply:GetNW2Float("nyrp.actYaw", ply:EyeAngles().y)
+	ply.nyrpActOldAng = ply:GetRenderAngles()
 	ply:SetRenderAngles(Angle(0, yaw, 0))
 	-- голова поворачивается за взглядом в разумных пределах, корпус — нет
 	local diff = math.NormalizeAngle(ply:EyeAngles().y - yaw)
@@ -24,7 +25,9 @@ end)
 hook.Add("PostPlayerDraw", "nyrp.acts", function(ply)
 	if not ply.nyrpActDrawn then return end
 	ply.nyrpActDrawn = nil
-	ply:SetRenderAngles()
+	-- у игрока SetRenderAngles без аргумента нельзя — возвращаем прежний угол
+	if ply.nyrpActOldAng then ply:SetRenderAngles(ply.nyrpActOldAng) end
+	ply.nyrpActOldAng = nil
 end)
 
 hook.Add("HUDPaint", "nyrp.acts", function()
