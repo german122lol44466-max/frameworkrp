@@ -30,7 +30,6 @@ A.List = {
 	{ id = "scratch_20", name = "Азартный", desc = "Сотрите 20 скретч-карт", icon = "certificate", stat = "scratches", goal = 20, reward = 50 },
 	{ id = "jackpot", name = "Джекпот!", desc = "Сорвите джекпот NY Lotto", icon = "coins", stat = "lotto", goal = 1, reward = 100 },
 	{ id = "drinks", name = "Душа компании", desc = "Выпейте 10 порций алкоголя", icon = "bottle", stat = "drinks", goal = 10, reward = 30 },
-	{ id = "streak7", name = "Неделя в городе", desc = "Заходите 7 дней подряд", icon = "p_calendar", stat = "streak", goal = 7, reward = 200 },
 	{ id = "explorer", name = "Исследователь", desc = "Откройте 5 районов города", icon = "map_pin", stat = "zones", goal = 5, reward = 100 },
 	{ id = "clean", name = "Чистый город", desc = "Выбросите в урну 20 вещей", icon = "trash", stat = "trash", goal = 20, reward = 80 },
 	{ id = "talker", name = "Болтун", desc = "Скажите 100 реплик в IC-чате", icon = "message", stat = "talk", goal = 100, reward = 30 },

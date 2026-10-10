@@ -108,7 +108,6 @@ hook.Add("NYRP.LotteryScratched", "nyrp.ach", function(ply, prize)
 	if prize > 0 then A.Add(ply, "scratchWins", 1) end
 end)
 hook.Add("NYRP.LottoWon", "nyrp.ach", function(ply) A.Add(ply, "lotto", 1) end)
-hook.Add("NYRP.DailyClaimed", "nyrp.ach", function(ply, streak) A.Max(ply, "streak", streak) end)
 
 -- --------------------------------------------------------------- опрос --
 timer.Create("nyrp.ach.poll", 5, 0, function()

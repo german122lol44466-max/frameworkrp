@@ -143,13 +143,18 @@ function B.EndATM(ply, silent)
 end
 
 function B.StartATM(ply, ent)
-	if not NYRP.HasCharacter(ply) or not ply:Alive() or ply.nyrpATM then return end
+	if not NYRP.HasCharacter(ply) or not ply:Alive() then return end
+	-- «зависший» прошлый сеанс (клиент его закрыл, а сервер не узнал) больше не блокирует банкомат
+	if ply.nyrpATM then
+		if ply.nyrpATM.ent == ent and (ply.nyrpATM.started or 0) > CurTime() - 2 then return end
+		B.EndATM(ply, true)
+	end
 	local user = ent:GetUser()
 	if IsValid(user) and user ~= ply then NYRP.Notify(ply, "Банкоматом сейчас пользуются", "warning") return end
 	local card = B.FindCard(ply)
 	if not card then NYRP.Notify(ply, "Нужна банковская карта", "warning") return end
 	ent:SetUser(ply)
-	ply.nyrpATM = { ent = ent, card = card, authed = false, tries = 0 }
+	ply.nyrpATM = { ent = ent, card = card, authed = false, tries = 0, started = CurTime() }
 	local own = B.Banks[card.data.bank] and card.data.bank or "liberty"
 	net.Start("nyrp.atm.open")
 	net.WriteEntity(ent)
@@ -234,6 +239,13 @@ net.Receive("nyrp.atm.op", function(_, ply)
 end)
 
 hook.Add("PlayerDeath", "nyrp.atm", function(ply) B.EndATM(ply) end)
+-- отошёл от банкомата / банкомат удалили — сеанс закрывается и на сервере
+timer.Create("nyrp.atm.watch", 1, 0, function()
+	for _, p in ipairs(player.GetAll()) do
+		local s = p.nyrpATM
+		if s and (not IsValid(s.ent) or not p:Alive() or p:GetPos():DistToSqr(s.ent:GetPos()) > 200 * 200) then B.EndATM(p) end
+	end
+end)
 hook.Add("PlayerDisconnected", "nyrp.atm", function(ply) B.EndATM(ply, true) end)
 
 -- --------------------------------------------- банкоматы карты: сохранение --

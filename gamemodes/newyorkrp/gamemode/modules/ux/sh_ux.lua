@@ -59,11 +59,28 @@ function SF.Classes()
 	return classes
 end
 
+-- огнестрел из популярных баз (TFA, ARC9, CW 2.0, M9K, MW Base) — тоже опускается
+local GUN_BASES = { tfa_gun_base = true, tfa_bash_base = true, arc9_base = true, arc9_go_base = true, cw_base = true,
+	bobs_gun_base = true, bobs_shotty_base = true, bobs_scoped_base = true, mg_base = true, weapon_base = false }
+local function isGunBase(wep)
+	local b = wep.Base
+	local guard = 0
+	while b and guard < 8 do
+		if GUN_BASES[b] then return true end
+		local t = weapons.GetStored(b)
+		b = t and t.Base
+		guard = guard + 1
+	end
+	return false
+end
+
 function SF.Applies(wep)
 	if not IsValid(wep) then return false end
 	local cls = tostring(wep:GetClass())
 	if string.sub(cls, 1, 5) == "nyrp_" then return false end   -- ключи, рация, телефон, руки и т.д.
-	return SF.Classes()[cls] == true
+	if SF.Classes()[cls] == true then return true end
+	if wep.nyrpGunBase == nil then wep.nyrpGunBase = isGunBase(wep) end
+	return wep.nyrpGunBase
 end
 
 function SF.Raised(ply) return ply:GetNW2Bool("nyrp.wepRaised", false) end
@@ -75,23 +92,27 @@ function SF.Lowered(ply, wep)
 end
 
 -- Держать R — поднять/опустить. Из опущенного нельзя стрелять и перезаряжаться.
+-- Удержание R отслеживает КЛИЕНТ (ниже клавиша R вырезается из команды, пока оружие опущено,
+-- и сервер её не увидел бы), переключение — консольной командой nyrp_raise на сервер.
 hook.Add("StartCommand", "nyrp.safety", function(ply, cmd)
 	if not ply:Alive() then ply.nyrpRHold = nil return end
 	local wep = ply:GetActiveWeapon()
 	if not SF.Applies(wep) then ply.nyrpRHold = nil return end
 	local raised = SF.Raised(ply)
-	if cmd:KeyDown(IN_RELOAD) then
-		local now = CurTime()
-		if not ply.nyrpRHold then
-			ply.nyrpRHold = now
-			ply.nyrpRDone = false
+	if CLIENT and ply == LocalPlayer() then
+		if cmd:KeyDown(IN_RELOAD) and not vgui.GetKeyboardFocus() then
+			local now = RealTime()
+			if not ply.nyrpRHold then
+				ply.nyrpRHold = now
+				ply.nyrpRDone = false
+			end
+			if not ply.nyrpRDone and now - ply.nyrpRHold >= SF.HoldTime then
+				ply.nyrpRDone = true
+				RunConsoleCommand("nyrp_raise")
+			end
+		else
+			ply.nyrpRHold = nil
 		end
-		if not ply.nyrpRDone and now - ply.nyrpRHold >= SF.HoldTime then
-			ply.nyrpRDone = true
-			if SERVER then SF.Set(ply, not raised) end
-		end
-	else
-		ply.nyrpRHold = nil
 	end
 	if not raised or CurTime() < ply:GetNW2Float("nyrp.wepRaiseT", 0) + SF.RaiseDelay then
 		cmd:RemoveKey(IN_ATTACK)

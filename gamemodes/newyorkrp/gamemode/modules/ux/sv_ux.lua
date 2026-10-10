@@ -145,6 +145,8 @@ end
 NYRP.Chat.AddCommand("/raise", raiseCmd)
 NYRP.Chat.AddCommand("/поднять", raiseCmd)
 NYRP.Chat.AddCommand("/toggleraise", raiseCmd)
+-- удержание R (клиент) и бинд: bind <клавиша> nyrp_raise
+concommand.Add("nyrp_raise", function(ply) if IsValid(ply) then raiseCmd(ply) end end)
 
 -- Взял другое оружие — оно опущено.
 hook.Add("PlayerSwitchWeapon", "nyrp.safety", function(ply, old, new)

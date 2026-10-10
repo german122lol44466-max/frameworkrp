@@ -65,9 +65,10 @@ else
 		self:DrawModel()
 		if EyePos():DistToSqr(self:GetPos()) > 500 * 500 then return end
 		local R = NYRP.Roles.List[self:GetRole()]
-		local pos = self:LocalToWorld(Vector(-3.2, 0, 40.5))
+		-- экран монитора 27": лицевая грань на x = -5.2, центр z = 45, 28 × 16.4 ед.
+		local pos = self:LocalToWorld(Vector(-5.15, 0, 45))
 		local ang = self:LocalToWorldAngles(Angle(0, 90, 90))
-		cam.Start3D2D(pos, ang, 0.05)
+		cam.Start3D2D(pos, ang, 0.0735)
 		local col = R and R.Color or Color(247, 198, 0)
 		surface.SetDrawColor(8, 12, 22, 255)
 		surface.DrawRect(-190, -120, 380, 240)
