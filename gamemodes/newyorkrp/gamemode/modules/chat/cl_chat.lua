@@ -374,9 +374,11 @@ end
 -- ----------------------------------------------------------- набор --
 local function typingKind(text)
 	local kind = Chat.Parse(text)
-	if string.sub(text, 1, 1) ~= "/" and string.sub(text, 1, 1) ~= "." then kind = Chat.Modes[Chat.Mode].kind end
-	if text == "" or kind == T.OOC or kind == T.LOOC then return 0 end
-	return kind
+	local first = string.sub(text, 1, 1)
+	if first ~= "/" and first ~= "." and first ~= "[" then kind = Chat.Modes[Chat.Mode].kind
+	elseif first == "/" and kind == T.IC then return 0 end   -- команда (/help, /act ...) — не речь
+	if text == "" then return 0 end
+	return kind   -- OOC/LOOC тоже показываются (значок «OOC» над головой, modules/ux)
 end
 
 local lastTyping = -1

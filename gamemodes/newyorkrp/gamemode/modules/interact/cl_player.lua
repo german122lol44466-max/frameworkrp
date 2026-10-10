@@ -98,14 +98,19 @@ end
 
 -- Само круговое меню — в мире, выбор движением мыши (modules/interact/cl_worldradial.lua).
 function I.OpenPlayerMenu(target)
+	-- другие модули добавляют свои пункты (с полем func(target)) через хук NYRP.PlayerMenuOptions
+	local options = {}
+	for i, a in ipairs(ACTIONS) do options[i] = a end
+	hook.Run("NYRP.PlayerMenuOptions", target, options)
 	NYRP.WorldRadial.Open({
 		anchor = function() return IsValid(target) and I.Anchor(target) end,
 		valid = function()
 			return IsValid(target) and target:Alive() and target:GetPos():Distance(LocalPlayer():GetPos()) <= 170
 		end,
-		options = ACTIONS,
+		options = options,
 		onSelect = function(act)
-			if act.id == "money" then I.OpenMoneyDialog(target) else send(act.id, target) end
+			if act.func then act.func(target)
+			elseif act.id == "money" then I.OpenMoneyDialog(target) else send(act.id, target) end
 		end,
 	})
 end

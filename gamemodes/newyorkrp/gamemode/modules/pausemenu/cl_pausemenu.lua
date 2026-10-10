@@ -188,6 +188,7 @@ function P.Open()
 		end, not NYRP.PointsConfigured },
 		{ "НАСТРОЙКИ", "settings", function() showContent("НАСТРОЙКИ", UI.BuildSettings) end },
 		{ "БИНДЫ", "keyboard", function() showContent("БИНДЫ", buildBinds) end },
+		{ "СПРАВКА", "question", function() P.Close() if NYRP.Help then NYRP.Help.Open() end end },   -- modules/ux/cl_help.lua
 		{ "МЕНЮ ИГРЫ", "menu", function()
 			P.Close()
 			P.AllowGameUI = true

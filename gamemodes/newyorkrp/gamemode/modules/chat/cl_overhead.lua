@@ -162,9 +162,9 @@ local function drawPlayer(ply, me, eye, look, now)
 
 	local hovered = ply ~= me and look == ply and dist < NYRP.Config.Ranges.NameTag
 	st.tag = UI.Approach(st.tag, hovered and 1 or 0, hovered and 12 or 5)
-	local tk = ply:GetNW2Int("nyrp.typing", 0)
+	local tk = O.TypingKind and O.TypingKind(ply) or ply:GetNW2Int("nyrp.typing", 0)   -- modules/ux/cl_typing.lua
 	if tk > 0 then st.typeKind = tk end
-	st.typing = UI.Approach(st.typing, (tk > 0 and typingInfo[tk]) and 1 or 0, 10)
+	st.typing = UI.Approach(st.typing, (tk > 0 and (typingInfo[tk] or O.DrawTyping)) and 1 or 0, 10)
 	st.voice = UI.Approach(st.voice, ply:IsSpeaking() and 1 or 0, 10)
 	local list = bubbles[ply]
 	if st.tag < 0.01 and st.typing < 0.01 and st.voice < 0.01 and not (list and #list > 0) then return end
@@ -193,9 +193,14 @@ local function drawPlayer(ply, me, eye, look, now)
 		y = y - (54 + gap) * st.voice
 	end
 	if st.typing > 0.01 then
-		local info = typingInfo[st.typeKind] or typingInfo[T.IC]
-		local dots = string.rep(".", math.floor(now * 3) % 4)
-		local h = pill(y, info[1] .. dots, NYRP.FontRaw("medium", 26), info[2], UI.Col.dim, st.typing, UI.Col.accent)
+		local h
+		if O.DrawTyping then
+			h = O.DrawTyping(y, st.typeKind, st.typing, now)
+		else
+			local info = typingInfo[st.typeKind] or typingInfo[T.IC]
+			local dots = string.rep(".", math.floor(now * 3) % 4)
+			h = pill(y, info[1] .. dots, NYRP.FontRaw("medium", 26), info[2], UI.Col.dim, st.typing, UI.Col.accent)
+		end
 		y = y - (h + gap) * st.typing
 	end
 	if list then
