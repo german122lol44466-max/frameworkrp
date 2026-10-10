@@ -22,7 +22,7 @@ for _, ns in ipairs({ "UI", "Config", "Chars", "Chat", "Items", "Inv", "Inventor
 	-- все общие таблицы создаём заранее, чтобы порядок файлов был неважен
 	"Bags", "Bank", "Business", "Camera", "Combat", "Cond", "Containers", "Doors", "E911", "Gestures", "Health",
 	"Jobs", "Money", "NPC", "Phone", "Radio", "Roles", "Skills", "Smoking", "Time", "Voice", "Waypoint", "Zones",
-	"Police", "Fire", "EMS", "Street", "Factions" }) do
+	"Police", "Fire", "EMS", "Street", "Factions", "Sit" }) do
 	NYRP[ns] = NYRP[ns] or {}
 end
 

@@ -80,13 +80,14 @@ local function sendTerminal(ply, ent)
 	end
 	table.sort(data.calls, function(a, b) return a.id > b.id end)
 	for _, p in ipairs(player.GetAll()) do
-		if role(p) == r then data.staff[#data.staff + 1] = { name = NYRP.CharName(p), alive = p:Alive() } end
+		if role(p) == r then data.staff[#data.staff + 1] = { name = NYRP.CharName(p), alive = p:Alive(), duty = p:GetNW2Bool("nyrp.onDuty") } end
 	end
 	if r == "police" then
 		for _, p in ipairs(player.GetAll()) do
 			if NYRP.Jobs.Wanted(p) then data.extra[#data.extra + 1] = { id = p:EntIndex(), text = "Подозреваемый (приметы: " .. string.sub(p:GetNW2String("nyrp.desc", "?"), 1, 60) .. ")",
 				left = math.floor(p:GetNW2Float("nyrp.wantedUntil") - CurTime()) } end
 		end
+		data.records = F.RecentRecords and F.RecentRecords(40) or {}
 		data.people = {}
 		for _, p in ipairs(player.GetAll()) do if NYRP.HasCharacter(p) and p ~= ply then data.people[#data.people + 1] = NYRP.CharName(p) end end
 	elseif r == "medic" then
@@ -133,9 +134,7 @@ net.Receive("nyrp.terminal.act", function(_, ply)
 		end
 		NYRP.Notify(ply, "Человек не найден", "error")
 	elseif act == "duty" then
-		ply.nyrpOnDuty = not ply.nyrpOnDuty
-		ply:SetNW2Bool("nyrp.onDuty", ply.nyrpOnDuty)
-		NYRP.Notify(ply, ply.nyrpOnDuty and "Вы заступили на смену" or "Смена окончена", "info")
+		F.SetDuty(ply, not ply:GetNW2Bool("nyrp.onDuty"))
 	end
 	timer.Simple(0.2, function() if IsValid(ply) and IsValid(ent) then sendTerminal(ply, ent) end end)
 end)

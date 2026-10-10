@@ -3,6 +3,8 @@
 	Перенос как в ix_hands (Helix): ПКМ по предмету, телу или любому незакреплённому объекту — взять,
 	ещё раз ПКМ — отпустить. Объект держится перед вами (тело — ниже, волочится);
 	ЛКМ — бросить предмет, R + мышь — повернуть.
+	С пустыми руками ЛКМ — удар кулаком (левой/правой по очереди, третий подряд — апперкот),
+	руки поднимаются в стойку на 3 секунды; по двери — постучать.
 	Пока держите — справа панель с названием, от неё к точке захвата тонкая линия с квадратом
 	(как у подсказок Helix), линия «дорисовывается» при захвате.
 ]]
@@ -41,11 +43,26 @@ function SWEP:SetupDataTables()
 	self:NetworkVar("Int", 0, "GrabBone")
 	self:NetworkVar("Vector", 0, "GrabLocal")
 	self:NetworkVar("Float", 0, "GrabTime")
+	self:NetworkVar("Float", 1, "RaisedUntil")
+	self:NetworkVar("Float", 2, "PunchTime")
+	self:NetworkVar("Int", 1, "PunchCount")
 end
 
 function SWEP:Initialize()
+	-- две таблицы поз: обычная (руки опущены) и «fist» (стойка) — переключаются TranslateActivity
+	self:SetHoldType("fist")
+	self.FistAT = table.Copy(self.ActivityTranslate or {})
 	self:SetHoldType(self.HoldType)
+	self.NormalAT = table.Copy(self.ActivityTranslate or {})
 	self.heldAngle = Angle()
+end
+
+function SWEP:Raised() return self:GetRaisedUntil() > CurTime() end
+
+function SWEP:TranslateActivity(act)
+	local t = self:Raised() and self.FistAT or self.NormalAT
+	if t and t[act] then return t[act] end
+	return -1
 end
 
 function SWEP:IsGrabbing() return IsValid(self:GetGrabEnt()) end
@@ -159,11 +176,88 @@ if SERVER then
 	end
 end
 
+local PUNCH_RANGE = 52
+local SWING = { "WeaponFrag.Throw" }
+
+local function isDoor(e)
+	if not IsValid(e) then return false end
+	local c = e:GetClass()
+	return c == "prop_door_rotating" or c == "func_door" or c == "func_door_rotating"
+end
+
 function SWEP:PrimaryAttack()
-	if CLIENT or not self:IsGrabbing() then return end
-	self:Drop(true)
-	self:SetNextPrimaryFire(CurTime() + 0.5)
-	self:SetNextSecondaryFire(CurTime() + 0.5)
+	if self:IsGrabbing() then
+		if SERVER then self:Drop(true) end
+		self:SetNextPrimaryFire(CurTime() + 0.5)
+		self:SetNextSecondaryFire(CurTime() + 0.5)
+		return
+	end
+	local ply = self:GetOwner()
+	if not IsValid(ply) or (NYRP.Cond and NYRP.Cond.KO(ply)) then return end
+	if NYRP.Factions and NYRP.Factions.Cuffed and NYRP.Factions.Cuffed(ply) then return end
+	local start, dir = ply:GetShootPos(), ply:GetAimVector()
+	local tr = util.TraceLine({ start = start, endpos = start + dir * 70, filter = ply, mask = MASK_SHOT_HULL })
+	-- стук в дверь
+	if isDoor(tr.Entity) and not self:Raised() then
+		self:SetNextPrimaryFire(CurTime() + 0.9)
+		ply:SetAnimation(PLAYER_ATTACK1)
+		if SERVER then
+			for i = 0, 2 do
+				timer.Simple(i * 0.18, function()
+					if IsValid(tr.Entity) then tr.Entity:EmitSound("physics/wood/wood_crate_impact_hard" .. math.random(2, 3) .. ".wav", 70, math.random(95, 110), 0.8) end
+				end)
+			end
+		end
+		return
+	end
+	-- удар
+	local st = ply:GetNW2Float("nyrp.stamina", 100)
+	if st < 8 then
+		self:SetNextPrimaryFire(CurTime() + 0.5)
+		return
+	end
+	local n = (CurTime() - self:GetPunchTime() < 1.2) and self:GetPunchCount() + 1 or 1
+	self:SetPunchCount(n)
+	self:SetPunchTime(CurTime())
+	self:SetRaisedUntil(CurTime() + 3)
+	local upper = n % 3 == 0
+	self:SetNextPrimaryFire(CurTime() + (upper and 0.85 or 0.5))
+	ply:SetAnimation(PLAYER_ATTACK1)
+	ply:ViewPunch(Angle(upper and -3 or 1.5, (n % 2 == 0) and 1.5 or -1.5, 0))
+	if CLIENT then return end
+	ply:SetNW2Float("nyrp.stamina", math.max(0, st - (upper and 9 or 6)))
+	ply:EmitSound(SWING[1], 60, math.random(95, 110), 0.6)
+	ply:LagCompensation(true)
+	local hit = util.TraceHull({ start = start, endpos = start + dir * PUNCH_RANGE, filter = ply, mins = Vector(-8, -8, -8), maxs = Vector(8, 8, 8), mask = MASK_SHOT_HULL })
+	ply:LagCompensation(false)
+	timer.Simple(0.12, function()
+		if not IsValid(ply) or not IsValid(self) then return end
+		local e = hit.Entity
+		if not hit.Hit then return end
+		if not IsValid(e) then
+			ply:EmitSound("Flesh.ImpactSoft", 60)
+			return
+		end
+		local SK = NYRP.Skills
+		local lvl = SK and SK.Level and SK.Level(ply, "strength") or 0
+		local dmg = math.random(4, 7) + lvl * 0.8 + (upper and 4 or 0)
+		local d = DamageInfo()
+		d:SetDamage(dmg)
+		d:SetDamageType(DMG_CLUB)
+		d:SetAttacker(ply)
+		d:SetInflictor(self)
+		d:SetDamageForce(dir * (upper and 9000 or 4000))
+		d:SetDamagePosition(hit.HitPos)
+		e:TakeDamageInfo(d)
+		if e:IsPlayer() or e:IsNPC() or e:IsRagdoll() then
+			e:EmitSound("Flesh.ImpactHard", 70, math.random(95, 110))
+			if e:IsPlayer() then e:ViewPunch(Angle(math.Rand(-6, -2), math.Rand(-4, 4), 0)) end
+		else
+			e:EmitSound("Flesh.ImpactSoft", 60)
+			local ph = e:GetPhysicsObject()
+			if IsValid(ph) then ph:ApplyForceOffset(dir * 3000, hit.HitPos) end
+		end
+	end)
 end
 
 function SWEP:SecondaryAttack()
@@ -249,6 +343,103 @@ end
 
 function SWEP:DrawWorldModel() end
 function SWEP:ShouldDrawViewModel() return false end
+
+-- ---------------------------------------------------- кулаки от 1-го лица --
+-- Камера «с телом» не показывает вьюмодель — рисуем c_arms с анимациями кулаков сами, пока руки в стойке.
+if CLIENT then
+	local VM_FOV = 62
+	local vm, hands, seqName, seqStart, lastPunch = nil, nil, nil, 0, 0
+
+	local function cleanup()
+		if IsValid(hands) then hands:Remove() end
+		if IsValid(vm) then vm:Remove() end
+		vm, hands = nil, nil
+	end
+
+	local function ensure()
+		if not IsValid(vm) then
+			vm = ClientsideModel("models/weapons/c_arms.mdl", RENDERGROUP_OPAQUE)
+			if not IsValid(vm) then return end
+			vm:SetNoDraw(true)
+		end
+		local ph = LocalPlayer():GetHands()
+		local mdl = IsValid(ph) and ph:GetModel() or "models/weapons/c_arms_citizen.mdl"
+		if not IsValid(hands) or hands:GetModel() ~= mdl then
+			if IsValid(hands) then hands:Remove() end
+			hands = ClientsideModel(mdl, RENDERGROUP_OPAQUE)
+			if not IsValid(hands) then return end
+			hands:SetNoDraw(true)
+			hands:SetParent(vm)
+			hands:AddEffects(EF_BONEMERGE)
+		end
+		if IsValid(ph) then
+			hands:SetSkin(ph:GetSkin())
+			for i = 0, ph:GetNumBodyGroups() - 1 do hands:SetBodygroup(i, ph:GetBodygroup(i)) end
+		end
+		return vm, hands
+	end
+
+	local function play(name)
+		if seqName == name then return end
+		seqName, seqStart = name, RealTime()
+	end
+
+	hook.Add("HUDPaintBackground", "nyrp.hands.fists", function()
+		local ply = LocalPlayer()
+		local w = IsValid(ply) and ply:GetActiveWeapon()
+		local Cam = NYRP.Camera
+		local first = not (Cam and Cam.IsThirdPerson and Cam.IsThirdPerson())
+		if not IsValid(w) or w:GetClass() ~= "nyrp_hands" or not ply:Alive() or not first or w:IsGrabbing() then
+			if IsValid(vm) then cleanup() end
+			seqName = nil
+			return
+		end
+		local raised = w:Raised()
+		if not raised and not seqName then return end
+		local v, h = ensure()
+		if not IsValid(v) or not IsValid(h) then return end
+		-- выбор анимации
+		if w:GetPunchTime() ~= lastPunch then
+			lastPunch = w:GetPunchTime()
+			local n = w:GetPunchCount()
+			seqName = nil
+			play(n % 3 == 0 and "fists_uppercut" or (n % 2 == 0 and "fists_left" or "fists_right"))
+		elseif not seqName then
+			play("fists_draw")
+		end
+		local seq = v:LookupSequence(seqName or "fists_idle_01")
+		if seq < 0 then return end
+		local dur = math.max(v:SequenceDuration(seq), 0.01)
+		local t = (RealTime() - seqStart) / dur
+		if t >= 1 then
+			if not raised then
+				if seqName == "fists_holster" then seqName = nil cleanup() return end
+				play("fists_holster")
+			elseif seqName ~= "fists_idle_01" then
+				play("fists_idle_01")
+			end
+			seq = v:LookupSequence(seqName)
+			if seq < 0 then return end
+			dur = math.max(v:SequenceDuration(seq), 0.01)
+			t = (RealTime() - seqStart) / dur
+		end
+		if v:GetSequence() ~= seq then v:ResetSequence(seq) end
+		v:SetPlaybackRate(0)
+		v:SetCycle(seqName == "fists_idle_01" and t % 1 or math.Clamp(t, 0, 0.999))
+		local eye, view = EyePos(), EyeAngles()
+		v:SetPos(eye)
+		v:SetAngles(view)
+		v:InvalidateBoneCache()
+		v:SetupBones()
+		h:InvalidateBoneCache()
+		h:SetupBones()
+		cam.Start3D(eye, view, VM_FOV, nil, nil, nil, nil, 1, 300)
+		render.ClearDepth()
+		v:DrawModel()
+		h:DrawModel()
+		cam.End3D()
+	end)
+end
 
 -- ---------------------------------------------------------------- линия --
 if CLIENT then

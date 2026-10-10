@@ -7,7 +7,7 @@ AddCSLuaFile()
 
 SWEP.Base = "nyrp_handheld"
 SWEP.PrintName = "Наручники"
-SWEP.Instructions = "ЛКМ — надеть / вести, ПКМ — снять"
+SWEP.Instructions = "ЛКМ — надеть / вести, ПКМ — снять, R — обыск и КПЗ"
 SWEP.Slot = 0
 SWEP.SlotPos = 6
 SWEP.ViewModel = "models/nyrp/city/v_handcuffs.mdl"
@@ -59,4 +59,12 @@ function SWEP:SecondaryAttack()
 	NYRP.Action(ply, "Снимаю наручники...", 2, function()
 		if IsValid(t) and t:GetPos():Distance(ply:GetPos()) < 110 then NYRP.Factions.Cuff(ply, t, false) end
 	end, "unlock")
+end
+
+function SWEP:Reload()
+	if CLIENT or (self.nextMenu or 0) > CurTime() then return end
+	self.nextMenu = CurTime() + 0.6
+	local ply = self:GetOwner()
+	local t = target(ply)
+	if t and NYRP.Factions.Cuffed(t) then NYRP.Factions.OpenSuspectMenu(ply, t) end
 end
