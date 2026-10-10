@@ -4,7 +4,7 @@ ROLE.Color = Color(80, 140, 230)
 ROLE.Icon = "r_police"
 ROLE.Model = { "models/player/police.mdl", "models/player/police_fem.mdl" }   -- мужская, женская
 ROLE.Salary = 150                 -- в игровую полночь на карту
-ROLE.Items = { "radio", "baton", "pistol", "vest_light" }
+ROLE.Items = { "radio", "baton", "pistol", "vest_light", "handcuffs" }
 -- требования (меню фракций у NPC-вербовщика)
 ROLE.Whitelist = false            -- true — только по одобрению администрации (заявка)
 ROLE.MinHours = 2                 -- сколько часов отыграть этим персонажем

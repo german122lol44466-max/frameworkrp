@@ -516,10 +516,16 @@ end
 local function sendMenu(ply, ent)
 	if IsValid(ent) then ply.nyrpJobDepot = ent:GetPos() end
 	local list = {}
+	ent = IsValid(ent) and ent or ply.nyrpJobNPC
+	ply.nyrpJobNPC = ent
+	local only = IsValid(ent) and ent.NPCData and ent.NPCData.jobs
+	if not (only and next(only)) then only = nil end
 	for _, id in ipairs(J.Order) do
-		local n = 0
-		for _, p in ipairs(player.GetAll()) do if p:GetNW2String("nyrp.job") == id then n = n + 1 end end
-		list[#list + 1] = { id = id, workers = n, problems = J.Check(ply, id) }
+		if not only or only[id] then
+			local n = 0
+			for _, p in ipairs(player.GetAll()) do if p:GetNW2String("nyrp.job") == id then n = n + 1 end end
+			list[#list + 1] = { id = id, workers = n, problems = J.Check(ply, id) }
+		end
 	end
 	local c = ply.nyrpChar
 	net.Start("nyrp.jobs")

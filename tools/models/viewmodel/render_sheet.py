@@ -30,7 +30,7 @@ def load_part(name):
     if name.startswith("hh_"):
         import handheld
         kind = name[3:]
-        base = os.path.join(PROPS_DIR, handheld.ITEMS[kind]["model"])
+        base = os.path.normpath(os.path.join(PROPS_DIR, handheld.ITEMS[kind]["model"]))
         m = MDL(base + ".mdl")
         verts, tris = m.load_mesh(base)
         pos = np.array([v[0] for v in verts]) - np.array(handheld.ITEMS[kind]["center"])

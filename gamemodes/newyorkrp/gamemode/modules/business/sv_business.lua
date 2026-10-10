@@ -55,6 +55,19 @@ net.Receive("nyrp.biz.act", function(_, ply)
 		NYRP.Chars.Save(ply)
 		ply:EmitSound("nyrp/fx/stamp.wav", 60)
 		NYRP.Notify(ply, "Лицензия " .. num .. " выдана: " .. t.name .. " «" .. name .. "»", "success", 8)
+		-- метка до ближайшего свободного коммерческого помещения
+		local best, bestD
+		for id, d in pairs(D.Data) do
+			local e = d.business and not d.owner and D.DoorById(id)
+			if IsValid(e) then
+				local dist = e:GetPos():DistToSqr(ply:GetPos())
+				if not bestD or dist < bestD then best, bestD = e, dist end
+			end
+		end
+		if IsValid(best) then
+			NYRP.Waypoint.Set(ply, "biz_free", best:WorldSpaceCenter(), "Свободное помещение", "store", Color(240, 160, 60), { radius = 120 })
+			NYRP.Notify(ply, "Ближайшее свободное помещение отмечено. Арендовать — здесь же, в ратуше, вкладка «Помещения».", "info", 8)
+		end
 		send(ply)
 	elseif act == "rent" then
 		local L = lic(ply)

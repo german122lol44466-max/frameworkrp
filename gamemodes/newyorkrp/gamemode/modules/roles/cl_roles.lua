@@ -53,9 +53,10 @@ net.Receive("nyrp.fac", function()
 					draw.SimpleText("ТРЕБОВАНИЯ", NYRP.Font("bold", 11), UI.S(18), y, Color(200, 190, 255))
 					y = y + UI.S(18)
 					local reqs = {}
-					if r.Whitelist then reqs[#reqs + 1] = "Одобрение администрации (заявка)" end
-					if (r.MinHours or 0) > 0 then reqs[#reqs + 1] = "Отыграно " .. r.MinHours .. " ч" end
-					for sk, lv in pairs(r.MinSkills or {}) do
+					if e.free then reqs[#reqs + 1] = "Свободный набор" end
+					if e.whitelist then reqs[#reqs + 1] = "Одобрение администрации (заявка)" end
+					if not e.free and (e.hours or 0) > 0 then reqs[#reqs + 1] = "Отыграно " .. e.hours .. " ч" end
+					for sk, lv in pairs(not e.free and e.skills or {}) do
 						for _, s2 in ipairs(NYRP.Config.Skills) do if s2.id == sk then reqs[#reqs + 1] = s2.name .. " " .. lv end end
 					end
 					if #reqs == 0 then reqs[1] = "Нет" end
@@ -82,7 +83,7 @@ net.Receive("nyrp.fac", function()
 				btn = UI.AddButton(card, "Заявка на рассмотрении", "hourglass", function() end, { dock = false })
 			else
 				local ok = #(e.problems or {}) == 0
-				btn = UI.AddButton(card, r.Whitelist and "Подать заявку" or "Вступить", r.Whitelist and "sign" or "badge", function()
+				btn = UI.AddButton(card, e.whitelist and "Подать заявку" or "Вступить", e.whitelist and "sign" or "badge", function()
 					if not ok then UI.Sound("error") return end
 					act("join")
 				end, { dock = false, style = ok and "solid" or "ghost", accent = ok and r.Color or nil })

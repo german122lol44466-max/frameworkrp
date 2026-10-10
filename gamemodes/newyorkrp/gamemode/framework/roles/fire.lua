@@ -4,7 +4,7 @@ ROLE.Color = Color(240, 140, 50)
 ROLE.Icon = "r_fire"
 ROLE.Model = nil
 ROLE.Salary = 120
-ROLE.Items = { "radio", "crowbar", "helmet" }
+ROLE.Items = { "radio", "crowbar", "helmet", "extinguisher" }
 ROLE.Whitelist = false
 ROLE.MinHours = 1
 ROLE.MinSkills = { strength = 2 }

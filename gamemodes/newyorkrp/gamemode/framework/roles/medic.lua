@@ -4,7 +4,7 @@ ROLE.Color = Color(230, 90, 90)
 ROLE.Icon = "r_medic"
 ROLE.Model = nil
 ROLE.Salary = 130
-ROLE.Items = { "medkit", "medkit", "bandage", "bandage", "splint", "surgery_kit", "radio" }
+ROLE.Items = { "medkit", "medkit", "bandage", "bandage", "splint", "surgery_kit", "radio", "defib" }
 ROLE.Whitelist = false
 ROLE.MinHours = 1
 ROLE.MinSkills = { medicine = 2 }

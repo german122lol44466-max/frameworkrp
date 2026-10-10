@@ -223,8 +223,9 @@ def build_handheld(kind):
         tl = meshes.setdefault(mat, [])
         for t in range(0, len(arr), 3):
             tl.append([(tuple(p[t + k]), tuple(nrm[t + k]), (float(arr[t + k, 6]), float(arr[t + k, 7])), ii) for k in range(3)])
-    out = os.path.join(ROOT, "gamemodes", "newyorkrp", "content", "models", "nyrp", "props")
-    mdlc_anim.compile_animated(out, f"v_{kind}", f"nyrp/props/v_{kind}.mdl", bones, meshes, seqs, "models/nyrp/props", "plastic")
+    sub = "city" if handheld.ITEMS[kind]["model"].startswith("../city/") else "props"
+    out = os.path.join(ROOT, "gamemodes", "newyorkrp", "content", "models", "nyrp", sub)
+    mdlc_anim.compile_animated(out, f"v_{kind}", f"nyrp/{sub}/v_{kind}.mdl", bones, meshes, seqs, f"models/nyrp/{sub}", "plastic")
     m2 = MDL(os.path.join(out, f"v_{kind}.mdl"))
     worst = 0
     for si, sq in enumerate(seqs):

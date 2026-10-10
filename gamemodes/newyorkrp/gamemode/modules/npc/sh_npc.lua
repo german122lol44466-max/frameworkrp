@@ -177,5 +177,19 @@ function N.Sanitize(d)
 			out.quests[qid] = o
 		end
 	end
+	-- какие фракции выдаёт этот NPC и как: { [роль] = { method = "free"|"req"|"whitelist", hours = N, skills = { навык = ур. } } }
+	out.factions = {}
+	for rid, f in pairs(type(d.factions) == "table" and d.factions or {}) do
+		if NYRP.Roles.List and NYRP.Roles.List[rid] and type(f) == "table" then
+			local sk = {}
+			for k, v in pairs(type(f.skills) == "table" and f.skills or {}) do sk[str(k, 20)] = num(v, 0, 10, 0) end
+			out.factions[rid] = { method = (f.method == "free" or f.method == "whitelist") and f.method or "req", hours = num(f.hours, 0, 1000, 0), skills = sk }
+		end
+	end
+	-- какие профессии предлагает (пусто — все)
+	out.jobs = {}
+	for jid, on in pairs(type(d.jobs) == "table" and d.jobs or {}) do
+		if on and NYRP.Jobs.List and NYRP.Jobs.List[jid] then out.jobs[jid] = true end
+	end
 	return out
 end

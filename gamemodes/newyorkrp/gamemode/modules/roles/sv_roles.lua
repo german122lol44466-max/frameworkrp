@@ -132,17 +132,35 @@ local function members(id)
 end
 Roles.Members = members
 
+-- как получить роль у конкретного NPC (настройка в редакторе NPC → «Службы и работы»), иначе — из файла роли
+function Roles.Rule(id, npc)
+	local r = Roles.List[id]
+	local cfg = IsValid(npc) and npc.NPCData and npc.NPCData.factions or nil
+	if cfg and next(cfg) then
+		local f = cfg[id]
+		if not f then return nil end
+		return { whitelist = f.method == "whitelist", free = f.method == "free", hours = f.hours or 0,
+			skills = (f.skills and next(f.skills)) and f.skills or (r and r.MinSkills) or {} }
+	end
+	return { whitelist = r.Whitelist, free = false, hours = r.MinHours or 0, skills = r.MinSkills or {} }
+end
+
 -- что мешает вступить: список строк (пусто — можно)
-function Roles.Check(ply, id)
+function Roles.Check(ply, id, npc)
 	local r = Roles.List[id]
 	local c = ply.nyrpChar
 	local out = {}
 	if not r or not c then return { "Нет такой службы" } end
-	local hours = (c.flags and c.flags.played or 0) / 3600
-	if (r.MinHours or 0) > 0 and hours < r.MinHours then
-		out[#out + 1] = string.format("Отыграть %d ч (сейчас %.1f ч)", r.MinHours, hours)
+	local rule = Roles.Rule(id, npc) or { hours = 0, skills = {} }
+	if rule.free then
+		if (r.MaxMembers or 0) > 0 and members(id) >= r.MaxMembers then out[#out + 1] = "Нет свободных мест (" .. r.MaxMembers .. ")" end
+		return out
 	end
-	for sk, lvl in pairs(r.MinSkills or {}) do
+	local hours = (c.flags and c.flags.played or 0) / 3600
+	if (rule.hours or 0) > 0 and hours < rule.hours then
+		out[#out + 1] = string.format("Отыграть %d ч (сейчас %.1f ч)", rule.hours, hours)
+	end
+	for sk, lvl in pairs(rule.skills or {}) do
 		local have = c.skills and c.skills[sk] or 0
 		if have < lvl then
 			local name = sk
@@ -154,13 +172,19 @@ function Roles.Check(ply, id)
 	return out
 end
 
-local function sendFactions(ply)
+local function sendFactions(ply, npc)
+	npc = npc or ply.nyrpFacNPC
+	ply.nyrpFacNPC = npc
 	local list = {}
 	for _, id in ipairs(Roles.Order) do
-		local r = Roles.List[id]
+		local rule = Roles.Rule(id, npc)
 		local c = ply.nyrpChar
-		list[#list + 1] = { id = id, members = members(id), problems = Roles.Check(ply, id),
-			applied = c and c.flags and c.flags.roleApply == id or false }
+		if rule or Roles.List[id].Default then
+			rule = rule or { hours = 0, skills = {} }
+			list[#list + 1] = { id = id, members = members(id), problems = Roles.Check(ply, id, npc),
+				applied = c and c.flags and c.flags.roleApply == id or false,
+				whitelist = rule.whitelist, free = rule.free, hours = rule.hours, skills = rule.skills }
+		end
 	end
 	net.Start("nyrp.fac")
 	net.WriteTable(list)
@@ -169,7 +193,7 @@ local function sendFactions(ply)
 end
 
 hook.Add("NYRP.NPCMenu", "nyrp.roles", function(ply, ent, act)
-	if act == "factions" then sendFactions(ply) end
+	if act == "factions" then sendFactions(ply, ent) end
 end)
 
 -- заявки (вайтлист): data/nyrp/role_applications.json
@@ -192,9 +216,13 @@ net.Receive("nyrp.fac.act", function(_, ply)
 	end
 	if act ~= "join" or not r or r.Default then return end
 	if ply:GetNW2String("nyrp.role") == id then return end
-	local problems = Roles.Check(ply, id)
+	local npc = ply.nyrpFacNPC
+	if IsValid(npc) and npc:GetPos():Distance(ply:GetPos()) > 300 then npc = nil end
+	local rule = Roles.Rule(id, npc)
+	if not rule then NYRP.Notify(ply, "Этот вербовщик в «" .. r.Name .. "» не принимает", "error") return end
+	local problems = Roles.Check(ply, id, npc)
 	if #problems > 0 then NYRP.Notify(ply, "Пока нельзя: " .. problems[1], "error", 6) return end
-	if r.Whitelist then
+	if rule.whitelist then
 		local t = apps()
 		t[tostring(c.id)] = { role = id, name = c.name, steam = ply:SteamID(), time = os.time() }
 		saveApps(t)

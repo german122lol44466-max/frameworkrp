@@ -499,6 +499,86 @@ TABS[4] = { "Задания", "check", function(body)
 end }
 
 -- ------------------------------------------------------------------ окно --
+-- Службы и работы: какие фракции выдаёт NPC (и как получить) и какие профессии предлагает.
+-- Работает, если у ответа в диалоге выбрано «Открыть меню фракций» / «Открыть меню профессий».
+TABS[#TABS + 1] = { "Службы и работы", "badge", function(body)
+	local d = E.data
+	d.factions = d.factions or {}
+	d.jobs = d.jobs or {}
+	local METHODS = { { "free", "Свободно (сразу)" }, { "req", "По требованиям" }, { "whitelist", "Заявка → админ" } }
+	local scroll = vgui.Create("DScrollPanel", body)
+	scroll:Dock(FILL)
+	local function head(text, sub)
+		local h = scroll:Add("DPanel")
+		h:Dock(TOP)
+		h:SetTall(UI.S(48))
+		h.Paint = function(_, w, hh)
+			draw.SimpleText(text, NYRP.Font("bold", 17), 0, UI.S(6), UI.Col.text)
+			draw.SimpleText(sub, NYRP.Font("regular", 12), 0, UI.S(28), UI.Col.dim)
+		end
+	end
+	head("ФРАКЦИИ (госслужбы)", "Отметьте, кого принимает этот NPC. Никто не отмечен — правила берутся из файлов framework/roles.")
+	for _, rid in ipairs(NYRP.Roles.Order) do
+		local r = NYRP.Roles.List[rid]
+		if not r.Default then
+			local row = scroll:Add("DPanel")
+			row:Dock(TOP)
+			row:SetTall(UI.S(44))
+			row:DockMargin(0, 0, UI.S(8), UI.S(6))
+			row.Paint = function(_, w, h)
+				local on = d.factions[rid] ~= nil
+				UI.RoundedRect(UI.S(8), 0, 0, w, h, Color(255, 255, 255, on and 16 or 6))
+				UI.RoundedRect(UI.S(4), UI.S(12), h / 2 - UI.S(9), UI.S(18), UI.S(18), on and r.Color or Color(255, 255, 255, 30))
+				draw.SimpleText(r.Name, NYRP.Font("semibold", 15), UI.S(42), h / 2, on and color_white or UI.Col.dim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			end
+			local toggle = vgui.Create("DButton", row)
+			toggle:SetText("")
+			toggle:SetPos(0, 0)
+			toggle:SetSize(UI.S(260), UI.S(44))
+			toggle.Paint = nil
+			toggle.DoClick = function()
+				if d.factions[rid] then d.factions[rid] = nil else d.factions[rid] = { method = "req", hours = r.MinHours or 0 } end
+				UI.Sound("toggle")
+			end
+			local hours = vgui.Create("DNumberWang", row)
+			hours:Dock(RIGHT)
+			hours:SetWide(UI.S(70))
+			hours:DockMargin(UI.S(6), UI.S(8), UI.S(8), UI.S(8))
+			hours:SetMinMax(0, 1000)
+			hours:SetValue(d.factions[rid] and d.factions[rid].hours or (r.MinHours or 0))
+			hours.OnValueChanged = function(_, v) if d.factions[rid] then d.factions[rid].hours = math.floor(tonumber(v) or 0) end end
+			local hl = vgui.Create("DLabel", row)
+			hl:Dock(RIGHT)
+			hl:SetWide(UI.S(60))
+			hl:SetText("часов:")
+			hl:SetFont(NYRP.Font("medium", 13))
+			local m = select(row, "Как получить", function() return METHODS end,
+				function() return d.factions[rid] and d.factions[rid].method or "req" end,
+				function(v) d.factions[rid] = d.factions[rid] or { hours = 0 } d.factions[rid].method = v end)
+			m:Dock(RIGHT)
+			m:SetWide(UI.S(220))
+			m:DockMargin(0, UI.S(4), 0, UI.S(4))
+		end
+	end
+	head("ПРОФЕССИИ", "Отметьте, какие работы предлагает NPC. Никто не отмечен — все профессии.")
+	for _, jid in ipairs(NYRP.Jobs.Order) do
+		local j = NYRP.Jobs.List[jid]
+		local b = scroll:Add("DButton")
+		b:SetText("")
+		b:Dock(TOP)
+		b:SetTall(UI.S(38))
+		b:DockMargin(0, 0, UI.S(8), UI.S(4))
+		b.DoClick = function() d.jobs[jid] = (not d.jobs[jid]) or nil UI.Sound("toggle") end
+		b.Paint = function(s, w, h)
+			local on = d.jobs[jid]
+			UI.RoundedRect(UI.S(8), 0, 0, w, h, Color(255, 255, 255, on and 16 or (s:IsHovered() and 10 or 5)))
+			UI.RoundedRect(UI.S(4), UI.S(12), h / 2 - UI.S(8), UI.S(16), UI.S(16), on and j.Color or Color(255, 255, 255, 30))
+			UI.DrawIcon(j.Icon, UI.S(48), h / 2, UI.S(18), j.Color)
+			draw.SimpleText(j.Name .. (j.Criminal and "  (криминал)" or ""), NYRP.Font("semibold", 14), UI.S(68), h / 2, on and color_white or UI.Col.dim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		end
+	end
+end }
+
 function N.OpenEditor(ent, data)
 	if IsValid(E.frame) then E.frame:Remove() end
 	E = { ent = ent, data = table.Copy(data), tab = 1 }
