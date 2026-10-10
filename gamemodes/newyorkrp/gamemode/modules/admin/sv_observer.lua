@@ -162,8 +162,8 @@ local function reset(ply)
 	ply:SetNoTarget(false)
 	hideWeapons(ply, false)
 end
-hook.Add("PlayerDeath", "nyrp.admin.observer", reset)
-hook.Add("NYRP.PlayerSpawned", "nyrp.admin.observer", reset)
+hook.Add("PlayerDeath", "nyrp.admin.observer", function(...) reset(...) end)
+hook.Add("NYRP.PlayerSpawned", "nyrp.admin.observer", function(...) reset(...) end)
 
 -- цель ушла — у всех, кто за ней следил, слежка заканчивается
 hook.Add("PlayerDisconnected", "nyrp.admin.spectate", function(ply)

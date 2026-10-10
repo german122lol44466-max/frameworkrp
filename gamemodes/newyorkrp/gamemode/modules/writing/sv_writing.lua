@@ -109,7 +109,7 @@ local function load()
 	end
 	if changed then save() end
 end
-hook.Add("Initialize", "nyrp.writing", load)
+hook.Add("Initialize", "nyrp.writing", function(...) load(...) end)
 load()
 
 local function homeName(id)

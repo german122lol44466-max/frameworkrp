@@ -36,8 +36,8 @@ local function loadMailboxes()
 	end
 	D.MailLoading = false
 end
-hook.Add("InitPostEntity", "nyrp.mailbox", loadMailboxes)
-hook.Add("PostCleanupMap", "nyrp.mailbox", loadMailboxes)
+hook.Add("InitPostEntity", "nyrp.mailbox", function(...) loadMailboxes(...) end)
+hook.Add("PostCleanupMap", "nyrp.mailbox", function(...) loadMailboxes(...) end)
 
 -- есть ли у игрока ключи (в сумке или в руке)
 local function hasKeys(ply)

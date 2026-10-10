@@ -177,7 +177,7 @@ local function register()
 	end)
 	return true
 end
-if not register() then hook.Add("Initialize", "nyrp.persist.cmd", register) end
+if not register() then hook.Add("Initialize", "nyrp.persist.cmd", function(...) register(...) end) end
 
 -- Админ подвинул / заморозил / поработал тулганом — пересохраняем.
 hook.Add("PhysgunDrop", "nyrp.persist", function(ply, ent)

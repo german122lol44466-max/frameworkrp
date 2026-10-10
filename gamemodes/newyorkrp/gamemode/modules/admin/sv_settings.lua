@@ -28,7 +28,7 @@ function A.LoadConfig()
 end
 -- сразу (то, что уже есть в Config) и ещё раз, когда загружены все модули (StartMoney задаёт модуль money)
 A.LoadConfig()
-hook.Add("Initialize", "nyrp.admin.config", A.LoadConfig)
+hook.Add("Initialize", "nyrp.admin.config", function(...) A.LoadConfig(...) end)
 
 function A.SaveConfig()
 	file.CreateDir("nyrp")

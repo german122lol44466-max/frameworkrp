@@ -236,8 +236,8 @@ local function wrapSave()
 	end
 	Chars.Save = UX.SaveWrapper
 end
-hook.Add("Initialize", "nyrp.ux.ammo", wrapSave)
-hook.Add("InitPostEntity", "nyrp.ux.ammo", wrapSave)
+hook.Add("Initialize", "nyrp.ux.ammo", function(...) wrapSave(...) end)
+hook.Add("InitPostEntity", "nyrp.ux.ammo", function(...) wrapSave(...) end)
 wrapSave()
 
 hook.Add("DoPlayerDeath", "nyrp.ux.ammo", function(ply)

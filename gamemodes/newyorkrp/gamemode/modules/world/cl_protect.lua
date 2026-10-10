@@ -93,5 +93,5 @@ local function wrapSpawnMenu()
 		if origClose then return origClose(self) end
 	end
 end
-hook.Add("Initialize", "nyrp.pp.menu", wrapSpawnMenu)
-hook.Add("InitPostEntity", "nyrp.pp.menu", wrapSpawnMenu)
+hook.Add("Initialize", "nyrp.pp.menu", function(...) wrapSpawnMenu(...) end)
+hook.Add("InitPostEntity", "nyrp.pp.menu", function(...) wrapSpawnMenu(...) end)

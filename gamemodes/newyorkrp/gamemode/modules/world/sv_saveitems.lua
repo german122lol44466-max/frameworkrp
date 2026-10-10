@@ -85,7 +85,7 @@ local function autosave()
 	if W.ItemsRestored then W.SaveItems() end
 end
 timer.Create("nyrp.saveitems", W.Config.ItemsSaveEvery, 0, autosave)
-hook.Add("ShutDown", "nyrp.saveitems", autosave)
+hook.Add("ShutDown", "nyrp.saveitems", function(...) autosave(...) end)
 
 concommand.Add("nyrp_items_save", function(ply)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end

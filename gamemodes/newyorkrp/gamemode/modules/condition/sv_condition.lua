@@ -75,7 +75,7 @@ hook.Add("KeyPress", "nyrp.condition.jump", function(ply, key)
 	end
 end)
 
-hook.Add("NYRP.PlayerSpawned", "nyrp.condition", resetCondition)
+hook.Add("NYRP.PlayerSpawned", "nyrp.condition", function(...) resetCondition(...) end)
 hook.Add("PlayerSpawn", "nyrp.condition", function(ply)
 	if ply.nyrpKO then cleanupKO(ply) end
 	resetCondition(ply)

@@ -267,8 +267,8 @@ local function loadATMs()
 	end
 	B.Loading = false
 end
-hook.Add("InitPostEntity", "nyrp.atm", loadATMs)
-hook.Add("PostCleanupMap", "nyrp.atm", loadATMs)
+hook.Add("InitPostEntity", "nyrp.atm", function(...) loadATMs(...) end)
+hook.Add("PostCleanupMap", "nyrp.atm", function(...) loadATMs(...) end)
 
 concommand.Add("nyrp_spawnatm", function(ply, _, args)
 	if not IsValid(ply) or not ply:IsSuperAdmin() then return end

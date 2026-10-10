@@ -14,7 +14,7 @@ function Roles.Apply(ply)
 	ply:SetNW2String("nyrp.role", c.flags.role or "")
 end
 
-hook.Add("NYRP.CharacterLoaded", "nyrp.roles", Roles.Apply)
+hook.Add("NYRP.CharacterLoaded", "nyrp.roles", function(...) Roles.Apply(...) end)
 
 -- модель роли (если задана) вместо модели персонажа
 hook.Add("PlayerSetModel", "nyrp.roles", function(ply)

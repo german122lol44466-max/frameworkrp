@@ -208,5 +208,5 @@ local function injectMemory()
 		return r
 	end
 end
-hook.Add("InitPostEntity", "nyrp.ach.memory", injectMemory)
+hook.Add("InitPostEntity", "nyrp.ach.memory", function(...) injectMemory(...) end)
 timer.Simple(0, injectMemory)

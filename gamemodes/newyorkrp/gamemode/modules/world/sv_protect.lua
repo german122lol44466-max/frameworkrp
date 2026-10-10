@@ -147,7 +147,7 @@ local function wrapCleanup()
 		return orig(ply, kind, ent, ...)
 	end
 end
-hook.Add("Initialize", "nyrp.pp.cleanup", wrapCleanup)
+hook.Add("Initialize", "nyrp.pp.cleanup", function(...) wrapCleanup(...) end)
 wrapCleanup()
 
 -- --------------------------------------------------------------- защита --

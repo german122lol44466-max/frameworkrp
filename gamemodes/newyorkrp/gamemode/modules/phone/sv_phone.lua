@@ -358,8 +358,8 @@ timer.Create("nyrp.phone.alarms", 1, 0, function()
 		end
 	end
 end)
-hook.Add("PlayerDeath", "nyrp.phone.alarm", stopAlarm)
-hook.Add("PlayerDisconnected", "nyrp.phone.alarm", stopAlarm)
+hook.Add("PlayerDeath", "nyrp.phone.alarm", function(...) stopAlarm(...) end)
+hook.Add("PlayerDisconnected", "nyrp.phone.alarm", function(...) stopAlarm(...) end)
 
 -- ------------------------------------------------------------------ банки --
 local function bankState(ply)

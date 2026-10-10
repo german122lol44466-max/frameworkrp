@@ -385,7 +385,7 @@ local function wrapMailbox()
 	net.Receivers["nyrp.mailbox"] = W.MailWrapper
 end
 wrapMailbox()
-hook.Add("InitPostEntity", "nyrp.writing", wrapMailbox)
+hook.Add("InitPostEntity", "nyrp.writing", function(...) wrapMailbox(...) end)
 
 function W.OpenLetters(list)
 	local win, body = UI.Window("Письма", "mailbox", 460, 480, { sub = #list > 0 and (#list .. " в ящике") or "ящик пуст" })

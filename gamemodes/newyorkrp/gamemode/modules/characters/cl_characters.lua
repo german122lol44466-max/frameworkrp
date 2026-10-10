@@ -22,16 +22,22 @@ function Chars.SetState(state)
 end
 
 -- ---------------------------------------------------------------- сеть --
-local readySent
-hook.Add("InitPostEntity", "nyrp.chars", function()
+local readySent, firstTick
+local function sendReady()
 	readySent = RealTime()
 	net.Start("nyrp.ready")
 	net.SendToServer()
-end)
--- сервер не ответил (ошибка в модуле, потерянный пакет) — повторяем запрос каждые 8 с
+end
+hook.Add("InitPostEntity", "nyrp.chars", function() sendReady() end)
+-- страховка: хук InitPostEntity мог не дойти до нас (другой аддон вернул из него значение и оборвал цепочку),
+-- либо сервер не ответил (ошибка в модуле, потерянный пакет) — шлём «готов» сами и повторяем каждые 8 с
 timer.Create("nyrp.chars.retry", 2, 0, function()
 	if NYRP.State ~= "loading" then timer.Remove("nyrp.chars.retry") return end
-	if readySent and RealTime() - readySent > 8 then
+	if not IsValid(LocalPlayer()) then return end
+	firstTick = firstTick or RealTime()
+	if not readySent and RealTime() - firstTick > 4 then
+		sendReady()
+	elseif readySent and RealTime() - readySent > 8 then
 		readySent = RealTime()
 		Chars.Retries = (Chars.Retries or 0) + 1
 		net.Start("nyrp.ready")

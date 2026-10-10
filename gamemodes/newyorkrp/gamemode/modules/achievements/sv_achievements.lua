@@ -166,7 +166,7 @@ local function install()
 		if best then A.Add(best, "heals", 1) end
 	end)
 end
-hook.Add("InitPostEntity", "nyrp.ach.wrap", install)
+hook.Add("InitPostEntity", "nyrp.ach.wrap", function(...) install(...) end)
 timer.Simple(0, install)
 
 -- ---------------------------------------------------------------- команды --

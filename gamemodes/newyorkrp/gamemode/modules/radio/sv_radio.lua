@@ -21,7 +21,7 @@ local function apply(ply)
 	ply:SetNW2Float("nyrp.radioFreq", it.data.on == false and 0 or it.data.freq)
 	ply:SetNW2Float("nyrp.radioSet", it.data.freq)
 end
-hook.Add("NYRP.EquipmentApplied", "nyrp.radio", apply)
+hook.Add("NYRP.EquipmentApplied", "nyrp.radio", function(...) apply(...) end)
 
 net.Receive("nyrp.radio.set", function(_, ply)
 	if (ply.nyrpRadioNext or 0) > CurTime() then return end

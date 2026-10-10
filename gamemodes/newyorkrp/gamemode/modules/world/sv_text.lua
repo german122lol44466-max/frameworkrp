@@ -185,6 +185,6 @@ local function register()
 	end)
 	return true
 end
-if not register() then hook.Add("Initialize", "nyrp.text.cmd", register) end
+if not register() then hook.Add("Initialize", "nyrp.text.cmd", function(...) register(...) end) end
 
 T.Load()

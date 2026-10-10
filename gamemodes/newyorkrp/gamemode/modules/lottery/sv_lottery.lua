@@ -281,7 +281,7 @@ local function loadMachines()
 	end
 end
 hook.Add("InitPostEntity", "nyrp.lottery", function() timer.Simple(1, loadMachines) end)
-hook.Add("PostCleanupMap", "nyrp.lottery", loadMachines)
+hook.Add("PostCleanupMap", "nyrp.lottery", function(...) loadMachines(...) end)
 
 local function cmd(name, fn)
 	if NYRP.Chat and NYRP.Chat.AddCommand then NYRP.Chat.AddCommand(name, fn) return end

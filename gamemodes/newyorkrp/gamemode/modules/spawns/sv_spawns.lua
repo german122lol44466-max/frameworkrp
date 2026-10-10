@@ -118,7 +118,7 @@ local function wrapSave()
 	end
 end
 wrapSave()
-hook.Add("Initialize", "nyrp.spawns.save", wrapSave)
+hook.Add("Initialize", "nyrp.spawns.save", function(...) wrapSave(...) end)
 
 local function restoreLast(ply, c)
 	local f = c.flags or {}
@@ -242,6 +242,6 @@ local function register()
 	end)
 	return true
 end
-if not register() then hook.Add("Initialize", "nyrp.spawns.cmd", register) end
+if not register() then hook.Add("Initialize", "nyrp.spawns.cmd", function(...) register(...) end) end
 
 S.Load()

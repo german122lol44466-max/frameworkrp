@@ -204,7 +204,7 @@ function NYRP.CancelAction(ply)
 	net.WriteString("")
 	net.Send(ply)
 end
-hook.Add("PlayerDeath", "nyrp.action", NYRP.CancelAction)
+hook.Add("PlayerDeath", "nyrp.action", function(...) NYRP.CancelAction(...) end)
 
 -- ----------------------------------------------------- экипировка/снятие --
 function Inv.Equip(ply, slot, target)

@@ -41,7 +41,7 @@ local function load()
 	for _, g in ipairs(list) do nextId = math.max(nextId, (g.id or 0) + 1) end
 	sendAll()
 end
-hook.Add("InitPostEntity", "nyrp.graffiti", load)
+hook.Add("InitPostEntity", "nyrp.graffiti", function(...) load(...) end)
 
 net.Receive("nyrp.graf.req", function(_, ply)
 	if ply.nyrpGrafReq then return end

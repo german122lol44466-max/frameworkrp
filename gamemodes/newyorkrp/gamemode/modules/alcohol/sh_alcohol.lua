@@ -51,7 +51,7 @@ end
 -- модуль состояний грузится позже (по алфавиту) — добавляем, когда он готов
 if not addStatus() then
 	timer.Simple(0, addStatus)
-	hook.Add("InitPostEntity", "nyrp.alcohol.status", addStatus)
+	hook.Add("InitPostEntity", "nyrp.alcohol.status", function(...) addStatus(...) end)
 end
 
 -- ---------------------------------------------------------- походка --

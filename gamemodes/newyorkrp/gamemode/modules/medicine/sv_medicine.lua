@@ -97,7 +97,7 @@ end
 CB.Heal = heal
 
 hook.Add("NYRP.ItemUsed", "nyrp.combat", function(ply, id) if id == "medkit" then heal(ply) end end)
-hook.Add("PlayerSpawn", "nyrp.combat", heal)
+hook.Add("PlayerSpawn", "nyrp.combat", function(...) heal(...) end)
 
 -- броня: максимум брони и «тяжёлая» отметка
 hook.Add("NYRP.EquipmentApplied", "nyrp.combat", function(ply, inv)

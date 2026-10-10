@@ -168,4 +168,4 @@ local function register()
 	end)
 	return true
 end
-if not register() then hook.Add("Initialize", "nyrp.flags.cmd", register) end
+if not register() then hook.Add("Initialize", "nyrp.flags.cmd", function(...) register(...) end) end

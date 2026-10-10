@@ -39,7 +39,7 @@ local function start()
 	end)
 end
 
-hook.Add("InitPostEntity", "nyrp.music", start)
+hook.Add("InitPostEntity", "nyrp.music", function(...) start(...) end)
 
 hook.Add("Think", "nyrp.music", function()
 	if not IsValid(channel) then return end

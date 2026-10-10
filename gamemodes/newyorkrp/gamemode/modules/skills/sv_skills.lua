@@ -8,7 +8,7 @@ local function sync(ply)
 	for _, s in ipairs(NYRP.Config.Skills) do ply:SetNW2Int("nyrp.skill." .. s.id, c.skills and c.skills[s.id] or 0) end
 end
 SK.Sync = sync
-hook.Add("NYRP.CharacterLoaded", "nyrp.skills", sync)
+hook.Add("NYRP.CharacterLoaded", "nyrp.skills", function(...) sync(...) end)
 
 -- SK.AddXP(ply, "combat", 5, "попадание") — опыт с учётом «практики дня», озарения и интеллекта
 function SK.AddXP(ply, id, amount, why)

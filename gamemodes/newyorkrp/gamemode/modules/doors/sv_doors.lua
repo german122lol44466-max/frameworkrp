@@ -89,8 +89,8 @@ local function load()
 	D.Data = util.JSONToTable(file.Read(path(), "DATA") or "") or {}
 	for id in pairs(D.Data) do apply(id) end
 end
-hook.Add("InitPostEntity", "nyrp.doors", load)
-hook.Add("PostCleanupMap", "nyrp.doors", load)
+hook.Add("InitPostEntity", "nyrp.doors", function(...) load(...) end)
+hook.Add("PostCleanupMap", "nyrp.doors", function(...) load(...) end)
 
 local function charOnline(charId)
 	for _, p in ipairs(player.GetAll()) do

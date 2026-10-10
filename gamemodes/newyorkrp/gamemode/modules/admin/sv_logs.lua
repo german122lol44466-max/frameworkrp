@@ -181,8 +181,8 @@ function L.WrapMoney()
 		return r
 	end
 end
-hook.Add("Initialize", "nyrp.log.money", L.WrapMoney)
-hook.Add("InitPostEntity", "nyrp.log.money", L.WrapMoney)
+hook.Add("Initialize", "nyrp.log.money", function(...) L.WrapMoney(...) end)
+hook.Add("InitPostEntity", "nyrp.log.money", function(...) L.WrapMoney(...) end)
 timer.Simple(0, L.WrapMoney)
 
 -- ------------------------------------------------------------- запрос --

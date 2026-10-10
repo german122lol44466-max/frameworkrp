@@ -121,6 +121,6 @@ local function register()
 	end)
 	return true
 end
-if not register() then hook.Add("Initialize", "nyrp.panel.cmd", register) end
+if not register() then hook.Add("Initialize", "nyrp.panel.cmd", function(...) register(...) end) end
 
 P.Load()

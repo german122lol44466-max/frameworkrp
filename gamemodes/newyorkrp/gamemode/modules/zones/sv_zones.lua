@@ -30,7 +30,7 @@ function Z.Send(ply)
 	if ply then net.Send(ply) else net.Broadcast() end
 end
 
-hook.Add("InitPostEntity", "nyrp.zones", Z.Load)
+hook.Add("InitPostEntity", "nyrp.zones", function(...) Z.Load(...) end)
 hook.Add("PlayerInitialSpawn", "nyrp.zones", function(ply) timer.Simple(3, function() if IsValid(ply) then Z.Send(ply) end end) end)
 
 NYRP.Chat.AddCommand("/areaedit", function(ply)
