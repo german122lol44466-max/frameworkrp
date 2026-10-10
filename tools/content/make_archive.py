@@ -3,7 +3,9 @@
   dist/newyorkrp_content.zip     — аддон с контентом (materials, models, sound, resource + addon.json):
                                    распаковать в garrysmod/addons/ или залить в Workshop.
   dist/newyorkrp_models_src.zip  — исходники моделей: .blend, SMD, QC, скрипты.
-  dist/newyorkrp_gamemode.zip    — готовый режим целиком (код + контент): распаковать в папку garrysmod/.
+  dist/newyorkrp_gamemode.zip    — только режим (код, без контента): распаковать в папку garrysmod/.
+  dist/newyorkrp_full.zip        — всё вместе: garrysmod/gamemodes/newyorkrp (код) + garrysmod/addons/newyorkrp_content
+                                   (контент) — распаковать в папку garrysmod/.
 
 Запуск: python3 tools/content/make_archive.py
 """
@@ -16,8 +18,10 @@ CONTENT = os.path.join(ROOT, "gamemodes", "newyorkrp", "content")
 DIST = os.path.join(ROOT, "dist")
 
 
-def add_dir(z, src, arc_prefix):
-    for base, _, files in os.walk(src):
+def add_dir(z, src, arc_prefix, skip=None):
+    for base, dirs, files in os.walk(src):
+        if skip:
+            dirs[:] = [d for d in dirs if os.path.join(base, d) != skip]
         for f in sorted(files):
             if f.endswith((".log", ".pyc")):
                 continue
@@ -27,21 +31,31 @@ def add_dir(z, src, arc_prefix):
 
 def main():
     os.makedirs(DIST, exist_ok=True)
+    gm = os.path.join(ROOT, "gamemodes", "newyorkrp")
+    addon = {
+        "title": "New-York Roleplay — Content",
+        "type": "servercontent",
+        "tags": ["roleplay", "realism"],
+        "ignore": ["*.psd", "*.log"],
+    }
     path = os.path.join(DIST, "newyorkrp_gamemode.zip")
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        add_dir(z, os.path.join(ROOT, "gamemodes", "newyorkrp"), "gamemodes/newyorkrp")
+        add_dir(z, gm, "gamemodes/newyorkrp", skip=CONTENT)
         z.write(os.path.join(ROOT, "README.md"), "gamemodes/newyorkrp/README.md")
+    print("wrote", os.path.relpath(path, ROOT), os.path.getsize(path) // 1024, "KB")
+
+    path = os.path.join(DIST, "newyorkrp_full.zip")
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        add_dir(z, gm, "garrysmod/gamemodes/newyorkrp", skip=CONTENT)
+        z.write(os.path.join(ROOT, "README.md"), "garrysmod/gamemodes/newyorkrp/README.md")
+        add_dir(z, CONTENT, "garrysmod/addons/newyorkrp_content")
+        z.writestr("garrysmod/addons/newyorkrp_content/addon.json", json.dumps(addon, ensure_ascii=False, indent=2))
     print("wrote", os.path.relpath(path, ROOT), os.path.getsize(path) // 1024, "KB")
 
     path = os.path.join(DIST, "newyorkrp_content.zip")
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         add_dir(z, CONTENT, "newyorkrp_content")
-        z.writestr("newyorkrp_content/addon.json", json.dumps({
-            "title": "New-York Roleplay — Content",
-            "type": "servercontent",
-            "tags": ["roleplay", "realism"],
-            "ignore": ["*.psd", "*.log"],
-        }, ensure_ascii=False, indent=2))
+        z.writestr("newyorkrp_content/addon.json", json.dumps(addon, ensure_ascii=False, indent=2))
     print("wrote", os.path.relpath(path, ROOT), os.path.getsize(path) // 1024, "KB")
 
     path = os.path.join(DIST, "newyorkrp_models_src.zip")

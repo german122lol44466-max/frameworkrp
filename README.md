@@ -6,11 +6,14 @@
 
 ## Установка
 
-1. Распакуйте `dist/newyorkrp_gamemode.zip` в папку `garrysmod/` сервера (получится `garrysmod/gamemodes/newyorkrp`)
-   — или скопируйте `gamemodes/newyorkrp` вручную.
-2. Контент (шрифты, иконки, звуки, музыка, модели) лежит в `gamemodes/newyorkrp/content` и подключается
-   автоматически. Клиенты получают его через FastDL (`core/sv_resources.lua`). Второй вариант —
-   залить `dist/newyorkrp_content.zip` в Workshop или распаковать его в `garrysmod/addons/`.
+Проще всего — `dist/newyorkrp_full.zip`: распакуйте в папку `garrysmod/` сервера, получится
+`garrysmod/gamemodes/newyorkrp` (код) и `garrysmod/addons/newyorkrp_content` (контент).
+
+По частям:
+1. `dist/newyorkrp_gamemode.zip` — только код режима (без контента), распаковать в `garrysmod/`.
+2. `dist/newyorkrp_content.zip` — контент (шрифты, иконки, звуки, музыка, модели) отдельным аддоном:
+   распаковать в `garrysmod/addons/` или залить в Workshop. Клиенты получают его через FastDL
+   (`core/sv_resources.lua`) или подпиской на Workshop.
 3. Запуск: `+gamemode newyorkrp +map rp_...`
 
 ## Что есть

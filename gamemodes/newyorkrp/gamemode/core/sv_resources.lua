@@ -13,7 +13,7 @@ local function addDir(dir)
 	end
 end
 
--- Контент гейммода лежит в gamemodes/newyorkrp/content и смонтирован в GAME.
+-- Контент лежит в аддоне addons/newyorkrp_content (или в gamemodes/newyorkrp/content) — оба смонтированы в GAME.
 for _, dir in ipairs({ "materials/nyrp", "materials/models/nyrp", "models/nyrp", "sound/nyrp" }) do
 	addDir(dir)
 end
