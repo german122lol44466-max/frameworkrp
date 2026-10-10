@@ -109,7 +109,7 @@ function A.Slur(text, lvl)
 end
 
 hook.Add("PlayerSay", "nyrp.alcohol", function(ply, raw)
-	if not ply.nyrpInternalSay or not IsValid(ply) then return end
+	if type(raw) ~= "string" or not IsValid(ply) or not ply.nyrpInternalSay then return end
 	local lvl = A.Level(ply)
 	if lvl < 55 then return end
 	local Chat = NYRP.Chat
