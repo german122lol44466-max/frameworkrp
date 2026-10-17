@@ -13,6 +13,21 @@ ENT.Category = "New-York Roleplay"
 ENT.Spawnable = true
 ENT.AdminOnly = true
 ENT.RenderGroup = RENDERGROUP_BOTH
+-- Банкомат должен быть целью системы взаимодействия (modules/interact): иначе при виде от 3-го лица
+-- или если рядом есть другая цель, E «уходит» мимо банкомата и меню не открывается.
+ENT.NYRPInteract = true
+ENT.NYRPIcon = "bank"
+
+function ENT:GetInteractText()
+	local b = NYRP.Bank.Banks and NYRP.Bank.Banks[self:GetBank()]
+	return "Банкомат " .. (b and b.name or "")
+end
+
+-- во время своего сеанса повторное E не должно перезапускать банкомат
+function ENT:NYRPCanInteract(ply)
+	if CLIENT and NYRP.Bank.ATMActive and NYRP.Bank.ATMActive() then return false end
+	return true
+end
 
 function ENT:SetupDataTables()
 	self:NetworkVar("String", 0, "Bank")

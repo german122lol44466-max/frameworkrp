@@ -23,6 +23,8 @@ local function section(parent, title)
 end
 
 function Chars.OpenCreate(spot)
+	if IsValid(Chars.CreatePanel) or Chars.CreateOpening then return end -- двойной клик не открывает две формы
+	Chars.CreateOpening = true
 	local d = { name = "", description = "", gender = "male", modelIndex = 1, height = 178, bag = "waistbag", skills = {} }
 	for _, s in ipairs(C.Skills) do d.skills[s.id] = 0 end
 	local function model() return C.Models[d.gender][d.modelIndex] end
@@ -46,6 +48,8 @@ function Chars.OpenCreate(spot)
 	end)
 
 	timer.Simple(0.5, function()
+		Chars.CreateOpening = nil
+		if NYRP.State ~= "create" and NYRP.State ~= "select" then return end
 		local pnl = vgui.Create("EditablePanel")
 		Chars.CreatePanel = pnl
 		pnl:SetSize(ScrW(), ScrH())

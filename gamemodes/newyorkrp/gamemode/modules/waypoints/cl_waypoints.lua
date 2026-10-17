@@ -4,9 +4,17 @@ W.List = W.List or {}
 
 net.Receive("nyrp.wp", function()
 	local id, on = net.ReadString(), net.ReadBool()
-	if not on then W.List[id] = nil return end
-	W.List[id] = { pos = net.ReadVector(), label = net.ReadString(), icon = net.ReadString(), color = net.ReadColor(), born = RealTime() }
-	surface.PlaySound("nyrp/phone/notify.wav")
+	if not on then
+		-- плавное исчезновение
+		if W.List[id] then W.List[id].gone = RealTime() end
+		return
+	end
+	local old = W.List[id]
+	local fresh = not old or old.gone
+	W.List[id] = { pos = net.ReadVector(), label = net.ReadString(), icon = net.ReadString(), color = net.ReadColor(),
+		born = fresh and RealTime() or old.born }
+	-- звук — только для новой метки (обновление позиции, например розыска, не пищит)
+	if fresh then surface.PlaySound("nyrp/phone/notify.wav") end
 end)
 
 -- клиентская метка (без сервера): W.Local("id", pos, label, icon, color)
@@ -20,6 +28,11 @@ hook.Add("HUDPaint", "nyrp.waypoints", function()
 	local eye = EyePos()
 	local w, h = ScrW(), ScrH()
 	local m = UI.S(60)
+	local dead = {}
+	for id, wp in pairs(W.List) do
+		if wp.gone and RealTime() - wp.gone > 0.35 then dead[#dead + 1] = id end
+	end
+	for _, id in ipairs(dead) do W.List[id] = nil end
 	for id, wp in pairs(W.List) do
 		local p = wp.pos + Vector(0, 0, 40)
 		local sc = p:ToScreen()
@@ -30,6 +43,10 @@ hook.Add("HUDPaint", "nyrp.waypoints", function()
 		if behind then x, y = w - x, h - y end
 		local pulse = 0.85 + 0.15 * math.sin(RealTime() * 4 + #id)
 		local a = math.min(1, (RealTime() - wp.born) / 0.4)
+		if wp.gone then
+			a = a * (1 - math.Clamp((RealTime() - wp.gone) / 0.35, 0, 1))
+			pulse = pulse * (1 + (RealTime() - wp.gone) * 1.5)
+		end
 		surface.SetAlphaMultiplier(a)
 		if off then
 			-- стрелка у края экрана

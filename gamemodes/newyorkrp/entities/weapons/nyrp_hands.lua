@@ -165,11 +165,12 @@ if SERVER then
 			end
 		end
 		if throw and IsValid(ply) and not ent:IsRagdoll() then
+			local force = self.throwForce -- в таймере оружие может быть уже удалено
 			timer.Simple(0, function()
 				local p = IsValid(ent) and ent:GetPhysicsObject()
 				if IsValid(p) and IsValid(ply) then
 					p:AddGameFlag(FVPHYSICS_WAS_THROWN)
-					p:ApplyForceCenter(ply:GetAimVector() * math.min(self.throwForce * p:GetMass() / 10, 9000))
+					p:ApplyForceCenter(ply:GetAimVector() * math.min(force * p:GetMass() / 10, 9000))
 				end
 			end)
 		end
@@ -289,7 +290,12 @@ function SWEP:OnDrop() if SERVER then self:Drop(false) end end
 function SWEP:OwnerChanged() if SERVER then self:Drop(false) end end
 
 function SWEP:Think()
-	if CLIENT or not self:IsGrabbing() then return end
+	if CLIENT then return end
+	if not self:IsGrabbing() then
+		-- предмет удалили, пока его держали: убираем невидимую «руку» и сварку
+		if self.hold or self.weld then self:Drop(false) end
+		return
+	end
 	local ply = self:GetOwner()
 	local ent = self:GetGrabEnt()
 	if not IsValid(ply) or not ply:Alive() or not IsValid(self.hold) or (NYRP.Cond and NYRP.Cond.KO(ply)) then
@@ -454,7 +460,7 @@ if CLIENT then
 		end
 		if ent:GetClass() == "nyrp_item" and ent.GetDef then
 			local def = ent:GetDef()
-			if def then return def.name, "Предмет" end
+			if def then return tostring(def.name or "Предмет"), "Предмет" end
 		end
 		return language.GetPhrase(ent.PrintName or "") ~= "" and ent.PrintName or "Предмет", "Объект"
 	end

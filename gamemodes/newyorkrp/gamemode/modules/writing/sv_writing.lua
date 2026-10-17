@@ -32,6 +32,7 @@ net.Receive("nyrp.writing.write", function(_, ply)
 	local text = W.Clean(net.ReadString(), W.MaxText, true)
 	local signMode = net.ReadUInt(2)
 	local custom = net.ReadString()
+	if not Inv() then return end
 	local inv = Inv().Get(ply)
 	local it = inv.slots[slot]
 	if not it or it.id ~= "notebook" then return end
@@ -242,7 +243,7 @@ net.Receive("nyrp.writing.take", function(_, ply)
 	if not near or near:GetClass() ~= "nyrp_mailbox" then NYRP.Notify(ply, "Подойдите к почтовым ящикам", "warning") return end
 	for i, l in ipairs(letters.list) do
 		if l.id == id then
-			if not delivered(l) or not NYRP.Doors.HasAccess(ply, l.door) then return end
+			if not delivered(l) or not NYRP.Doors or not NYRP.Doors.HasAccess(ply, l.door) then return end
 			local data = { text = l.text, author = l.from, to = l.to, date = l.date, time = l.at }
 			if Inv().Add(ply, "letter", 1, data) <= 0 then NYRP.Notify(ply, "В сумке нет места", "error") return end
 			table.remove(letters.list, i)

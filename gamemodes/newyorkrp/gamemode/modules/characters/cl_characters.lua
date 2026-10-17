@@ -71,7 +71,12 @@ end)
 
 net.Receive("nyrp.char.state", function()
 	local s = net.ReadString()
-	if s == "create_failed" and IsValid(Chars.CreatePanel) then Chars.CreatePanel.Busy = false end
+	if s == "create_failed" then
+		-- сервер отклонил создание: снимаем чёрный экран, иначе игрок 8 с смотрит в темноту
+		Chars.HoldBlack = false
+		timer.Remove("nyrp.holdblack")
+		if IsValid(Chars.CreatePanel) then Chars.CreatePanel.Busy = false end
+	end
 end)
 
 net.Receive("nyrp.char.loaded", function()

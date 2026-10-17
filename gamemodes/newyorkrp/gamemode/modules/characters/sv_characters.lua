@@ -47,11 +47,11 @@ function Chars.SendList(ply)
 	net.WriteUInt(#list, 8)
 	for _, c in ipairs(list) do
 		net.WriteUInt(c.id, 32)
-		net.WriteString(c.name)
-		net.WriteString(c.description)
-		net.WriteString(c.gender)
-		net.WriteString(c.model)
-		net.WriteUInt(c.height, 8)
+		net.WriteString(c.name or "?")
+		net.WriteString(c.description or "")
+		net.WriteString(c.gender or "male")
+		net.WriteString(c.model or "models/player/group01/male_01.mdl")
+		net.WriteUInt(math.Clamp(math.floor(c.height or 175), 0, 255), 8)
 		net.WriteString(c.bag or "waistbag")
 	end
 	net.WriteUInt(Chars.MaxFor(), 8)
@@ -105,7 +105,7 @@ function Chars.Save(ply)
 		E(json("inventory", inv, c) or "[]"), E(json("equipment", eq, c) or "{}"),
 		ply:GetNW2Float("nyrp.hunger", 100), ply:GetNW2Float("nyrp.thirst", 100),
 		math.floor(ply:Alive() and ply:Health() or 100),
-		E(json("recognized", NYRP.Recog.Export and NYRP.Recog.Export(ply) or {}, c) or "{}"), E(flags), c.id))
+		E(json("recognized", NYRP.Recog and NYRP.Recog.Export and NYRP.Recog.Export(ply) or {}, c) or "{}"), E(flags), c.id))
 	writeBackup(c, inv, eq)
 	if res == false and IsValid(ply) and ply:IsAdmin() and (ply.nyrpSaveWarn or 0) < CurTime() then
 		ply.nyrpSaveWarn = CurTime() + 60
@@ -136,11 +136,16 @@ local function issueID(ply, c)
 end
 
 function Chars.Load(ply, id)
+	id = tonumber(id)
+	if not id or not IsValid(ply) then return false end
 	local r = Q("SELECT * FROM nyrp_characters WHERE id = " .. tonumber(id) .. " AND steamid = " .. E(Chars.Key(ply)))
 	if not r or not r[1] then return false end
-	if ply.nyrpChar then Chars.Save(ply) end
+	if ply.nyrpChar then ProtectedCall(function() Chars.Save(ply) end) end
 
 	local c = rowToChar(r[1])
+	c.name = c.name or "?"
+	c.description = c.description or ""
+	c.gender = c.gender or "male"
 	-- база пуста, а в резервной копии есть вещи/отметки — берём копию (база могла не сохраниться)
 	local bk = Chars.ReadBackup(c.id)
 	if bk then
@@ -179,9 +184,9 @@ function Chars.Load(ply, id)
 	else
 		for cid, ts in pairs(rec) do if tonumber(cid) then ply.nyrpRecog[tonumber(cid)] = tonumber(ts) or os.time() end end
 	end
-	if NYRP.Recog then NYRP.Recog.Sync(ply) end
+	if NYRP.Recog and NYRP.Recog.Sync then ProtectedCall(function() NYRP.Recog.Sync(ply) end) end
 	if NYRP.Inv then
-		NYRP.Inv.Import(ply, c.inventory, c.equipment)
+		ProtectedCall(function() NYRP.Inv.Import(ply, c.inventory, c.equipment) end)
 		ply.nyrpInvChar = c.id
 	end
 	-- выдача стартовых вещей (удостоверение, телефон, карта): ошибка в одном модуле не должна ломать вход
@@ -229,6 +234,7 @@ function Chars.AutoLoad(ply)
 	if not pick then
 		pick = Chars.Insert(ply, Chars.RandomData())
 	end
+	if not pick then NYRP.Print("Не удалось создать персонажа для " .. ply:Nick() .. " (ошибка базы)") return end
 	Chars.Load(ply, pick)
 end
 
@@ -236,7 +242,15 @@ end
 -- клиент шлёт «готов» после загрузки карты и повторяет, если ответа долго нет (повтор — не чаще раза в 5 с
 -- и только пока персонаж не загружен)
 net.Receive("nyrp.ready", function(_, ply)
-	if ply.nyrpReady and (NYRP.HasCharacter(ply) or (ply.nyrpReadyAt or 0) > CurTime()) then return end
+	if ply.nyrpReady and (ply.nyrpReadyAt or 0) > CurTime() then return end
+	-- персонаж уже загружен, а клиент всё ещё ждёт: ответ «загружен» потерялся — шлём его повторно
+	if ply.nyrpReady and NYRP.HasCharacter(ply) and ply.nyrpChar then
+		ply.nyrpReadyAt = CurTime() + 5
+		net.Start("nyrp.char.loaded")
+		net.WriteString(ply.nyrpChar.gender or "male")
+		net.Send(ply)
+		return
+	end
 	local retry = ply.nyrpReady
 	ply.nyrpReady = true
 	ply.nyrpReadyAt = CurTime() + 5
@@ -263,7 +277,10 @@ net.Receive("nyrp.char.create", function(_, ply)
 	end
 	local id = Chars.Insert(ply, data)
 	Chars.SendList(ply)
-	Chars.Load(ply, id)
+	if not id or not Chars.Load(ply, id) then
+		NYRP.Notify(ply, "Не удалось создать персонажа (ошибка базы)", "error")
+		net.Start("nyrp.char.state") net.WriteString("create_failed") net.Send(ply)
+	end
 end)
 
 net.Receive("nyrp.char.load", function(_, ply)
@@ -309,7 +326,8 @@ hook.Add("PlayerInitialSpawn", "nyrp.chars", function(ply)
 		timer.Simple(0.5, function()
 			if not IsValid(ply) then return end
 			Q("DELETE FROM nyrp_characters WHERE steamid = " .. E(Chars.Key(ply)))
-			Chars.Load(ply, Chars.Insert(ply, Chars.RandomData()))
+			local id = Chars.Insert(ply, Chars.RandomData())
+			if id then Chars.Load(ply, id) end
 		end)
 	end
 end)

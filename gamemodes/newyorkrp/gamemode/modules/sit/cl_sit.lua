@@ -8,8 +8,8 @@ local PELVIS_ABOVE = 5        -- кость таза над поверхност
 local offsets = {}            -- модель -> положение таза относительно ног в позе сидя
 
 local function target(ply)
-	local seat = ply:GetNW2Vector("nyrp.sitPos")
-	local ang = Angle(0, ply:GetNW2Float("nyrp.sitYaw"), 0)
+	local seat = ply:GetNW2Vector("nyrp.sitPos", ply:GetPos()) or ply:GetPos()
+	local ang = Angle(0, ply:GetNW2Float("nyrp.sitYaw", 0), 0)
 	local key = ply:GetModel() .. (S.Ground(ply) and "#g" or "")
 	local lp = offsets[key] or Vector(-4, 0, S.Ground(ply) and 8 or 18)
 	local origin = seat + Vector(0, 0, PELVIS_ABOVE) - LocalToWorld(lp, angle_zero, vector_origin, ang)

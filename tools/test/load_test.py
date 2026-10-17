@@ -54,6 +54,16 @@ function isstring(v) return type(v) == "string" end
 function isfunction(v) return type(v) == "function" end
 function IsValid(v) return v ~= nil and v ~= false end
 unpack = table.unpack
+-- циклы по заглушке — пустые (иначе ipairs(_STUB) бесконечен: _STUB[i] всегда «есть»)
+local _ipairs, _pairs, _next = ipairs, pairs, next
+function ipairs(t) if t == STUB or type(t) ~= "table" then return function() end, t, 0 end return _ipairs(t) end
+function pairs(t) if t == STUB or type(t) ~= "table" then return function() end, t, nil end return _pairs(t) end
+function next(t, k) if t == STUB or type(t) ~= "table" then return nil end return _next(t, k) end
+TIMERS = {}
+timer = setmetatable({
+	Create = function(id, delay, reps, fn) if type(fn) == "function" then TIMERS[#TIMERS + 1] = { "timer " .. tostring(id), fn } end end,
+	Simple = function(delay, fn) if type(fn) == "function" then TIMERS[#TIMERS + 1] = { "timer.Simple", fn } end end,
+}, { __index = function() return STUB end })
 
 HOOKS = {}
 hook = {
@@ -139,13 +149,36 @@ def run(realm, call_hooks):
         # вызов каждого хука/сетевого обработчика с заглушками: ловит обращения к несуществующим полям NYRP
         caller = lua.eval("""function(list)
 			local errs = {}
+			-- ограничитель: зациклившийся обработчик прерывается, а не вешает стенд
+			local function guarded(fn, ...)
+				local n = 0
+				debug.sethook(function() n = n + 1 if n > 2000 then error("TIMEOUT: слишком долго (цикл?)") end end, "", 1000)
+				local r = table.pack(pcall(fn, ...))
+				debug.sethook()
+				return table.unpack(r, 1, r.n)
+			end
+			local function bad(e)
+				e = tostring(e)
+				return not e:find("stub") and not e:find("TIMEOUT")
+			end
 			for _, h in ipairs(list) do
-				local ok, e = pcall(h[3], _STUB, _STUB, _STUB, _STUB)
-				if not ok and not tostring(e):find("stub") then errs[#errs + 1] = h[1] .. "/" .. tostring(h[2]) .. ": " .. tostring(e) end
+				local ok, e = guarded(h[3], _STUB, _STUB, _STUB, _STUB)
+				if not ok and bad(e) then errs[#errs + 1] = h[1] .. "/" .. tostring(h[2]) .. ": " .. tostring(e) end
 			end
 			for name, fn in pairs(NETS) do
-				local ok, e = pcall(fn, 0, _STUB)
-				if not ok and not tostring(e):find("stub") then errs[#errs + 1] = "net " .. name .. ": " .. tostring(e) end
+				local ok, e = guarded(fn, 0, _STUB)
+				if not ok and bad(e) then errs[#errs + 1] = "net " .. name .. ": " .. tostring(e) end
+			end
+			for name, fn in pairs(CONCMDS) do
+				local ok, e = guarded(fn, _STUB, name, {}, "")
+				if not ok and bad(e) then errs[#errs + 1] = "concommand " .. name .. ": " .. tostring(e) end
+			end
+			local i = 1
+			while i <= #TIMERS and i <= 3000 do
+				local t = TIMERS[i]
+				local ok, e = guarded(t[2])
+				if not ok and bad(e) then errs[#errs + 1] = t[1] .. ": " .. tostring(e) end
+				i = i + 1
 			end
 			return errs
 		end""")
