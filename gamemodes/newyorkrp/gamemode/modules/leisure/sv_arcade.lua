@@ -140,7 +140,7 @@ end)
 net.Receive("nyrp.arc.finish", function(_, ply)
 	local game = net.ReadString()
 	local score = net.ReadUInt(16)
-	local n = net.ReadUInt(4)
+	local n = tonumber(net.ReadUInt(4)) or 0
 	local times = {}
 	for i = 1, n do times[i] = net.ReadUInt(16) end
 	local sess = ply.nyrpArcGame

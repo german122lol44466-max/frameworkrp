@@ -300,7 +300,7 @@ local function paintTable(pnl, w, h)
 end
 
 function BJ.OpenWindow()
-	if IsValid(BJ.Win) then return BJ.Win end
+	if IsValid(BJ.Win) and not BJ.Win.Closing then return BJ.Win end
 	local win, body = UI.Window("Блэкджек", "coins", 860, 640, { keyboard = true, sub = "Ставки $" .. BJ.MinBet .. "–$" .. BJ.MaxBet .. " · блэкджек 3:2" })
 	BJ.Win = win
 	local info = vgui.Create("DPanel", body)
@@ -335,11 +335,18 @@ function BJ.OpenWindow()
 end
 
 net.Receive("nyrp.bj.state", function()
-	local st = { ent = net.ReadEntity(), seat = net.ReadUInt(3), hand = net.ReadUInt(16), phase = net.ReadString(), bet = net.ReadUInt(16), lastBet = net.ReadUInt(16) }
+	-- читаем строго по порядку записи на сервере
+	local st = {}
+	st.ent = net.ReadEntity()
+	st.seat = net.ReadUInt(3)
+	st.hand = net.ReadUInt(16)
+	st.phase = net.ReadString()
+	st.bet = net.ReadUInt(16)
+	st.lastBet = net.ReadUInt(16)
 	st.player = {}
-	for i = 1, net.ReadUInt(5) do st.player[i] = net.ReadUInt(6) end
+	for i = 1, (tonumber(net.ReadUInt(5)) or 0) do st.player[i] = net.ReadUInt(6) end
 	st.dealer = {}
-	for i = 1, net.ReadUInt(5) do st.dealer[i] = net.ReadUInt(6) end
+	for i = 1, (tonumber(net.ReadUInt(5)) or 0) do st.dealer[i] = net.ReadUInt(6) end
 	st.result = net.ReadString()
 	st.payout = net.ReadUInt(16)
 	st.msg = net.ReadString()
