@@ -171,7 +171,8 @@ net.Receive("nyrp.arc.finish", function(_, ply)
 		NYRP.Notify(ply, "Автомат не принял результат (сбой)", "warning", 3)
 		return
 	end
-	local place, personal = submit(ply, game, score)
+	local place, personal = 0, false
+	if game ~= "snake" or score > 0 then place, personal = submit(ply, game, score) end
 	-- достижения
 	local A = NYRP.Ach
 	if A then
