@@ -77,8 +77,8 @@ else
 			surface.SetDrawColor(col)
 			surface.DrawTexturedRect(-50, -95, 100, 100)
 		end
-		draw.SimpleText(R and R.Name or "—", NYRP.Font("bold", 30), 0, 40, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText("нажмите E", NYRP.Font("medium", 20), 0, 80, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(R and R.Name or "—", NYRP.FontRaw("bold", 30), 0, 40, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("нажмите E", NYRP.FontRaw("medium", 20), 0, 80, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		cam.End3D2D()
 	end
 end

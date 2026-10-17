@@ -156,7 +156,7 @@ net.Receive("nyrp.atm.open", function()
 	A = { ent = ent, bank = bank, number = number, holder = holder, stage = "insert", pin = "", amount = "", page = "main",
 		born = now(), msg = "", msgT = 0, confirmAmount = function() confirmAmount() end }
 	playSeq("insert")
-	timer.Simple(0.75, function() if A and A.ent == ent then ent:EmitSound("buttons/lightswitch2.wav", 50, 140) end end)
+	timer.Simple(0.75, function() if A and IsValid(ent) and A.ent == ent then ent:EmitSound("buttons/lightswitch2.wav", 50, 140) end end)
 end)
 
 net.Receive("nyrp.atm.info", function()
@@ -249,7 +249,7 @@ local function pressKey(k, idx)
 	A.seg, A.segT = idx, now()
 	-- звук и ввод — в момент нажатия пальцем
 	timer.Simple(8 / FPS, function()
-		if not A or A.stage ~= "pin" then return end
+		if not A or A.stage ~= "pin" or not IsValid(A.ent) then return end
 		A.ent:EmitSound("buttons/button17.wav", 45, 100 + math.random(-8, 8))
 		if k.key:match("^%d$") then
 			if #A.pin < 4 then A.pin = A.pin .. k.key end
@@ -437,7 +437,7 @@ local function header(bank)
 	box(0, 0, PW, 96, bank.color, 0)
 	T(bank.name, 38, 28, 48, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, "title")
 	T(B.MaskCard(A.number), 24, PW - 28, 32, Color(255, 255, 255, 220), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, "bold")
-	T(A.holder, 18, PW - 28, 62, Color(255, 255, 255, 180), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, "medium")
+	T(A.holder or "", 18, PW - 28, 62, Color(255, 255, 255, 180), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER, "medium")
 end
 
 -- ввод PIN: камера у клавиатуры видит только низ экрана — всё важное там
@@ -513,7 +513,7 @@ local function drawMenu(bank, ent)
 			if i > 4 then break end
 			local y = y0 + 44 + (i - 1) * 76
 			box(28, y, PW - 56, 66, Color(255, 255, 255, 14), 10)
-			T(f.reason ~= "" and f.reason or "Штраф", 24, 46, y + 10, color_white, nil, nil, "bold")
+			T((f.reason and f.reason ~= "") and f.reason or "Штраф", 24, 46, y + 10, color_white, nil, nil, "bold")
 			T(NYRP.Phone and NYRP.Phone.DateText(f.day) or "", 18, 46, y + 38, Color(170, 175, 190), nil, nil, "medium")
 			local hv = btn("pay" .. f.id, PW - 228, y + 10, 182, 46, function() op("fine", f.id) end)
 			box(PW - 228, y + 10, 182, 46, hv and Color(60, 200, 100) or Color(40, 160, 80), 10)
@@ -529,9 +529,10 @@ local function drawMenu(bank, ent)
 		for i, l in ipairs(log) do
 			if i > 6 then break end
 			local y = y0 + 44 + (i - 1) * 52
-			T(l.text, 22, 40, y, color_white, nil, nil, "semibold")
+			local amt = tonumber(l.amount) or 0
+			T(tostring(l.text or ""), 22, 40, y, color_white, nil, nil, "semibold")
 			T((NYRP.Phone and NYRP.Phone.DateText(l.day) or "") .. " " .. (l.time or ""), 16, 40, y + 26, Color(150, 155, 170), nil, nil, "medium")
-			T((l.amount > 0 and "+" or "") .. money(l.amount), 24, PW - 40, y + 8, l.amount > 0 and Color(110, 220, 130) or color_white, TEXT_ALIGN_RIGHT, nil, "bold")
+			T((amt > 0 and "+" or "") .. money(amt), 24, PW - 40, y + 8, amt > 0 and Color(110, 220, 130) or color_white, TEXT_ALIGN_RIGHT, nil, "bold")
 		end
 		local hv = btn("back", 28, PW - 96, 200, 70, function() A.page = "main" end)
 		box(28, PW - 96, 200, 70, hv and Color(255, 255, 255, 50) or Color(255, 255, 255, 18), 12)

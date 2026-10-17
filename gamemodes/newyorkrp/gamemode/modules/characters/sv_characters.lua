@@ -273,6 +273,7 @@ net.Receive("nyrp.char.create", function(_, ply)
 	end
 	if #Chars.List(ply) >= Chars.MaxFor() then
 		NYRP.Notify(ply, "Достигнут лимит персонажей", "error")
+		net.Start("nyrp.char.state") net.WriteString("create_failed") net.Send(ply)
 		return
 	end
 	local id = Chars.Insert(ply, data)
@@ -288,7 +289,11 @@ net.Receive("nyrp.char.load", function(_, ply)
 	ply.nyrpNextLoad = CurTime() + 2
 	local id = net.ReadUInt(32)
 	if ply.nyrpChar and ply.nyrpChar.id == id then return end
-	if not Chars.Load(ply, id) then NYRP.Notify(ply, "Персонаж не найден", "error") end
+	if not Chars.Load(ply, id) then
+		NYRP.Notify(ply, "Персонаж не найден", "error")
+		-- снять у клиента чёрный экран ожидания
+		net.Start("nyrp.char.state") net.WriteString("create_failed") net.Send(ply)
+	end
 end)
 
 net.Receive("nyrp.char.delete", function(_, ply)

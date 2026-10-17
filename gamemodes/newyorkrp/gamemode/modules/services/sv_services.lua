@@ -53,7 +53,7 @@ local function dispatch(call)
 			net.WriteString(call.from or "")
 			net.WriteVector(call.pos)
 			net.Send(p)
-			W.Set(p, "911_" .. call.id, call.pos, "911: " .. call.reason, "urgent", Color(230, 70, 60), {})
+			W.Set(p, "911_" .. call.id, call.pos, "911: " .. tostring(call.reason or ""), "urgent", Color(230, 70, 60), { radius = 150 })
 		end
 	end
 	return #recips

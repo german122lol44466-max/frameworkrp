@@ -91,9 +91,10 @@ local VOWEL = { ["а"] = true, ["о"] = true, ["у"] = true, ["э"] = true, ["ы
 function A.Slur(text, lvl)
 	local k = math.Clamp((lvl - 50) / 50, 0, 1)
 	if k <= 0 then return text end
+	-- utf8.codes падает с ошибкой на битом UTF-8 — разбираем посимвольно по шаблону (битые байты просто отбрасываются)
 	local out = {}
-	for _, code in utf8.codes(text) do
-		local ch = utf8.char(code)
+	for c in string.gmatch(text, utf8.charpattern) do
+		local ch = c
 		if REPL[ch] and math.random() < 0.55 * k + 0.15 then
 			ch = REPL[ch]
 		elseif VOWEL[ch] and math.random() < 0.2 * k then

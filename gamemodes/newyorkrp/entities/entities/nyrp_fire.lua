@@ -88,7 +88,7 @@ else
 	function ENT:Emit()
 		local pw = self:GetPower()
 		if pw <= 0 or not self.Emitter then return end
-		if CurTime() < self.nextPart then return end
+		if CurTime() < (self.nextPart or 0) then return end
 		self.nextPart = CurTime() + 0.05
 		local pos, r = self:GetPos(), self:Radius() * 0.6
 		for i = 1, math.ceil(pw / 30) do
@@ -131,6 +131,11 @@ else
 			dl.decay = 1000
 			dl.size = 200 + pw * 3
 			dl.dietime = CurTime() + 0.2
+		end
+		-- после полного обновления клиента (OnRemove с fullUpdate) эмиттер пересоздаём
+		if not self.Emitter then
+			self.Emitter = ParticleEmitter(self:GetPos())
+			self.nextPart = 0
 		end
 		if self.Emitter then
 			self.Emitter:SetPos(self:GetPos())

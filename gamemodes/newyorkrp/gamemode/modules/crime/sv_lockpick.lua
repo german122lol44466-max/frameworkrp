@@ -94,7 +94,7 @@ function C.StartLockpick(ply, door)
 	net.WriteFloat(hint)
 	net.WriteFloat(hw)
 	net.WriteUInt(picksInHand(ply), 8)
-	net.WriteUInt(lvl, 8)
+	net.WriteUInt(math.Clamp(math.floor(lvl), 0, 255), 8)
 	net.WriteString(id and (NYRP.Doors.Data[id].name or "Квартира") or "Дверь")
 	net.Send(ply)
 end

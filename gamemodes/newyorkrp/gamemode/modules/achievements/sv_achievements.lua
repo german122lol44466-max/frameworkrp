@@ -190,6 +190,7 @@ cmd("/achreset", function(ply, raw)
 		end
 	end
 	if not IsValid(target) or not target.nyrpChar then NYRP.Notify(ply, "Игрок не найден", "error") return end
+	target.nyrpChar.flags = target.nyrpChar.flags or {}
 	target.nyrpChar.flags.ach = nil
 	NYRP.Chars.Save(target)
 	A.Send(target, false)

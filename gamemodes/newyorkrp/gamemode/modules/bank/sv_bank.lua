@@ -117,7 +117,8 @@ local function send(ply, msg)
 	local s = ply.nyrpATM
 	if not s then return end
 	local it = s.card
-	local bank = it.data.bank
+	local bank = it and it.data and it.data.bank
+	if not bank then return end
 	net.Start("nyrp.atm.info")
 	net.WriteBool(s.authed)
 	net.WriteString(msg or "")
@@ -225,9 +226,10 @@ net.Receive("nyrp.atm.op", function(_, ply)
 		send(ply, "Счёт пополнен на " .. NYRP.Money.Format(arg))
 	elseif op == "fine" then
 		local f = flags(ply)
+		if not f then return end
 		for i, fn in ipairs(f.fines) do
 			if fn.id == arg then
-				if not B.Add(ply, bank, -fn.amount, "Оплата штрафа: " .. fn.reason) then send(ply, "Недостаточно средств для оплаты штрафа") return end
+				if not B.Add(ply, bank, -fn.amount, "Оплата штрафа: " .. tostring(fn.reason or "")) then send(ply, "Недостаточно средств для оплаты штрафа") return end
 				table.remove(f.fines, i)
 				send(ply, "Штраф оплачен")
 				return

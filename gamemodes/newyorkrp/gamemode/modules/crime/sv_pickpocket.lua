@@ -91,8 +91,9 @@ local function success(thief, victim)
 	if takeItem then
 		local slot = slots[math.random(#slots)]
 		local it = NYRP.Inv.Get(victim).slots[slot]
-		local def = NYRP.Items.Get(it.id)
-		local data = it.n <= 1 and table.Copy(it.data or {}) or nil
+		local def = it and NYRP.Items.Get(it.id)
+		if not def then return end
+		local data = (it.n or 1) <= 1 and table.Copy(it.data or {}) or nil
 		if NYRP.Inv.Add(thief, it.id, 1, data) <= 0 then
 			NYRP.Notify(thief, "Нащупали «" .. def.name .. "», но в сумке нет места — пришлось оставить", "warning", 6)
 			return

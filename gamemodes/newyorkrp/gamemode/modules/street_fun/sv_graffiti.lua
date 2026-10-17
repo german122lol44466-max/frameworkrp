@@ -194,15 +194,16 @@ function SF.TryErase(ply, sponge)
 	return true
 end
 
--- руками: E по рисунку на стене (если перед вами нет ничего, с чем можно взаимодействовать)
+-- руками: присесть + E по рисунку на стене с пустыми руками
 hook.Add("KeyPress", "nyrp.graffiti.erase", function(ply, key)
 	if key ~= IN_USE or not ply:Alive() or not NYRP.HasCharacter(ply) or #list == 0 then return end
 	if (ply.nyrpGrafUse or 0) > CurTime() then return end
 	ply.nyrpGrafUse = CurTime() + 0.6
 	local tr = ply:GetEyeTrace()
 	if not tr.HitWorld or tr.HitPos:Distance(ply:EyePos()) > 110 then return end
+	-- руками — только с пустыми руками и присев (чтобы E у стены не запускал стирание случайно)
 	local w = ply:GetActiveWeapon()
-	if IsValid(w) and (w:GetClass() == "nyrp_spraycan" or w:GetClass() == "nyrp_sponge") then return end
+	if not IsValid(w) or w:GetClass() ~= "nyrp_hands" or not ply:Crouching() then return end
 	SF.TryErase(ply, false)
 end)
 

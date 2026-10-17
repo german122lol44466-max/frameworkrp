@@ -74,8 +74,8 @@ else
 			draw.RoundedBox(16, -170, -60, 340, 120, Color(14, 12, 26, 235))
 			surface.SetDrawColor(GOLD.r, GOLD.g, GOLD.b, 120 + pulse * 120)
 			surface.DrawOutlinedRect(-170, -60, 340, 120, 3)
-			draw.SimpleText("NY LOTTO", NYRP.Font("title", 46), 0, -28, GOLD, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			draw.SimpleText("ДЖЕКПОТ " .. NYRP.Money.Format(self:GetJackpot()), NYRP.Font("bold", 30), 0, 22, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("NY LOTTO", NYRP.FontRaw("title", 46), 0, -28, GOLD, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("ДЖЕКПОТ " .. NYRP.Money.Format(self:GetJackpot()), NYRP.FontRaw("bold", 30), 0, 22, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		cam.End3D2D()
 	end
 end

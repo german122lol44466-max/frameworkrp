@@ -16,7 +16,8 @@ local W = NYRP.World
 function W.Lower(s)
 	s = string.lower(tostring(s or ""))
 	return (string.gsub(s, utf8.charpattern, function(ch)
-		local cp = utf8.codepoint(ch)
+		local ok, cp = pcall(utf8.codepoint, ch)
+		if not ok or not cp then return end
 		if cp >= 0x410 and cp <= 0x42F then return utf8.char(cp + 0x20) end
 		if cp == 0x401 then return utf8.char(0x451) end
 	end))

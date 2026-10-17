@@ -92,6 +92,8 @@ function A.CharKill(admin, target)
 	if target:Alive() then target:KillSilent() end
 	local Chars = NYRP.Chars
 	if Chars.ToMenu then Chars.ToMenu(target) end
+	-- клиент сам в меню не уходит (он «в игре») — говорим ему открыть меню персонажей
+	net.Start("nyrp.char.state") net.WriteString("menu") net.Send(target)
 	if NYRP.Points and NYRP.Points.Configured and not NYRP.Points.Configured() and Chars.AutoLoad then
 		timer.Simple(0.5, function() if IsValid(target) then Chars.AutoLoad(target) end end)
 	end

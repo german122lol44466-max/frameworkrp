@@ -76,6 +76,11 @@ net.Receive("nyrp.char.state", function()
 		Chars.HoldBlack = false
 		timer.Remove("nyrp.holdblack")
 		if IsValid(Chars.CreatePanel) then Chars.CreatePanel.Busy = false end
+	elseif s == "menu" then
+		-- сервер забрал персонажа (пермакилл): из «игры» уходим в меню персонажей
+		if NYRP.PointsConfigured and NYRP.State == "playing" then
+			UI.Fade(0.4, 0.3, 0.6, function() Chars.OpenMenu(true) end)
+		end
 	end
 end)
 

@@ -59,6 +59,7 @@ end
 
 function SWEP:OnRemove()
 	if self.Snd then self.Snd:Stop() end
+	if CLIENT and self.Emitter then self.Emitter:Finish() self.Emitter = nil end
 end
 
 if CLIENT then

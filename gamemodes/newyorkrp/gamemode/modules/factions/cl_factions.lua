@@ -95,6 +95,9 @@ net.Receive("nyrp.terminal", function()
 		tabs[#tabs + 1] = { id = "records", name = "Аресты и судимости", icon = "id" }
 		tabs[#tabs + 1] = { id = "fine", name = "Выписать штраф", icon = "clipboard" }
 	end
+	-- занятия на дежурстве (modules/duty_tasks)
+	local DT = NYRP.DutyTasks
+	if DT and DT.Tab and DT.Tab[d.role] and DT.BuildTab then tabs[#tabs + 1] = { id = "duty", name = "Задания", icon = "target" } end
 
 	local function show(id)
 		win.Tab = id
@@ -113,13 +116,13 @@ net.Receive("nyrp.terminal", function()
 			if #d.calls == 0 then emptyText(canvas, "Вызовов нет") end
 			local first = true
 			for _, c in ipairs(d.calls) do
-				local sub = (c.from ~= "" and ("звонил: " .. c.from .. " · ") or "") .. c.ago .. " с назад" .. (c.taken and (" · принял " .. c.taken) or " · не принят")
+				local sub = ((c.from or "") ~= "" and ("звонил: " .. c.from .. " · ") or "") .. (c.ago or 0) .. " с назад" .. (c.taken and (" · принял " .. c.taken) or " · не принят")
 				local btns = {}
 				if not c.taken and first then
 					first = false
 					btns[1] = { "Принять", "check", function() act(ent, "accept") end, nil, "solid" }
 				end
-				row(canvas, c.reason .. (c.comment ~= "" and (" — " .. c.comment) or ""), sub, c.taken and UI.Col.dim or Color(230, 70, 60), btns)
+				row(canvas, tostring(c.reason or "Вызов") .. ((c.comment or "") ~= "" and (" — " .. c.comment) or ""), sub, c.taken and UI.Col.dim or Color(230, 70, 60), btns)
 			end
 		elseif id == "staff" then
 			if #d.staff == 0 then emptyText(canvas, "Никого нет на смене") end
@@ -129,15 +132,18 @@ net.Receive("nyrp.terminal", function()
 		elseif id == "records" then
 			if #(d.records or {}) == 0 then emptyText(canvas, "Арестов ещё не было") end
 			for _, r in ipairs(d.records or {}) do
-				row(canvas, r.name .. " — " .. r.reason, r.date .. " · " .. r.minutes .. " мин КПЗ · задержал " .. r.officer .. " · всего судимостей: " .. r.total, col)
+				row(canvas, tostring(r.name or "?") .. " — " .. tostring(r.reason or ""), tostring(r.date or "") .. " · " .. tostring(r.minutes or 0) .. " мин КПЗ · задержал " .. tostring(r.officer or "?") .. " · всего судимостей: " .. tostring(r.total or 1), col)
 			end
 		elseif id == "extra" then
 			local E = EXTRA[d.role]
 			if #d.extra == 0 then emptyText(canvas, E.empty) end
 			for _, e in ipairs(d.extra) do
 				local sub = e.left and ("розыск ещё " .. math.max(0, math.ceil(e.left / 60)) .. " мин") or nil
-				row(canvas, e.text, sub, col, { { "Метка", "map_pin", function() act(ent, "mark", tostring(e.id), E.name) end } })
+				row(canvas, tostring(e.text or ""), sub, col, { { "Метка", "map_pin", function() act(ent, "mark", tostring(e.id), E.name) end } })
 			end
+		elseif id == "duty" then
+			local DT = NYRP.DutyTasks
+			if DT and DT.BuildTab then DT.BuildTab(canvas, d.role, col, win) end
 		elseif id == "fine" then
 			local form = vgui.Create("DPanel", canvas)
 			form:Dock(TOP)
@@ -276,7 +282,7 @@ net.Receive("nyrp.police.search", function()
 	table.sort(items, function(a, b) return (a.cat == "weapon" and 0 or 1) < (b.cat == "weapon" and 0 or 1) end)
 	for _, it in ipairs(items) do
 		local danger = it.cat == "weapon"
-		row(list, it.name .. (it.n > 1 and (" ×" .. it.n) or ""), it.worn and "надето / в руках" or "в сумке",
+		row(list, tostring(it.name or "?") .. ((it.n or 1) > 1 and (" ×" .. it.n) or ""), it.worn and "надето / в руках" or "в сумке",
 			danger and Color(230, 70, 60) or UI.Col.dim,
 			{ { "Изъять", "box", function() pact(t, "take", it.key) end, danger and Color(230, 70, 60) or nil, nil, 120 } })
 	end

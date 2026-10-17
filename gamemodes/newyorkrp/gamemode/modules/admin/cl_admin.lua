@@ -267,7 +267,9 @@ local function actionsFor(p, refresh)
 			local opts = {}
 			for _, id in ipairs(R and R.Order or {}) do
 				local r = R.List[id]
-				opts[#opts + 1] = { text = r.Name, icon = "badge", color = r.Color, func = function() A.Act("role", p, id) end }
+				if r then
+					opts[#opts + 1] = { text = tostring(r.Name or id), icon = "badge", color = r.Color, func = function() A.Act("role", p, id) end }
+				end
 			end
 			UI.Menu(opts)
 		end },

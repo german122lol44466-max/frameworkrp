@@ -192,7 +192,9 @@ local function serviceRows()
 		for _, id in ipairs(R.Order) do
 			local r = R.List[id]
 			local req = {}
-			if r.Default then
+			if not r then
+				-- роль из списка порядка не зарегистрирована — пропускаем
+			elseif r.Default then
 				req[#req + 1] = "Есть у каждого нового персонажа."
 			else
 				req[#req + 1] = "Как вступить: NPC-вербовщик городских служб («Расскажите о службах») → «Вступить»."
@@ -207,14 +209,16 @@ local function serviceRows()
 				if (r.Salary or 0) > 0 then req[#req + 1] = "Зарплата: " .. (NYRP.Money and NYRP.Money.Format(r.Salary) or ("$" .. r.Salary)) .. " в игровую полночь." end
 				if r.Service then req[#req + 1] = "Принимает вызовы 911 («" .. r.Service .. "»): " .. key("nyrp_bind_911", "F6") .. " — принять." end
 			end
-			out[#out + 1] = { title = r.Name, text = (r.Description or "") .. "\n" .. table.concat(req, " "), head = "Роли (службы)",
-				icon = r.Icon, col = r.Color }
+			if r then
+				out[#out + 1] = { title = tostring(r.Name or id), text = (r.Description or "") .. "\n" .. table.concat(req, " "), head = "Роли (службы)",
+					icon = r.Icon, col = r.Color }
+			end
 		end
 	end
 	local J = NYRP.Jobs
 	if J and J.Order then
 		for _, id in ipairs(J.Order) do
-			local j = J.List[id]
+			local j = J.List[id] or { Name = tostring(id) }
 			local extra = "Берётся у NPC центра занятости. Начать/закончить смену — /shift."
 			if j.Criminal then extra = "Криминал: полиция получает вызов, после дела вы в розыске. Начать/закончить — /shift." end
 			out[#out + 1] = { title = j.Name, text = (j.Description or "") .. "\n" .. extra, head = j.Criminal and "Криминал" or "Профессии",

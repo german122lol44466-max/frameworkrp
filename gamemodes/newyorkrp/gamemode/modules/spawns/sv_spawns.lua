@@ -42,7 +42,7 @@ end
 
 function S.Count()
 	local n = 0
-	for _, list in pairs(S.Data) do n = n + #list end
+	for _, list in pairs(S.Data) do if istable(list) then n = n + #list end end
 	return n
 end
 
@@ -154,7 +154,7 @@ local function sendTo(ply, show)
 	if show then
 		local flat = {}
 		for role, list in pairs(S.Data) do
-			for _, p in ipairs(list) do flat[#flat + 1] = { role, tv(p.pos or {}), tonumber(p.yaw) or 0 } end
+			if istable(list) then for _, p in ipairs(list) do flat[#flat + 1] = { tostring(role), tv(p.pos or {}), tonumber(p.yaw) or 0 } end end
 		end
 		net.WriteUInt(math.min(#flat, 1023), 10)
 		for i = 1, math.min(#flat, 1023) do

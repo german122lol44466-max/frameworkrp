@@ -32,6 +32,7 @@ hook.Add("PlayerSpawn", "nyrp.cuffs.pose", function(ply) F.CuffPose(ply, false) 
 -- ------------------------------------------------------------ КПЗ --
 local function jailFile() return "nyrp/jail_" .. game.GetMap() .. ".json" end
 F.Jail = util.JSONToTable(file.Read(jailFile(), "DATA") or "") or { cells = {}, release = nil }
+F.Jail.cells = istable(F.Jail.cells) and F.Jail.cells or {}
 local function saveJail()
 	file.CreateDir("nyrp")
 	file.Write(jailFile(), util.TableToJSON(F.Jail, true))
@@ -193,7 +194,7 @@ net.Receive("nyrp.police.act", function(_, cop)
 		local it = kind == "s" and inv.slots[tonumber(key) or -1] or (kind == "e" and inv.equip[key])
 		if not it then return end
 		local def = NYRP.Items.Get(it.id)
-		if Inv.Add(cop, it.id, it.n, it.data) <= 0 then NYRP.Notify(cop, "В сумке нет места", "error") return end
+		if Inv.Add(cop, it.id, it.n or 1, it.data) <= 0 then NYRP.Notify(cop, "В сумке нет места", "error") return end
 		if kind == "s" then
 			inv.slots[tonumber(key)] = nil
 		else

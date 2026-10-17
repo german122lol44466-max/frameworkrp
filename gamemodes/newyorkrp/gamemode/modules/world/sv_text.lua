@@ -39,10 +39,10 @@ function T.Save()
 end
 
 local function writeEntry(d)
-	net.WriteString(d.id)
-	net.WriteVector(tv(d.pos))
-	net.WriteAngle(ta(d.ang))
-	net.WriteString(d.text or "")
+	net.WriteString(tostring(d.id or ""))
+	net.WriteVector(tv(d.pos or {}))
+	net.WriteAngle(ta(d.ang or {}))
+	net.WriteString(tostring(d.text or ""))
 	net.WriteFloat(tonumber(d.scale) or 1)
 	local c = d.col or {}
 	net.WriteColor(Color(c[1] or 255, c[2] or 255, c[3] or 255), false)
@@ -80,7 +80,7 @@ end
 function T.RemoveNear(pos, radius)
 	local removed = {}
 	for i = #T.list, 1, -1 do
-		if tv(T.list[i].pos):Distance(pos) <= radius then
+		if tv(T.list[i].pos or {}):Distance(pos) <= radius then
 			removed[#removed + 1] = T.list[i].id
 			table.remove(T.list, i)
 		end

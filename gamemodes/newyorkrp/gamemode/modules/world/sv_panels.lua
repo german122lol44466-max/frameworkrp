@@ -38,10 +38,10 @@ function P.Save()
 end
 
 local function writeEntry(d)
-	net.WriteString(d.id)
-	net.WriteVector(tv(d.pos))
-	net.WriteAngle(ta(d.ang))
-	net.WriteString(d.url)
+	net.WriteString(tostring(d.id or ""))
+	net.WriteVector(tv(d.pos or {}))
+	net.WriteAngle(ta(d.ang or {}))
+	net.WriteString(tostring(d.url or ""))
 	net.WriteUInt(math.Clamp(math.floor(tonumber(d.w) or 64), 4, 1024), 11)
 	net.WriteUInt(math.Clamp(math.floor(tonumber(d.h) or 64), 4, 1024), 11)
 end
@@ -49,8 +49,9 @@ end
 function P.SendAll(ply)
 	net.Start("nyrp.world.panel")
 	net.WriteUInt(OP_FULL, 2)
-	net.WriteUInt(#P.list, 8)
-	for _, d in ipairs(P.list) do writeEntry(d) end
+	local n = math.min(#P.list, 255)
+	net.WriteUInt(n, 8)
+	for i = 1, n do writeEntry(P.list[i]) end
 	if ply then net.Send(ply) else net.Broadcast() end
 end
 
@@ -105,7 +106,7 @@ local function register()
 		local pos = trace(ply).HitPos
 		local removed = {}
 		for i = #P.list, 1, -1 do
-			if tv(P.list[i].pos):Distance(pos) <= radius then
+			if tv(P.list[i].pos or {}):Distance(pos) <= radius then
 				removed[#removed + 1] = P.list[i].id
 				table.remove(P.list, i)
 			end
