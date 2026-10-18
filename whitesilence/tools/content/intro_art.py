@@ -1,6 +1,6 @@
-"""Кадры интро «Белая тишина» -> content/materials/whitesilence/intro
+"""Картинки интро и меню «Белая тишина» -> content/materials/whitesilence/{intro,menu}
 
-    python3 tools/content/intro_art.py [paintings|logo|fx ...]     (без аргументов — всё)
+    python3 tools/content/intro_art.py [paintings|logo|fx|masks|menu ...]     (без аргументов — всё)
 
 paintings — картины сцен из tools/content/paintings/*.png. Их нарисовала нейросеть Stable Diffusion XL
             (tools/content/gen_paintings.py, стиль — цифровой концепт-арт с крупными мазками). Здесь они
@@ -8,6 +8,8 @@ paintings — картины сцен из tools/content/paintings/*.png. Их �
             *_blur для эффекта проявления.
 logo      — знак Фонда SCP из векторного scp_logo.svg (Simple Icons; сам знак — SCP Wiki, CC BY-SA 3.0).
 fx        — служебные текстуры: снежинка, ледяная крошка, полоса снега, туман, зерно, виньетка.
+masks     — маски проявления кадров мазками кисти.
+menu      — фон главного меню и изображение отряда (paintings/menu_bg.png, squad.png).
 """
 import io
 import os
@@ -165,7 +167,32 @@ def brush_masks(frames=24, w=640, h=360, seed=5):
         save_png(np.zeros((h, w, 3), np.float32), cover, "reveal_%02d" % k)
 
 
-ALL = {"paintings": paintings, "logo": logo, "fx": fx, "masks": brush_masks}
+def menu():
+    """Картины главного меню: тёмный фон 2560x1440 и изображение отряда для правой панели лобби."""
+    out = os.path.join(ROOT, "content", "materials", "whitesilence", "menu")
+    os.makedirs(out, exist_ok=True)
+    src = os.path.join(SRC, "menu_bg.png")
+    if os.path.exists(src):
+        im = Image.open(src).convert("RGB")
+        w, h = im.size
+        th = int(w * 9 / 16)
+        im = im.crop((0, (h - th) // 2, w, (h - th) // 2 + th)).resize((W, H), Image.LANCZOS)
+        im = im.filter(ImageFilter.UnsharpMask(2, 50, 2))
+        im = ImageEnhance.Color(im).enhance(0.7)
+        im = ImageEnhance.Brightness(im).enhance(0.55)          # меню тёмное, как на референсе
+        a = np.asarray(im, np.float32)
+        a += (fbm(W, H, 3, 2, 21)[..., None] - 0.5) * 6
+        Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(os.path.join(out, "menu_bg.jpg"), quality=90)
+        print("   menu_bg")
+    src = os.path.join(SRC, "squad.png")
+    if os.path.exists(src):
+        im = Image.open(src).convert("RGB").resize((1200, 1543), Image.LANCZOS).filter(ImageFilter.UnsharpMask(2, 50, 2))
+        im = ImageEnhance.Color(im).enhance(0.85)
+        im.save(os.path.join(out, "squad.jpg"), quality=90)
+        print("   squad")
+
+
+ALL = {"paintings": paintings, "logo": logo, "fx": fx, "masks": brush_masks, "menu": menu}
 
 if __name__ == "__main__":
     for n in sys.argv[1:] or list(ALL):

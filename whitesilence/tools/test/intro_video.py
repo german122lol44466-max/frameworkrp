@@ -88,8 +88,10 @@ def main():
     g.SCRW, g.SCRH = W, H
     cv = fr.Canvas(W, H)
     fr.bind(lua, cv)
+    lua.execute("hook.Remove('WSIntroFinished', 'ws.menu') hook.Remove('InitPostEntity', 'ws.menu')")
     lua.execute("hook.Run('InitPostEntity')")
     sim.run_timers(lua)
+    lua.execute("INTRO = PANELS[#PANELS]")
     length = float(lua.eval("WS.Intro.Length"))
 
     wav = out + ".wav.f32"
@@ -102,10 +104,10 @@ def main():
                             "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
                             "-c:a", "aac", "-b:a", "160k", "-shortest", out], stdin=subprocess.PIPE)
     frames = 0
-    while not lua.eval("PANELS[#PANELS].__removed"):
+    while not lua.eval("INTRO.__removed"):
         g.NOW = g.NOW + 1 / FPS
         cv.img[:] = 0
-        lua.eval("PANELS[#PANELS].Paint(PANELS[#PANELS], SCRW, SCRH)")
+        lua.eval("INTRO.Paint(INTRO, SCRW, SCRH)")
         lua.execute("hook.Run('Think')")
         enc.stdin.write(np.clip(cv.img, 0, 255).astype(np.uint8).tobytes())
         frames += 1

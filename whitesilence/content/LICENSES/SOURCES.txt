@@ -2,6 +2,7 @@ SCP: Белая тишина — откуда взят контент
 
 Шрифты (SIL Open Font License 1.1, тексты лицензий рядом):
   Alegreya Sans SC   — OFL_alegreyasanssc.txt
+  Exo 2              — OFL_exo2.txt
   Cormorant Garamond — OFL_cormorantgaramond.txt
   Oswald             — OFL_oswald.txt
   IBM Plex Mono      — OFL_ibmplexmono.txt
@@ -26,3 +27,13 @@ SCP: Белая тишина — откуда взят контент
   сердцебиение:       react-sounds (github.com/e3ntity/react-sounds), MIT
   Паки CC0 взяты из github.com/lavenderdotpet/CC0-Public-Domain-Sounds.
   Изменения: склейка в петли, фильтрация, замедление, реверберация, сведение с синтезом.
+
+Звуки главного меню и лобби (sound/whitesilence/menu) — SCP – Containment Breach
+(github.com/Regalis11/scpcb), лицензия CC BY-SA 3.0. Звук и музыка CB: Joonas Rikkonen («Regalis»), Caleb Yu,
+Class401, FireFox, gmodfan11, Kevin MacLeod, phlip45, revo794, Shaun Gaylard, Slagar, Tim Morrison.
+  music — SFX/Music/Menu.ogg; drone — Room ambience/lowdrone; hover/click — Interact/Button, Button2;
+  open — KeycardUse1; join — ScannerUse1; invite — Character/MTF/Beep; error — Radio/Buzz;
+  spark — Door/DoorSparks; flicker — Room/Intro/Light1; deploy — Character/MTF/Announc (объявление МОГ).
+  Изменения: громкость/нормализация (tools/content/menu_audio.py).
+
+Картины меню: фон — Stable Diffusion XL (кадр из той же серии, что интро), изображение отряда — фрагмент кадра SDXL.

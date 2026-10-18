@@ -25,6 +25,10 @@ FAMILY = {
     ("Alegreya Sans SC", False): "AlegreyaSansSC_700Bold.ttf",
     ("Alegreya Sans SC Medium", False): "AlegreyaSansSC_500Medium.ttf",
     ("Alegreya Sans SC ExtraBold", False): "AlegreyaSansSC_800ExtraBold.ttf",
+    ("Exo 2", False): "Exo2_400Regular.ttf",
+    ("Exo 2 Light", False): "Exo2_300Light.ttf",
+    ("Exo 2 SemiBold", False): "Exo2_600SemiBold.ttf",
+    ("Exo 2 Bold", False): "Exo2_700Bold.ttf",
 }
 
 
@@ -146,7 +150,10 @@ class Canvas:
 
     # ------------------------------------------------ текст
     def CreateFont(self, name, d):
-        self.fontdefs[name] = (d["font"], bool(d["italic"]), int(d["size"]), int(d["blursize"] or 0))
+        fam = d["font"]
+        if fam == "Exo 2" and (d["weight"] or 400) >= 700:
+            fam = "Exo 2 Bold"   # в GMod «Exo 2» с weight 700 берёт жирное начертание
+        self.fontdefs[name] = (fam, bool(d["italic"]), int(d["size"]), int(d["blursize"] or 0))
 
     def pil_font(self, name):
         if name not in self.fonts:
@@ -240,11 +247,13 @@ def main():
     real_simple = g.draw.SimpleText
     cv = Canvas(W, H)
     bind(lua, cv)  # шрифты создаются и в Canvas
+    lua.execute("hook.Remove('WSIntroFinished', 'ws.menu') hook.Remove('InitPostEntity', 'ws.menu')")
     lua.execute("hook.Run('InitPostEntity')")
     sim.run_timers(lua)
+    lua.execute("INTRO = PANELS[#PANELS]")
     t0 = g.NOW
     todo = sorted(times)
-    while todo and not lua.eval("PANELS[#PANELS].__removed"):
+    while todo and not lua.eval("INTRO.__removed"):
         g.NOW = g.NOW + 1 / 30
         t = g.NOW - t0
         shoot = t >= todo[0] - 1e-6
@@ -253,7 +262,7 @@ def main():
             g.surface[n] = getattr(cv, n) if shoot else fn
         g.draw.SimpleText = cv.SimpleText if shoot else real_simple
         cv.img[:] = 0
-        lua.eval("PANELS[#PANELS].Paint(PANELS[#PANELS], SCRW, SCRH)")
+        lua.eval("INTRO.Paint(INTRO, SCRW, SCRH)")
         lua.execute("hook.Run('Think')")
         if shoot:
             Image.fromarray(np.clip(cv.img, 0, 255).astype(np.uint8)).save(os.path.join(out, "t%05.1f.jpg" % t), quality=90)

@@ -16,7 +16,7 @@ WS.Version = GM.Version
 WS.Root = GM.FolderName .. "/gamemode/"
 
 -- Общие пространства имён создаются заранее: порядок загрузки файлов не важен.
-for _, ns in ipairs({ "Config", "UI", "Audio", "Intro" }) do
+for _, ns in ipairs({ "Config", "UI", "Audio", "Intro", "Lobby", "Menu" }) do
 	WS[ns] = WS[ns] or {}
 end
 

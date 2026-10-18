@@ -11,9 +11,14 @@ CreateConVar("ws_intro_force", "0", { FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOT
 local function release(ply)
 	if not IsValid(ply) or not ply.wsInIntro then return end
 	ply.wsInIntro = nil
+	timer.Remove("ws.intro." .. ply:EntIndex())
+	-- после интро игрок попадает в главное меню: там он остаётся замороженным, пока отряд не выдвинется
+	if WS.Lobby.ApplyMenuState and not WS.Lobby.InGame(ply) then
+		WS.Lobby.ApplyMenuState(ply)
+		return
+	end
 	ply:Freeze(false)
 	ply:GodDisable()
-	timer.Remove("ws.intro." .. ply:EntIndex())
 end
 
 net.Receive("ws.intro", function(_, ply)

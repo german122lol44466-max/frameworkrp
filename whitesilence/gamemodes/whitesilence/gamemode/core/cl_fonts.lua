@@ -1,7 +1,7 @@
 --[[
 	Шрифты (лежат в content/resource/fonts, OFL):
 	  Alegreya Sans SC — субтитры интро (капитель); Cormorant Garamond — повествование;
-	  Oswald — заголовки; IBM Plex Mono — служебные подписи.
+	  Oswald — заголовки; IBM Plex Mono — служебные подписи; Exo 2 — главное меню и лобби.
 	WS.Font(style, size[, blur]) — size в пикселях для 1080p, масштабируется под экран; blur — размытая копия для свечения.
 ]]
 
@@ -15,6 +15,11 @@ local families = {
 	sub = { "Alegreya Sans SC", 700 },
 	subheavy = { "Alegreya Sans SC ExtraBold", 800 },
 	submed = { "Alegreya Sans SC Medium", 500 },
+	-- Exo 2 — главное меню и лобби
+	menu = { "Exo 2", 400 },
+	menulight = { "Exo 2 Light", 300 },
+	menusemi = { "Exo 2 SemiBold", 600 },
+	menubold = { "Exo 2", 700 },
 }
 
 local created = {}

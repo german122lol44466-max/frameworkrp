@@ -54,6 +54,8 @@ function math.Approach(c, t, d) if c < t then return math.min(c + d, t) else ret
 function Lerp(t, a, b) return a + (b - a) * t end
 function IsValid(v) return v ~= nil and v ~= false and (type(v) ~= "table" or not v.__removed) end
 function Color(r, g, b, a) return { r = r, g = g, b = b, a = a or 255 } end
+function Vector(x, y, z) return { x = x or 0, y = y or 0, z = z or 0 } end
+function Angle(p, y, r) return { p = p or 0, y = y or 0, r = r or 0 } end
 color_white = Color(255, 255, 255)
 unpack = table.unpack
 function MsgC(...) local t = {} for _, v in ipairs({ ... }) do if type(v) == "string" then t[#t + 1] = v end end print(table.concat(t)) end
@@ -240,19 +242,21 @@ def play(skip_at=None, w=1920, h=1080):
     lua = realm(False)
     g = lua.globals()
     g.SCRW, g.SCRH = w, h
+    # меню после интро проверяет tools/test/menu_sim.py; здесь — только интро
+    lua.execute("hook.Remove('WSIntroFinished', 'ws.menu') hook.Remove('InitPostEntity', 'ws.menu')")
     lua.execute("hook.Run('InitPostEntity')")
     run_timers(lua)
-    panel = lua.eval("PANELS[#PANELS]")
-    assert panel is not None, "панель интро не создана"
+    lua.execute("INTRO = PANELS[#PANELS]")
+    assert lua.eval("INTRO") is not None, "панель интро не создана"
     t0 = g.NOW
     frames, skipped = 0, False
-    while not lua.eval("PANELS[#PANELS].__removed"):
+    while not lua.eval("INTRO.__removed"):
         dt = 1 / 30
         g.NOW = g.NOW + dt
         if skip_at and not skipped and g.NOW - t0 >= skip_at:
-            lua.eval("PANELS[#PANELS].OnKeyCodePressed(PANELS[#PANELS], KEY_SPACE)")
+            lua.eval("INTRO.OnKeyCodePressed(INTRO, KEY_SPACE)")
             skipped = True
-        lua.eval("PANELS[#PANELS].Paint(PANELS[#PANELS], SCRW, SCRH)")
+        lua.eval("INTRO.Paint(INTRO, SCRW, SCRH)")
         lua.execute("hook.Run('Think')")
         frames += 1
         if frames > 30 * 70:
@@ -269,11 +273,16 @@ def main():
     errors = []
     srv = realm(True)
     ply = srv.eval("""(function()
-        local p = { frozen = false, god = false }
+        local p = { frozen = false, god = false, nw = {} }
         function p:Freeze(b) self.frozen = b end
         function p:GodEnable() self.god = true end
         function p:GodDisable() self.god = false end
         function p:EntIndex() return 1 end
+        function p:GetNW2Bool(k, d) local v = self.nw[k] if v == nil then return d end return v end
+        function p:StripWeapons() end
+        function p:SetNoDraw(b) self.nodraw = b end
+        function p:SetNotSolid() end
+        function p:DrawShadow() end
         return p end)()""")
     srv.globals().net.inb = True
     srv.eval("net.r['ws.intro']")(None, ply)
@@ -281,9 +290,10 @@ def main():
     srv.globals().NOW = srv.globals().NOW + 2
     srv.globals().net.inb = False
     srv.eval("net.r['ws.intro']")(None, ply)
-    assert not ply.frozen and not ply.god, "сервер не разморозил игрока"
+    # после интро игрок в главном меню: остаётся замороженным и невидимым, пока отряд не выдвинется
+    assert ply.frozen and ply.god and ply.nodraw, "после интро игрок не в состоянии меню"
     res = list(srv.globals().RESOURCES.values())
-    print("сервер: заморозка ок, файлов в раздаче:", len(res))
+    print("сервер: заморозка на интро и состояние меню после него — ок, файлов в раздаче:", len(res))
 
     for label, kw in (("целиком 1920x1080", {}), ("целиком 2560x1080 (21:9)", {"w": 2560, "h": 1080}),
                       ("целиком 1280x1024 (5:4)", {"w": 1280, "h": 1024}), ("пропуск на 7 с", {"skip_at": 7.0})):
