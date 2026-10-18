@@ -9,7 +9,13 @@ I.FX = FX
 
 local flakeMat, dabMat, streakMat, fogMat, grainMat, vigMat
 
+-- Материалы эффектов (вызывать перед первой отрисовкой; повторно — безопасно)
+function FX.Ensure()
+	if not FX.ready then FX.Init() end
+end
+
 function FX.Init()
+	FX.ready = true
 	flakeMat = UI.Mat(I.Path .. "flake.png", "smooth")
 	dabMat = UI.Mat(I.Path .. "dab.png", "smooth")
 	streakMat = UI.Mat(I.Path .. "streak.png", "smooth")

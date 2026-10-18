@@ -39,7 +39,7 @@ end
 
 function A.Play(path, opts)
 	opts = opts or {}
-	local h = setmetatable({ cur = 0, from = 0, to = opts.volume or 1, t0 = RealTime(), dur = math.max(opts.fade or 0, 0.001) }, Handle)
+	local h = setmetatable({ path = path, cur = 0, from = 0, to = opts.volume or 1, t0 = RealTime(), dur = math.max(opts.fade or 0, 0.001) }, Handle)
 	if (opts.fade or 0) <= 0 then h.cur = h.to h.from = h.to end
 	A.Active[h] = true
 	sound.PlayFile("sound/" .. path, "noplay", function(ch, errId, err)

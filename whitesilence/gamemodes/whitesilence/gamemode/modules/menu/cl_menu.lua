@@ -1,8 +1,8 @@
 --[[
 	Главное меню и лобби отряда.
 
-	Главное: тёмная картина-фон с медленным наездом, метель, искры из кабеля, мигающий прожектор, справа из темноты
-	выходит отряд (3D, cl_menu_scene.lua). Слева сверху — знак Фонда и название, по центру — «Играть» и «Отключиться».
+	Главное: тёмная картина-фон с медленным наездом, метель, искры с мачты, мигающий прожектор, угольки.
+	Слева сверху — знак Фонда и название, по центру — «Играть» и «Отключиться».
 	«Играть» → лобби: слева столбик отряда (аватар Steam, имя или позывной, у своей строки — смена позывного,
 	пустые места — пригласить игрока с сервера), справа — изображение отряда, снизу — «Выдвигаться» (командир),
 	«Покинуть отряд», «Назад». Музыка и звуки — из SCP – Containment Breach (CC BY-SA 3.0).
@@ -506,9 +506,6 @@ local function paint(self, w, h)
 
 	drawBackground(t, w, h)
 	M.FX.Draw(1)
-	-- отряд справа: в главном экране виден, в лобби уходит в темноту (там правую часть занимает панель)
-	local sceneA = state == "main" and E.Smooth((now - stateTime) / 0.8) or (1 - E.Smooth((now - stateTime) / 0.5))
-	M.Scene.Draw(sceneA, M.FX.Light)
 	WS.Intro.FX.Vignette(0.9)
 	WS.Intro.FX.Grain(0.8)
 
@@ -544,7 +541,6 @@ function M.Open()
 	WS.Intro.FX.Init()
 	M.FX.Source = M.SparkSource
 	M.FX.Reset()
-	M.Scene.Init()
 	openTime = RealTime()
 	state, stateTime = "main", RealTime()
 	M.Closing = nil
@@ -582,7 +578,6 @@ end
 function M.Close()
 	for _, h in pairs(sounds) do h:Stop(1.5) end
 	sounds = {}
-	M.Scene.Remove()
 	if IsValid(invitePanel) then invitePanel:Remove() end
 	if IsValid(panel) then panel:Remove() end
 	panel = nil
@@ -591,6 +586,7 @@ end
 -- Отряд выдвинулся: объявление МОГ, затемнение, вход в игру
 net.Receive("ws.lobby.started", function()
 	snd("deploy", 0.9)
+	hook.Run("WSDeployed")
 	if not IsValid(panel) then return end
 	M.Closing = RealTime()
 	for _, h in pairs(sounds) do h:Stop(1.4) end

@@ -54,8 +54,29 @@ function math.Approach(c, t, d) if c < t then return math.min(c + d, t) else ret
 function Lerp(t, a, b) return a + (b - a) * t end
 function IsValid(v) return v ~= nil and v ~= false and (type(v) ~= "table" or not v.__removed) end
 function Color(r, g, b, a) return { r = r, g = g, b = b, a = a or 255 } end
-function Vector(x, y, z) return { x = x or 0, y = y or 0, z = z or 0 } end
-function Angle(p, y, r) return { p = p or 0, y = y or 0, r = r or 0 } end
+local VecMeta = {}
+VecMeta.__index = VecMeta
+function Vector(x, y, z) return setmetatable({ x = x or 0, y = y or 0, z = z or 0 }, VecMeta) end
+VecMeta.__add = function(a, b) return Vector(a.x + b.x, a.y + b.y, a.z + b.z) end
+VecMeta.__sub = function(a, b) return Vector(a.x - b.x, a.y - b.y, a.z - b.z) end
+VecMeta.__mul = function(a, b) if type(a) == "number" then a, b = b, a end return Vector(a.x * b, a.y * b, a.z * b) end
+VecMeta.__unm = function(a) return Vector(-a.x, -a.y, -a.z) end
+function VecMeta:Distance(o) return math.sqrt((self.x - o.x) ^ 2 + (self.y - o.y) ^ 2 + (self.z - o.z) ^ 2) end
+function VecMeta:DistToSqr(o) return (self.x - o.x) ^ 2 + (self.y - o.y) ^ 2 + (self.z - o.z) ^ 2 end
+function VecMeta:Dot(o) return self.x * o.x + self.y * o.y + self.z * o.z end
+function VecMeta:Length2D() return math.sqrt(self.x ^ 2 + self.y ^ 2) end
+function VecMeta:GetNormalized() local l = math.sqrt(self.x ^ 2 + self.y ^ 2 + self.z ^ 2) if l == 0 then return Vector() end return Vector(self.x / l, self.y / l, self.z / l) end
+function VecMeta:Angle() return Angle(0, math.deg(math.atan(self.y, self.x)), 0) end
+function VecMeta:ToScreen() return { x = 960, y = 400, visible = true } end
+local AngMeta = {}
+AngMeta.__index = AngMeta
+function Angle(p, y, r) return setmetatable({ p = p or 0, y = y or 0, r = r or 0 }, AngMeta) end
+function AngMeta:Forward() return Vector(1, 0, 0) end
+function AngMeta:Up() return Vector(0, 0, 1) end
+function AngMeta:RotateAroundAxis() end
+vector_up, vector_origin, angle_zero = Vector(0, 0, 1), Vector(0, 0, 0), Angle(0, 0, 0)
+
+
 color_white = Color(255, 255, 255)
 unpack = table.unpack
 function MsgC(...) local t = {} for _, v in ipairs({ ... }) do if type(v) == "string" then t[#t + 1] = v end end print(table.concat(t)) end
@@ -183,6 +204,114 @@ end
 
 -- файлы: LUA -> gamemodes/, GAME -> content/
 function file.Find(pattern, where) return FIND(pattern, where) end
+-- API GMod для игровых модулей: функции перечислены явно (опечатка в имени — ошибка), значения — заглушки
+local function noop() end
+chat = { AddText = function(...) end, PlaySound = noop }
+markup = { Parse = function(s, w)
+  local m = { s = s }
+  function m:Draw() DRAWS = DRAWS + 1 end
+  function m:Size() return 200, 40 end
+  function m:GetHeight() return 22 end
+  function m:GetWidth() return 300 end
+  return m end }
+local MatMeta = {}
+MatMeta.__index = function(t, k) return function() end end
+function Matrix() return setmetatable({}, { __index = function() return function() end end }) end
+cam = cam or {}
+cam.Start3D = cam.Start3D or noop
+cam.End3D = cam.End3D or noop
+cam.PushModelMatrix, cam.PopModelMatrix, cam.Start2D, cam.End2D, cam.IgnoreZ = noop, noop, noop, noop, noop
+for _, f in ipairs({ "PushRenderTarget", "PopRenderTarget", "OverrideAlphaWriteEnable", "Clear", "UpdateScreenEffectTexture",
+  "MaterialOverride", "SetColorModulation", "EnableClipping", "PushCustomClipPlane", "PopCustomClipPlane", "DrawSprite", "SetMaterial" }) do
+  render[f] = render[f] or noop
+end
+function DrawColorModify(t) for k, v in pairs(t) do CHECK.num("DrawColorModify." .. k, v) end end
+DrawBloom, DrawSharpen, DrawMotionBlur = noop, noop, noop
+function DynamicLight() return {} end
+function ScreenScale(x) return x * SCRW / 640 end
+function GetRenderTarget(n) return { GetName = function() return n end } end
+function CreateMaterial(n) return { __mat = true, path = n } end
+function EyePos() return Vector(0, 0, 64) end
+function EyeAngles() return Angle(0, 0, 0) end
+function GetViewEntity() return LocalPlayer and LocalPlayer() end
+util.TraceLine = function() return { Entity = nil, HitPos = Vector() } end
+ents = { GetAll = function() return {} end }
+input = input or {}
+KEYS_DOWN = {}
+CURSOR_X, CURSOR_Y = 960, 540
+input.IsKeyDown = function(k) return KEYS_DOWN[k] == true end
+input.GetCursorPos = function() return CURSOR_X, CURSOR_Y end
+input.SetCursorPos = noop
+input.SelectWeapon = noop
+gui = { IsGameUIVisible = function() return false end, EnableScreenClicker = noop, HideGameUI = noop }
+vgui.GetKeyboardFocus = function() return nil end
+function DermaMenu() return setmetatable({}, { __index = function() return function() end end }) end
+CloseDermaMenus = noop
+function GetHostName() return "Test server" end
+game = { MaxPlayers = function() return 16 end }
+function SetClipboardText() end
+function IsFirstTimePredicted() return true end
+engine = { TickInterval = function() return 1 / 66 end }
+language = { GetPhrase = function(s) return s end }
+draw.NoTexture = noop
+surface.DrawPoly = function(poly) for _, v in ipairs(poly) do CHECK.num("surface.DrawPoly", v.x, v.y) end end
+function isentity(v) return type(v) == "table" and v.IsPlayer ~= nil end
+function isvector(v) return getmetatable(v) == VecMeta end
+NULL = setmetatable({}, { __index = function() return function() end end })
+local _G_mt = getmetatable(_G) or {}
+_G_mt.__index = function(t, k)
+  -- константы движка (ACT_*, KEY_*, IN_*, DMG_* ...) — числа; остальное неизвестное — ошибка
+  if type(k) == "string" and k:match("^[A-Z][A-Z0-9]*_[A-Z0-9_]+$") then return 1 end
+  return nil
+end
+setmetatable(_G, _G_mt)
+-- локальный игрок для клиентских модулей: по умолчанию в меню (не в игре)
+local FakePly = {}
+FakePly.__index = FakePly
+function MakeFakePlayer(idx, name)
+  return setmetatable({ idx = idx or 1, name = name or "Tester", nw = {}, hp = 100, alive = true, weps = {} }, FakePly)
+end
+function FakePly:GetNW2Int(k, d) local v = self.nw[k] if v == nil then return d end return v end
+FakePly.GetNW2Bool, FakePly.GetNW2Float, FakePly.GetNW2String = FakePly.GetNW2Int, FakePly.GetNW2Int, FakePly.GetNW2Int
+function FakePly:SetNW2Int(k, v) self.nw[k] = v end
+FakePly.SetNW2Bool, FakePly.SetNW2Float, FakePly.SetNW2String = FakePly.SetNW2Int, FakePly.SetNW2Int, FakePly.SetNW2Int
+function FakePly:Alive() return self.alive end
+function FakePly:Health() return self.hp end
+function FakePly:GetMaxHealth() return 100 end
+function FakePly:Armor() return 50 end
+function FakePly:Nick() return self.name end
+function FakePly:EntIndex() return self.idx end
+function FakePly:IsPlayer() return true end
+function FakePly:IsBot() return false end
+function FakePly:IsSpeaking() return false end
+function FakePly:VoiceVolume() return 0.3 end
+function FakePly:GetNoDraw() return false end
+function FakePly:InVehicle() return false end
+function FakePly:GetActiveWeapon() return self.weps[1] end
+function FakePly:GetWeapons() return self.weps end
+function FakePly:GetAmmoCount() return 90 end
+function FakePly:GetModel() return "models/player/test.mdl" end
+function FakePly:EyePos() return Vector(0, 0, 64) end
+function FakePly:GetPos() return Vector(0, 0, 0) end
+function FakePly:GetAimVector() return Vector(1, 0, 0) end
+function FakePly:EyeAngles() return Angle(0, 0, 0) end
+function FakePly:Crouching() return false end
+function FakePly:IsSuperAdmin() return false end
+function FakePly:GetRagdollEntity() return nil end
+function FakePly:Ping() return 40 end
+function FakePly:IsMuted() return false end
+function FakePly:SteamID() return "STEAM_0:0:1" end
+function FakePly:GetSkin() return 0 end
+function FakePly:GetBodyGroups() return {} end
+function FakePly:LookupBone() return nil end
+function FakePly:ShouldDrawLocalPlayer() return false end
+function FakePly:GetObserverTarget() return nil end
+function FakePly:KeyDown() return false end
+function FakePly:AnimRestartGesture() end
+LOCALPLY = MakeFakePlayer(1, "Tester")
+LocalPlayer = LocalPlayer or function() return LOCALPLY end
+player = player or { GetAll = function() return { LOCALPLY } end, GetCount = function() return 1 end }
+
 '''
 
 
@@ -229,8 +358,13 @@ def run_timers(lua):
     lua.execute("local t = TIMERS TIMERS = {} for _, fn in ipairs(t) do fn() end")
 
 
+ENGINE_MATERIALS = {"models/debug/debugwhite", "pp/blurscreen", "pp/colour", "vgui/white", "sprites/light_glow02_add"}
+
+
 def check_paths(lua, errors):
     for p in lua.globals().MATERIALS.values():
+        if p in ENGINE_MATERIALS or p.replace(".vmt", "") in ENGINE_MATERIALS:
+            continue
         if not os.path.exists(os.path.join(CONTENT, "materials", p)):
             errors.append("нет материала: materials/" + p)
     for p in lua.globals().SOUNDS.values():

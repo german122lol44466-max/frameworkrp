@@ -32,3 +32,15 @@ end
 function E.Range(t, a, b)
 	return E.Clamp01((t - a) / (b - a))
 end
+
+-- Верхний регистр с кириллицей (string.upper в GMod кириллицу не трогает)
+function WS.Upper(s)
+	local out = {}
+	for _, c in utf8.codes(s) do
+		if c >= 0x430 and c <= 0x44F then c = c - 0x20
+		elseif c == 0x451 then c = 0x401
+		elseif c >= 97 and c <= 122 then c = c - 32 end
+		out[#out + 1] = utf8.char(c)
+	end
+	return table.concat(out)
+end
