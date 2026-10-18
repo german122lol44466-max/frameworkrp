@@ -7,10 +7,11 @@ local UI = WS.UI
 local FX = {}
 I.FX = FX
 
-local flakeMat, streakMat, fogMat, grainMat, vigMat
+local flakeMat, dabMat, streakMat, fogMat, grainMat, vigMat
 
 function FX.Init()
 	flakeMat = UI.Mat(I.Path .. "flake.png", "smooth")
+	dabMat = UI.Mat(I.Path .. "dab.png", "smooth")
 	streakMat = UI.Mat(I.Path .. "streak.png", "smooth")
 	fogMat = UI.Mat(I.Path .. "fog.png", "smooth noclamp")
 	grainMat = UI.Mat(I.Path .. "grain.png", "noclamp")
@@ -29,6 +30,9 @@ local function newFlake(w, h, anywhere)
 		z = z,
 		ph = math.Rand(0, 100),
 		s = math.Rand(0.7, 1.3),
+		r = math.random(),                  -- < debris — ледяная крошка вместо снежинки
+		rot = math.Rand(0, 360),
+		spin = math.Rand(-400, 400),
 	}
 end
 
@@ -39,18 +43,18 @@ end
 
 --[[
 	mode: "blizzard" — косой летящий снег (вид сбоку); "calm" — хлопья медленно ложатся (вид сверху).
-	intensity 0..1 — плотность и яркость.
+	intensity 0..1 — плотность и яркость; debris 0..1 — доля тёмной ледяной крошки (мазки, кувыркаются).
 ]]
-function FX.Snow(t, dt, mode, intensity, alpha)
+function FX.Snow(t, dt, mode, intensity, alpha, debris)
 	local w, h = ScrW(), ScrH()
 	local sc = h / 1080
+	debris = debris or 0
 	local want = math.floor((mode == "calm" and 260 or 620) * intensity * math.Clamp(w * h / (1920 * 1080), 0.6, 1.6))
 	local fl = FX.flakes
 	while #fl < want do fl[#fl + 1] = newFlake(w, h, true) end
 	while #fl > want do fl[#fl] = nil end
 
 	local gust = FX.Gust(t)
-	surface.SetMaterial(flakeMat)
 	for i = 1, #fl do
 		local f = fl[i]
 		local z = f.z
@@ -64,20 +68,32 @@ function FX.Snow(t, dt, mode, intensity, alpha)
 		end
 		f.x = f.x + vx * dt
 		f.y = f.y + vy * dt
+		f.rot = f.rot + f.spin * dt
 		if f.x > w + 60 then f.x = -60 f.y = math.Rand(-40, h) end
 		if f.x < -60 then f.x = w + 60 end
 		if f.y > h + 40 then f.y = -40 f.x = math.Rand(-40, w) end
 
-		local size = (2 + z * z * 16) * f.s * sc
-		local a = (40 + z * 150) * intensity * alpha
-		if z > 0.92 then a = a * 0.45 size = size * 1.8 end   -- совсем близкие — мягкие «боке»
-		local speed = math.sqrt(vx * vx + vy * vy)
-		local len = size * (1 + speed / (900 * sc) * (mode == "calm" and 0 or 2.2))
-		surface.SetDrawColor(235, 242, 250, a)
-		if len > size * 1.2 then
-			surface.DrawTexturedRectRotated(f.x, f.y, len, size, -math.deg(math.atan2(vy, vx)))
+		if f.r < debris then
+			-- ледяная крошка: тёмный неровный мазок, кувыркается; ближние — крупные и размытые
+			local size = (3 + z * z * 22) * f.s * sc
+			local a = (90 + z * 120) * intensity * alpha
+			if z > 0.9 then a = a * 0.35 size = size * 2.4 end
+			surface.SetMaterial(dabMat)
+			surface.SetDrawColor(78, 74, 72, a)
+			surface.DrawTexturedRectRotated(f.x, f.y, size, size * 0.45, f.rot)
 		else
-			surface.DrawTexturedRect(f.x - size / 2, f.y - size / 2, size, size)
+			local size = (2 + z * z * 16) * f.s * sc
+			local a = (40 + z * 150) * intensity * alpha
+			if z > 0.92 then a = a * 0.45 size = size * 1.8 end   -- совсем близкие — мягкие «боке»
+			local speed = math.sqrt(vx * vx + vy * vy)
+			local len = size * (1 + speed / (900 * sc) * (mode == "calm" and 0 or 2.2))
+			surface.SetMaterial(flakeMat)
+			surface.SetDrawColor(235, 242, 250, a)
+			if len > size * 1.2 then
+				surface.DrawTexturedRectRotated(f.x, f.y, len, size, -math.deg(math.atan2(vy, vx)))
+			else
+				surface.DrawTexturedRect(f.x - size / 2, f.y - size / 2, size, size)
+			end
 		end
 	end
 end
@@ -148,12 +164,17 @@ function FX.Vignette(alpha)
 	surface.DrawTexturedRect(0, 0, ScrW(), ScrH())
 end
 
--- Чёрные полосы 2.39:1; k 0..1 — насколько выдвинуты. Возвращает высоту полосы.
-function FX.Letterbox(k)
+-- Тёмная полоса внизу под субтитрами с цветной подсветкой (как в заставках): col — цвет или nil
+function FX.SubBand(a, col)
 	local w, h = ScrW(), ScrH()
-	local bar = math.max(0, (h - w / 2.39) / 2) * k
-	surface.SetDrawColor(0, 0, 0, 255)
-	surface.DrawRect(0, 0, w, bar)
-	surface.DrawRect(0, h - bar, w, bar + 1)
-	return bar
+	surface.SetMaterial(flakeMat)
+	surface.SetDrawColor(0, 0, 0, 200 * a)
+	surface.DrawTexturedRect(-w * 0.1, h * 0.72, w * 1.2, h * 0.5)
+	if col then
+		UI.Additive(true)
+		surface.SetDrawColor(col.r, col.g, col.b, 110 * a)
+		surface.DrawTexturedRect(w * 0.05, h * 0.9, w * 0.9, h * 0.22)
+		UI.Additive(false)
+	end
 end
+

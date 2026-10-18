@@ -26,16 +26,10 @@ local function mat(name, flags)
 end
 
 local function loadMaterials()
-	M.arcticBg = mat("arctic_bg.jpg")
-	M.arcticBlur = mat("arctic_bg_blur.jpg")
-	M.squad = mat("arctic_squad.png")
-	M.eyes = mat("arctic_eyes.png")
-	M.fore = mat("arctic_fore.png")
-	M.dead = mat("dead.jpg")
-	M.deadBlur = mat("dead_blur.jpg")
-	M.cabin = mat("heli_cabin.png")
-	M.outside = mat("heli_outside.jpg", "smooth noclamp")
-	M.bannerBg = mat("banner_bg.jpg")
+	for _, sh in ipairs(I.Shots) do
+		M[sh.image] = mat(sh.image .. ".jpg")
+		M[sh.image .. "_blur"] = mat(sh.image .. "_blur.jpg")
+	end
 	M.logo = mat("scp_logo.png")
 	FX.Init()
 end
@@ -85,44 +79,6 @@ end
 
 -- ---------------------------------------------------------------- кадры
 
-local Shot = {}
-
-function Shot.arctic(t, k, dt)
-	local cam = frame({ zoom = Lerp(E.InOutSine(k), 1.05, 1.14), fx = Lerp(E.InOutSine(k), 0.53, 0.58), fy = 0.555 })
-	-- проявление: из размытого и пересвеченного в резкий кадр
-	local sharp = E.Smooth(t / 3.2)
-	drawLayer(M.arcticBlur, cam, 1, 1)
-	drawLayer(M.arcticBg, cam, 1, sharp)
-	FX.Fog(t, 0.22, 40)
-	drawLayer(M.squad, cam, 1.02, E.Smooth((t - 0.4) / 2.6))
-	FX.Fog(t + 30, 0.18, 70)
-	drawLayer(M.fore, cam, 1.3, 1)
-	FX.Snow(t, dt, "blizzard", 1, 1)
-	surface.SetDrawColor(220, 230, 240, 120 * (1 - E.OutCubic(t / 2.2)))   -- белая вспышка проявления
-	surface.DrawRect(0, 0, ScrW(), ScrH())
-end
-
-function Shot.closeup(t, k, dt, abs)
-	local cam = frame({ zoom = Lerp(E.InOutSine(k), 1.62, 1.74), fx = Lerp(k, 0.585, 0.592), fy = Lerp(k, 0.565, 0.555) })
-	drawLayer(M.arcticBg, cam, 1, 1)
-	FX.Fog(abs, 0.2, 40)
-	drawLayer(M.squad, cam, 1, 1)
-	-- бледный отблеск в очках: появляется медленно, дрожит в такт сердцу
-	local beat = 0.75 + 0.25 * math.abs(math.sin(abs * 3.6))
-	local eyes = E.Smooth((t - 1.8) / 2.6) * beat
-	if eyes > 0 then
-		UI.Additive(true)
-		drawLayer(M.eyes, cam, 1, eyes)
-		UI.Additive(false)
-	end
-	FX.Fog(abs + 30, 0.2, 70)
-	drawLayer(M.fore, cam, 1.3, 1)
-	FX.Snow(abs, dt, "blizzard", 0.9, 1)
-	-- холоднее и темнее, чем в первом кадре
-	surface.SetDrawColor(8, 14, 26, 70 + 40 * k)
-	surface.DrawRect(0, 0, ScrW(), ScrH())
-end
-
 local function radioOn(abs)
 	for _, r in ipairs(I.RadioTx) do
 		if abs >= r[1] and abs <= r[2] then return true end
@@ -130,128 +86,158 @@ local function radioOn(abs)
 	return false
 end
 
-function Shot.dead(t, k, dt, abs)
-	local cam = frame({ zoom = Lerp(E.OutCubic(k), 1.13, 1.03), fx = Lerp(k, 0.53, 0.5), fy = Lerp(k, 0.5, 0.52) })
-	drawLayer(M.deadBlur, cam, 1, 1)
-	drawLayer(M.dead, cam, 1, E.Smooth(t / 2.4))
-	-- лампочка рации: мигает, во время передачи горит
-	local on = radioOn(abs) and (0.85 + 0.15 * math.sin(abs * 40)) or ((math.floor(abs * 1.3) % 2 == 0) and 0.5 or 0)
-	if on > 0 then
-		local x, y, s = toScreen(cam, I.RadioLed[1], I.RadioLed[2])
-		FX.Glow(x, y, 46 * s, Color(255, 40, 30), 0.55 * on)
-		FX.Glow(x, y, 12 * s, Color(255, 140, 120), 0.9 * on)
+-- Особенности отдельных кадров: before — поверх картины до снега, after — поверх всего.
+local Extra = {}
+
+-- Отблески в очках отряда: разгораются медленно и дрожат в такт сердцу
+function Extra.closeup(cam, t, k, abs)
+	local beat = 0.75 + 0.25 * math.abs(math.sin(abs * 3.6))
+	local a = E.Smooth((t - 1.8) / 2.6) * beat
+	if a <= 0 then return end
+	for _, e in ipairs(I.Eyes) do
+		local x, y, s = toScreen(cam, e[1], e[2])
+		FX.Glow(x, y, (e[3] or 26) * s, Color(150, 210, 255), 0.5 * a)
+		FX.Glow(x, y, (e[3] or 26) * 0.35 * s, Color(230, 245, 255), 0.95 * a)
 	end
-	FX.Fog(abs, 0.12, 25)
-	FX.Snow(abs, dt, "calm", 0.6, 1)
 end
 
-function Shot.heli(t, k, dt, abs)
-	-- вибрация корпуса + медленное покачивание
-	local sc = ScrH() / 1080
-	local cam = frame({
-		zoom = 1.07 + 0.01 * math.sin(abs * 0.5),
-		fx = 0.5 + 0.004 * math.sin(abs * 0.33),
-		fy = 0.5 + 0.006 * math.sin(abs * 0.71),
-		sx = (math.sin(abs * 61) * 1.4 + math.sin(abs * 37.3) * 1.0) * sc,
-		sy = (math.sin(abs * 53.7) * 1.6 + math.sin(abs * 17.2) * 0.8) * sc,
-	})
-	-- вид из двери: тундра проплывает внизу
-	local d = I.HeliDoor
-	local x0, y0 = toScreen(cam, d[1], d[2])
-	local x1, y1 = toScreen(cam, d[3], d[4])
-	local dw, dh = x1 - x0, y1 - y0
-	render.SetScissorRect(x0 - 4, y0 - 4, x1 + 4, y1 + 4, true)
-	local oh = dh * 1.25
-	local ow = oh * 4
-	local u = (abs * 0.028) % 1
-	local v = 0.06 + 0.04 * math.sin(abs * 0.4)
-	surface.SetMaterial(M.outside)
-	surface.SetDrawColor(255, 255, 255, 255)
-	surface.DrawTexturedRectUV(x0 - 4, y0 - 4, dw + 8, dh + 8, u, v, u + dw / ow, v + dh / oh)
-	FX.Streaks(dt, x0, y0, dw, dh, 1)
-	render.SetScissorRect(0, 0, 0, 0, false)
-
-	drawLayer(M.cabin, cam, 1, 1)
-	-- дежурная красная лампа, подрагивает
-	local lx, ly, s = toScreen(cam, I.HeliLamp[1], I.HeliLamp[2])
-	local flick = 0.8 + 0.1 * math.sin(abs * 9) + (math.random() < 0.03 and -0.3 or 0)
-	FX.Glow(lx, ly, 520 * s, Color(255, 30, 20), 0.22 * flick)
-	FX.Glow(lx, ly, 70 * s, Color(255, 120, 100), 0.7 * flick)
-	-- холодный свет из двери
-	FX.Glow((x0 + x1) / 2, (y0 + y1) / 2, dw * 0.9, Color(150, 180, 220), 0.08)
+-- Лампочка рации: мигает, во время передачи горит
+function Extra.dead(cam, t, k, abs)
+	local on = radioOn(abs) and (0.85 + 0.15 * math.sin(abs * 40)) or ((math.floor(abs * 1.3) % 2 == 0) and 0.5 or 0)
+	if on <= 0 or not I.RadioLed then return end
+	local x, y, s = toScreen(cam, I.RadioLed[1], I.RadioLed[2])
+	FX.Glow(x, y, 46 * s, Color(255, 40, 30), 0.55 * on)
+	FX.Glow(x, y, 12 * s, Color(255, 140, 120), 0.9 * on)
 end
 
-function Shot.banner(t, k, dt, abs)
+-- Вертолёт: дежурная лампа, снег летит мимо открытой двери
+function Extra.heli(cam, t, k, abs, dt)
+	if I.HeliDoor then
+		local d = I.HeliDoor
+		local x0, y0 = toScreen(cam, d[1], d[2])
+		local x1, y1 = toScreen(cam, d[3], d[4])
+		render.SetScissorRect(x0, y0, x1, y1, true)
+		FX.Streaks(dt, x0, y0, x1 - x0, y1 - y0, 0.8)
+		render.SetScissorRect(0, 0, 0, 0, false)
+	end
+	if I.HeliLamp then
+		local lx, ly, s = toScreen(cam, I.HeliLamp[1], I.HeliLamp[2])
+		local flick = 0.8 + 0.1 * math.sin(abs * 9) + (math.random() < 0.03 and -0.3 or 0)
+		FX.Glow(lx, ly, 420 * s, Color(255, 30, 20), 0.16 * flick)
+		FX.Glow(lx, ly, 50 * s, Color(255, 120, 100), 0.5 * flick)
+	end
+end
+
+-- Знак Фонда: «включается» с парой вспышек, как старая лампа, и медленно садится на место
+function Extra.banner_after(cam, t, k, abs)
 	local w, h = ScrW(), ScrH()
-	surface.SetMaterial(M.bannerBg)
-	surface.SetDrawColor(255, 255, 255, 255)
-	local base = math.max(w / I.ImageW, h / I.ImageH)
-	surface.DrawTexturedRect(w / 2 - I.ImageW * base / 2, h / 2 - I.ImageH * base / 2, I.ImageW * base, I.ImageH * base)
-	-- знак: «включается» с парой вспышек, как старая лампа, и медленно садится на место
 	local a = E.Smooth(t / 0.9)
 	if t < 0.9 then a = a * ((math.floor(t * 18) % 3 == 0) and 0.3 or 1) end
-	local size = h * 0.30 * Lerp(E.OutExpo(t / 3), 1.08, 1)
-	local cx, cy = w / 2, h * 0.43
-	FX.Glow(cx, cy, size * 1.2, Color(120, 150, 190), 0.12 * a * (0.8 + 0.2 * math.sin(abs * 2)))
+	local size = h * 0.32 * Lerp(E.OutExpo(t / 3), 1.08, 1)
+	local cx, cy = w / 2, h * 0.40
+	FX.Shade(cx, cy, size * 2.6, size * 2.2, 0.55 * a)
+	FX.Glow(cx, cy, size * 1.1, Color(120, 150, 190), 0.12 * a * (0.8 + 0.2 * math.sin(abs * 2)))
 	surface.SetMaterial(M.logo)
 	surface.SetDrawColor(255, 255, 255, 255 * a)
 	surface.DrawTexturedRect(cx - size / 2, cy - size / 2, size, size)
-	-- красная черта между знаком и надписью
 	local lw = w * 0.16 * E.OutCubic((t - 0.8) / 1.6)
 	local c = WS.Config.Color.accent
 	surface.SetDrawColor(c.r, c.g, c.b, 220 * a)
-	surface.DrawRect(cx - lw / 2, h * 0.635, lw, math.max(2, h / 540))
+	surface.DrawRect(cx - lw / 2, h * 0.615, lw, math.max(2, h / 540))
+end
+
+local function drawShot(sh, t, k, dt, abs)
+	local c = sh.cam
+	local e = E.InOutSine(k)
+	local cam = { zoom = Lerp(e, c.zoom[1], c.zoom[2]), fx = Lerp(e, c.x[1], c.x[2]), fy = Lerp(e, c.y[1], c.y[2]) }
+	if sh.shake then
+		-- вибрация корпуса + медленное покачивание
+		local sc = ScrH() / 1080
+		cam.zoom = cam.zoom + 0.01 * math.sin(abs * 0.5)
+		cam.fx = cam.fx + 0.004 * math.sin(abs * 0.33)
+		cam.fy = cam.fy + 0.006 * math.sin(abs * 0.71)
+		cam.sx = (math.sin(abs * 61) * 1.4 + math.sin(abs * 37.3) * 1.0) * sc
+		cam.sy = (math.sin(abs * 53.7) * 1.6 + math.sin(abs * 17.2) * 0.8) * sc
+	end
+	frame(cam)
+	-- проявление: из размытого в резкий кадр
+	drawLayer(M[sh.image .. "_blur"], cam, 1, 1)
+	drawLayer(M[sh.image], cam, 1, E.Smooth(t / 2.4))
+	if Extra[sh.id] then Extra[sh.id](cam, t, k, abs, dt) end
+	if sh.fog then
+		FX.Fog(abs, sh.fog, 40)
+		FX.Fog(abs + 30, sh.fog * 0.8, 75)
+	end
+	if sh.snow then FX.Snow(abs, dt, sh.snow, sh.snowDensity or 1, 1, sh.debris) end
+	if sh.tint then
+		surface.SetDrawColor(sh.tint.r, sh.tint.g, sh.tint.b, sh.tint.a * (0.6 + 0.4 * k))
+		surface.DrawRect(0, 0, ScrW(), ScrH())
+	end
+	if Extra[sh.id .. "_after"] then Extra[sh.id .. "_after"](cam, t, k, abs, dt) end
+	if sh.id == "arctic" then
+		surface.SetDrawColor(220, 230, 240, 120 * (1 - E.OutCubic(t / 2.2)))   -- белая вспышка проявления
+		surface.DrawRect(0, 0, ScrW(), ScrH())
+	end
 end
 
 -- ---------------------------------------------------------------- титры
 
-local styles = {
-	caps = function() return WS.Font("titlelight", 30), WS.Font("titlelight", 30, 6), 30 * ScrH() / 1080 * 0.35, 14, WS.Config.Color.frost end,
-	story = function() return WS.Font("storyi", 50), WS.Font("storyi", 50, 8), 0, 34, WS.Config.Color.text end,
-	line = function() return WS.Font("story", 36), WS.Font("story", 36, 6), 0, 40, Color(205, 212, 222) end,
-	brand = function() return WS.Font("title", 66), WS.Font("title", 66, 10), 66 * ScrH() / 1080 * 0.3, 16, WS.Config.Color.text end,
-	motto = function() return WS.Font("titlelight", 26), nil, 26 * ScrH() / 1080 * 0.45, 22, WS.Config.Color.dim end,
-}
+local function subStyle(style)
+	local sc = ScrH() / 1080
+	if style == "brand" then
+		return { font = WS.Font("subheavy", 64), spacing = 6 * sc, cps = 16, color = Color(236, 238, 242) }
+	elseif style == "motto" then
+		return { font = WS.Font("submed", 26), spacing = 5 * sc, cps = 28, color = Color(196, 204, 216) }
+	end
+	return { font = WS.Font("sub", 34), spacing = 2.4 * sc, cps = 45, color = Color(242, 240, 236), hl = Color(226, 190, 120) }
+end
 
-local function drawTexts(t)
+local function drawTexts(t, shot)
 	local w, h = ScrW(), ScrH()
+	local band = 0
+	for _, tx in ipairs(I.Texts) do
+		if tx.style == "sub" then
+			band = math.max(band, E.Window(t, tx.at - 0.3, tx.to, 0.8, 1.2))
+		end
+	end
+	if band > 0 then FX.SubBand(band, shot and shot.sub) end
+
 	for _, tx in ipairs(I.Texts) do
 		if t >= tx.at and t <= tx.to + 1.2 then
-			local font, glow, spacing, cps, col = styles[tx.style]()
-			local a = 1 - E.Smooth((t - tx.to) / 1.1)
-			if tx.shade then
-				-- мягкая тёмная подложка под титрами на светлом снегу
-				FX.Shade(w / 2, h * (tx.y + 0.05), w * 0.9, h * 0.34, 0.75 * a)
-			end
-			UI.Reveal(tx.text, {
-				font = font, glow = glow, spacing = spacing, cps = cps, fade = 0.7,
-				x = w / 2, y = h * tx.y, maxW = w * 0.62, t = t - tx.at, alpha = a, color = col,
-			})
+			local st = subStyle(tx.style)
+			local o = {
+				font = st.font, spacing = st.spacing, cps = st.cps, fade = 0.6, color = st.color, hl = st.hl,
+				x = w / 2, maxW = w * 0.8, t = t - tx.at, alpha = 1 - E.Smooth((t - tx.to) / 1.1), rise = 4, shadow = 0.8,
+			}
+			if tx.style == "sub" then o.bottom = h * 0.935
+			elseif tx.style == "brand" then o.y = h * 0.64
+			else o.y = h * 0.735 end
+			UI.Reveal(tx.text, o)
 		end
 	end
 end
 
--- [ПРОБЕЛ] — Пропустить (снизу справа)
+-- [ПРОБЕЛ] — Пропустить (снизу справа, мелко)
 local function drawSkipHint(t)
-	local a = E.Smooth((t - 1.0) / 1.0) * (skipAt and 0 or 1) * (0.75 + 0.25 * math.sin(t * 2.2))
+	local a = E.Smooth((t - 1.0) / 1.0) * (skipAt and 0 or 1) * (0.55 + 0.2 * math.sin(t * 2.2))
 	if a <= 0 then return end
 	local w, h = ScrW(), ScrH()
 	local sc = h / 1080
-	local fk, ft = WS.Font("mono", 15), WS.Font("mono", 17)
+	local fk, ft = WS.Font("mono", 13), WS.Font("mono", 15)
 	surface.SetFont(ft)
 	local tw, th = surface.GetTextSize("— Пропустить")
 	surface.SetFont(fk)
 	local kw, kh = surface.GetTextSize("ПРОБЕЛ")
-	local pad = 10 * sc
-	local x = w - 48 * sc - tw - kw - pad * 3
-	local y = h - 46 * sc - th
-	local bw, bh = kw + pad * 2, kh + pad * 0.9
+	local pad = 8 * sc
+	local x = w - 28 * sc - tw - kw - pad * 3
+	local y = h - 22 * sc - th
+	local bw, bh = kw + pad * 2, kh + pad * 0.8
 	local by = y + th / 2 - bh / 2
-	draw.RoundedBox(4 * sc, x, by, bw, bh, Color(255, 255, 255, 18 * a))
-	surface.SetDrawColor(220, 228, 238, 150 * a)
+	draw.RoundedBox(4 * sc, x, by, bw, bh, Color(0, 0, 0, 90 * a))
+	surface.SetDrawColor(220, 228, 238, 140 * a)
 	surface.DrawOutlinedRect(x, by, bw, bh, math.max(1, math.floor(sc)))
 	draw.SimpleText("ПРОБЕЛ", fk, x + bw / 2, by + bh / 2, Color(232, 236, 242, 230 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-	draw.SimpleText("— Пропустить", ft, x + bw + pad, y + th / 2, Color(200, 208, 218, 210 * a), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+	draw.SimpleText("— Пропустить", ft, x + bw + pad, y + th / 2, Color(210, 216, 226, 220 * a), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 end
 
 -- ---------------------------------------------------------------- звук
@@ -300,12 +286,14 @@ local function paint(_, w, h)
 	surface.SetDrawColor(0, 0, 0, 255)
 	surface.DrawRect(0, 0, w, h)
 
-	for _, s in ipairs(I.Shots) do
-		if t >= s.from and t <= s.to then
-			local lt = t - s.from
-			Shot[s.id](lt, lt / (s.to - s.from), dt, t)
+	local cur
+	for _, sh in ipairs(I.Shots) do
+		if t >= sh.from and t <= sh.to then
+			cur = sh
+			local lt = t - sh.from
+			drawShot(sh, lt, lt / (sh.to - sh.from), dt, t)
 			-- затемнение на входе и выходе кадра
-			local v = E.Window(t, s.from, s.to - s.fadeOut, s.fadeIn, s.fadeOut)
+			local v = E.Window(t, sh.from, sh.to - sh.fadeOut, sh.fadeIn, sh.fadeOut)
 			if v < 1 then
 				surface.SetDrawColor(0, 0, 0, 255 * (1 - v))
 				surface.DrawRect(0, 0, w, h)
@@ -313,11 +301,9 @@ local function paint(_, w, h)
 		end
 	end
 
-	FX.Vignette(0.85)
+	FX.Vignette(0.8)
 	FX.Grain(1)
-	drawTexts(t)
-	local lb = E.OutCubic(t / 1.6) * (1 - E.Smooth((t - (I.Length - 1.2)) / 1.2))
-	FX.Letterbox(lb)
+	drawTexts(t, cur)
 	drawSkipHint(t)
 
 	if skipAt then

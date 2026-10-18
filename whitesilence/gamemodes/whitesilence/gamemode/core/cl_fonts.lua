@@ -1,6 +1,7 @@
 --[[
 	Шрифты (лежат в content/resource/fonts, OFL):
-	  Cormorant Garamond — повествование в интро; Oswald — заголовки; IBM Plex Mono — служебные подписи.
+	  Alegreya Sans SC — субтитры интро (капитель); Cormorant Garamond — повествование;
+	  Oswald — заголовки; IBM Plex Mono — служебные подписи.
 	WS.Font(style, size[, blur]) — size в пикселях для 1080p, масштабируется под экран; blur — размытая копия для свечения.
 ]]
 
@@ -11,6 +12,9 @@ local families = {
 	title = { "Oswald Medium", 500 },
 	titlelight = { "Oswald Light", 300 },
 	mono = { "IBM Plex Mono", 400 },
+	sub = { "Alegreya Sans SC", 700 },
+	subheavy = { "Alegreya Sans SC ExtraBold", 800 },
+	submed = { "Alegreya Sans SC Medium", 500 },
 }
 
 local created = {}

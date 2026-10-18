@@ -70,8 +70,15 @@ hook.Add("Think", "ws.audio", function()
 		local ch = h.ch
 		if IsValid(ch) then
 			ch:SetVolume(h.cur * m)
-			if h.stopping and k >= 1 then ch:Stop() h.dead = true end
-			if ch:GetState() == GMOD_CHANNEL_STOPPED and not h.stopping then h.dead = true end
+			-- после Stop() канал становится NULL — больше его не трогаем
+			if h.stopping and k >= 1 then
+				ch:Stop()
+				h.dead = true
+			elseif not h.stopping and ch:GetState() == GMOD_CHANNEL_STOPPED then
+				h.dead = true
+			end
+		elseif h.ch ~= nil then
+			h.dead = true   -- канал освободил сам BASS
 		end
 		if h.dead then A.Active[h] = nil end
 	end

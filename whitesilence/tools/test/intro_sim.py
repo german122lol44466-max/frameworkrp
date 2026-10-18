@@ -153,6 +153,13 @@ function sound.PlayFile(path, flags, cb)
   function ch:Stop() self.playing = false self.__removed = true end
   function ch:EnableLooping() end
   function ch:GetState() return self.playing and GMOD_CHANNEL_PLAYING or GMOD_CHANNEL_STOPPED end
+  -- как в игре: после Stop() канал становится NULL, любой вызов метода — ошибка
+  for k, fn in pairs({ SetVolume = ch.SetVolume, Play = ch.Play, Stop = ch.Stop, EnableLooping = ch.EnableLooping, GetState = ch.GetState }) do
+    ch[k] = function(self, ...)
+      if self.__removed then error("Tried to use a NULL IGModAudioChannel!", 2) end
+      return fn(self, ...)
+    end
+  end
   cb(ch, 0, nil)
 end
 

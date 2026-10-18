@@ -17,7 +17,7 @@ end
 for _, dir in ipairs({ "materials/whitesilence", "sound/whitesilence" }) do
 	addDir(dir)
 end
-for _, pattern in ipairs({ "CormorantGaramond_*.ttf", "Oswald_*.ttf", "IBMPlexMono_*.ttf" }) do
+for _, pattern in ipairs({ "CormorantGaramond_*.ttf", "Oswald_*.ttf", "IBMPlexMono_*.ttf", "AlegreyaSansSC_*.ttf" }) do
 	for _, f in ipairs(file.Find("resource/fonts/" .. pattern, "GAME") or {}) do
 		resource.AddSingleFile("resource/fonts/" .. f)
 	end

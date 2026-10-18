@@ -22,6 +22,9 @@ FAMILY = {
     ("Oswald Medium", False): "Oswald_500Medium.ttf",
     ("Oswald Light", False): "Oswald_300Light.ttf",
     ("IBM Plex Mono", False): "IBMPlexMono_400Regular.ttf",
+    ("Alegreya Sans SC", False): "AlegreyaSansSC_700Bold.ttf",
+    ("Alegreya Sans SC Medium", False): "AlegreyaSansSC_500Medium.ttf",
+    ("Alegreya Sans SC ExtraBold", False): "AlegreyaSansSC_800ExtraBold.ttf",
 }
 
 
