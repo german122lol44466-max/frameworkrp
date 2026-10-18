@@ -37,3 +37,11 @@ Class401, FireFox, gmodfan11, Kevin MacLeod, phlip45, revo794, Shaun Gaylard, Sl
   Изменения: громкость/нормализация (tools/content/menu_audio.py).
 
 Картины меню: фон — Stable Diffusion XL (кадр из той же серии, что интро), изображение отряда — фрагмент кадра SDXL.
+
+Игровые звуки (sound/whitesilence/game): дыхание, сердцебиение, падение тела, смерть, щелчки, рация —
+SCP – Containment Breach, CC BY-SA 3.0 (авторы выше). ПНВ, тепловизор, батарея, метки, задача — синтез кодом.
+Голосовые фразы, озвучка сюжета (sound/whitesilence/story) и голоса врагов — нейросеть Piper, голоса ru_RU-dmitri и
+ru_RU-denis (датасет CC0), обработка tools/content/game_audio.py и story_audio.py; эфир — записи помех выше.
+Иконки HUD и меток (materials/whitesilence/icons, markers) — Tabler Icons (tabler.io), лицензия MIT; рамки меток
+нарисованы кодом (tools/content/marker_icons.py).
+Код выбора оружия основан на плагине Weapon Select для Helix (Chessnut, MIT); ноги — legs.lua (общественное достояние).

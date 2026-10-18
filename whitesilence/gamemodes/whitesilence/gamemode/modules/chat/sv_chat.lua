@@ -38,6 +38,11 @@ function CH.Broadcast(ply, mode, text)
 	MsgN(string.format("[%s] %s: %s", mode, ply:Nick(), text))
 end
 
+-- Системное сообщение всем (на клиенте приходит через ChatText)
+function CH.System(text)
+	PrintMessage(HUD_PRINTTALK, text)
+end
+
 net.Receive("ws.chat.say", function(_, ply)
 	local mode = CH.ModeName[net.ReadUInt(3)] or "local"
 	local raw = net.ReadString()

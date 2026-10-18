@@ -202,8 +202,16 @@ end)
 
 -- Командир выводит отряд в игру
 net.Receive("ws.lobby.start", function(_, ply)
-	if throttle(ply, "start", 2) or not L.IsLeader(ply) or L.InGame(ply) then return end
-	local members = L.Members(L.Id(ply))
+	if throttle(ply, "start", 2) or L.InGame(ply) then return end
+	local all = L.Members(L.Id(ply))
+	-- если часть отряда уже в бою — любой боец может вернуться к ним сам; иначе выводит командир весь отряд
+	local fighting = false
+	for _, p in ipairs(all) do if L.InGame(p) then fighting = true end end
+	if not fighting and not L.IsLeader(ply) then return end
+	local members = {}
+	for _, p in ipairs(fighting and { ply } or all) do
+		if not L.InGame(p) then members[#members + 1] = p end
+	end
 	for _, p in ipairs(members) do
 		p:SetNW2Bool("ws_ingame", true)
 		pending[p] = nil

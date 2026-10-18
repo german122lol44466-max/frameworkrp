@@ -55,9 +55,13 @@ function PlyMeta:SetupHands() end
 function PlyMeta:Spawn() self.spawned = self.spawned + 1 hook.Run("PlayerSpawn", self) hook.Run("PlayerLoadout", self) hook.Run("PlayerSetModel", self) end
 for _, m in ipairs({ "SetWalkSpeed", "SetRunSpeed", "SetSlowWalkSpeed", "SetCrouchedWalkSpeed", "SetJumpPower",
   "SetDuckSpeed", "SetUnDuckSpeed", "AllowFlashlight", "Flashlight", "SetAvoidPlayers" }) do
-  PlyMeta[m] = PlyMeta[m] or function(self, v) self[m] = v end
+  PlyMeta[m] = PlyMeta[m] or function(self, v) self["_" .. m] = v end
 end
 function PlyMeta:Alive() return true end
+function PlyMeta:SetPos(p) self.pos = p end
+function PlyMeta:GetPos() return self.pos or Vector() end
+function PlyMeta:SetEyeAngles() end
+function PlyMeta:SetNW2Entity() end
 function PlyMeta:GetPData(k, d) return self.pdata[k] or d end
 function PlyMeta:SetPData(k, v) self.pdata[k] = v end
 function PlyMeta:RemovePData(k) self.pdata[k] = nil end
@@ -66,7 +70,10 @@ function LocalPlayer() return PLAYERS[1] end
 function string.Trim(s) return (string.gsub(s, "^%s*(.-)%s*$", "%1")) end
 function isstring(v) return type(v) == "string" end
 NET_TO = {}
-net.Send = function(target) NET_TO[#NET_TO + 1] = { name = net.cur.name, target = target, data = net.cur } end
+net.Send = function(target)
+  if string.StartWith(net.cur.name, "ws.story") then return end   -- сюжет здесь не проверяется
+  NET_TO[#NET_TO + 1] = { name = net.cur.name, target = target, data = net.cur }
+end
 net.WriteEntity = function(e) net.cur.ent = e end
 net.WriteString = function(s) net.cur.str = (net.cur.str and (net.cur.str .. "\0") or "") .. s end
 net.WriteFloat = function(f) net.cur.f = f end

@@ -43,3 +43,29 @@ C.NVGRecharge = 0.5            -- заряд восстанавливается 
 C.VoiceRange = 900             -- слышимость голоса в игре
 C.ChatRange = 700              -- дальность обычного чата («рядом»)
 C.PhraseCooldown = 2.5
+
+-- Сюжет
+C.StoryUseTime = 2             -- секунд удерживать E на объекте
+C.StoryUseDist = 110           -- дальность взаимодействия
+C.StoryWipeDelay = 8           -- через сколько секунд после гибели всего отряда глава начинается заново
+C.StoryHoldScale = 1           -- множитель времени удержания точек (1 = как в сценарии)
+C.StoryEndTime = 32            -- секунд финального экрана до возврата в меню
+
+-- Метки задач (юниты: 1 м ≈ 52.5)
+C.MarkerHide = 200             -- ближе этого метка полностью исчезает
+C.MarkerFade = 260             -- и плавно проявляется на этом отрезке
+
+-- Противник («Дельта-14»)
+C.EnemyModel = C.SquadModel
+C.EnemyWeapon = "tfa_ins2_ak12"
+C.EnemyWeaponFallback = "models/weapons/w_rif_ak47.mdl"
+C.EnemyHealth = 110
+C.EnemyDamage = 9              -- урон пули по игроку
+C.EnemySpread = 0.032          -- разброс (растёт, если цель бежит)
+C.EnemyHeadshot = 3            -- множитель урона в голову
+C.EnemyViewDist = 2600         -- видят в метель не дальше
+C.EnemyEngage = 1300           -- с этой дистанции останавливаются и стреляют
+C.EnemyReaction = 0.7          -- секунд до первого выстрела после обнаружения
+C.EnemyRunSpeed = 205
+C.EnemyWalkSpeed = 80
+C.EnemyMaxAlive = 22

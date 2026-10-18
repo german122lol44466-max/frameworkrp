@@ -75,6 +75,17 @@ def synth():
     tt = A.t(0.5)
     low = np.sin(2 * np.pi * 440 * tt) * (np.sin(2 * np.pi * 6 * tt) > 0) * np.exp(-tt * 3) * 0.4
     A.save(A.norm(A.stereo(low, 0.2), 0.5), "battery_low")
+    # новая метка / задача: два мягких тона, как у тактического планшета
+    tt = A.t(0.5)
+    tone = lambda f, d: np.sin(2 * np.pi * f * tt) * np.clip(tt / 0.004, 0, 1) * np.exp(-tt * d)
+    mk = tone(880, 9) * 0.5 + np.concatenate([np.zeros(int(0.09 * A.SR)), tone(1320, 7)])[:len(tt)] * 0.45
+    A.save(A.norm(A.reverb(A.stereo(mk, 0.2), 0.8, 0.2, 5000), 0.5), "marker")
+    # новая задача: низкий «удар» + тон
+    tt = A.t(1.2)
+    obj = np.sin(2 * np.pi * 70 * tt) * np.exp(-tt * 5) * 0.8
+    t5 = A.t(0.5)
+    obj[:len(t5)] += np.sin(2 * np.pi * 660 * t5) * np.clip(t5 / 0.004, 0, 1) * np.exp(-t5 * 5) * 0.35
+    A.save(A.norm(A.reverb(A.stereo(A.lp(obj, 2500), 0.3), 1.5, 0.3, 3000), 0.6), "objective")
 
 
 def phrases():

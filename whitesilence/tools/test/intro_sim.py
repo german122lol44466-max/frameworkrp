@@ -235,7 +235,9 @@ function EyePos() return Vector(0, 0, 64) end
 function EyeAngles() return Angle(0, 0, 0) end
 function GetViewEntity() return LocalPlayer and LocalPlayer() end
 util.TraceLine = function() return { Entity = nil, HitPos = Vector() } end
-ents = { GetAll = function() return {} end }
+ents = { GetAll = function() return {} end, FindByClass = function() return {} end, FindInSphere = function() return {} end }
+util.TraceHull = function(t) return { Hit = false, HitPos = t.endpos, Fraction = 1 } end
+navmesh = { IsLoaded = function() return false end }
 input = input or {}
 KEYS_DOWN = {}
 CURSOR_X, CURSOR_Y = 960, 540
@@ -248,7 +250,12 @@ vgui.GetKeyboardFocus = function() return nil end
 function DermaMenu() return setmetatable({}, { __index = function() return function() end end }) end
 CloseDermaMenus = noop
 function GetHostName() return "Test server" end
-game = { MaxPlayers = function() return 16 end }
+game = { MaxPlayers = function() return 16 end, GetMap = function() return "gm_snowtest" end, SinglePlayer = function() return false end }
+file.Read = file.Read or function() return nil end
+for _, f in ipairs({ "WriteUInt", "WriteFloat", "WriteVector", "WriteEntity", "WriteString", "WriteInt", "Broadcast", "Send" }) do
+  net[f] = net[f] or noop
+end
+PrintMessage = noop
 function SetClipboardText() end
 function IsFirstTimePredicted() return true end
 engine = { TickInterval = function() return 1 / 66 end }

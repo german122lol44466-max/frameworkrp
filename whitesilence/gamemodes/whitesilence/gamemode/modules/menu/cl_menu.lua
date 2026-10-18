@@ -279,7 +279,7 @@ local function lobbySignature()
 	local id = L.Id(LocalPlayer())
 	local parts = { tostring(id) }
 	for _, p in ipairs(L.Members(id)) do
-		parts[#parts + 1] = p:EntIndex() .. (L.IsLeader(p) and "*" or "") .. L.Name(p)
+		parts[#parts + 1] = p:EntIndex() .. (L.IsLeader(p) and "*" or "") .. (L.InGame(p) and "!" or "") .. L.Name(p)
 	end
 	return table.concat(parts, "|")
 end
@@ -379,11 +379,13 @@ local function buildLobby()
 
 	-- кнопки снизу
 	local by = colY + WS.Config.SquadSize * (rowH + gap) + 30 * s
-	local go = menuButton(lobbyPanel, lead and "ВЫДВИГАТЬСЯ" or "ЖДЁМ КОМАНДИРА", 34, function()
+	local fighting = false
+	for _, p in ipairs(members) do if L.InGame(p) then fighting = true end end
+	local go = menuButton(lobbyPanel, fighting and "К ОТРЯДУ" or (lead and "ВЫДВИГАТЬСЯ" or "ЖДЁМ КОМАНДИРА"), 34, function()
 		net.Start("ws.lobby.start")
 		net.SendToServer()
 	end)
-	go.Enabled = lead
+	go.Enabled = lead or fighting
 	go:SetSize(colW, 54 * s)
 	go:SetPos(colX, by)
 	local nextY = by + 58 * s

@@ -202,7 +202,7 @@ end
 function H.Visible()
 	local ply = LocalPlayer()
 	return IsValid(ply) and ply:Alive() and WS.Lobby.InGame(ply) and not (WS.Menu and WS.Menu.IsOpen())
-		and not (WS.Intro and WS.Intro.IsPlaying())
+		and not (WS.Intro and WS.Intro.IsPlaying()) and not (WS.Story and WS.Story.Ending)
 end
 
 H.Alpha = 0
