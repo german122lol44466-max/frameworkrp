@@ -130,7 +130,42 @@ def fx():
 
 
 
-ALL = {"paintings": paintings, "logo": logo, "fx": fx}
+def brush_masks(frames=24, w=640, h=360, seed=5):
+    """Маски проявления кадра мазками: reveal_00 — всё закрыто, reveal_<N-1> — всё открыто.
+
+    Каждый мазок кисти получает «время», растущее от центра к краям; пиксель открывается, когда до него
+    доходит первый накрывший его мазок. Края мазков рваные (сухая кисть).
+    """
+    from PIL import ImageDraw
+    rng = np.random.default_rng(seed)
+    ss = 2
+    T = np.full((h * ss, w * ss), 2.0, np.float32)
+    yy, xx = np.mgrid[0:h * ss, 0:w * ss].astype(np.float32)
+    for i in range(260):
+        cx, cy = rng.normal(0.5, 0.28) * w * ss, rng.normal(0.5, 0.3) * h * ss
+        d = np.hypot((cx / (w * ss) - 0.5) * 1.6, cy / (h * ss) - 0.5)
+        tm = np.clip(d * 1.25 + rng.uniform(-0.12, 0.12), 0, 1)
+        ang = rng.normal(-0.15, 0.35)
+        ln = rng.uniform(0.18, 0.5) * w * ss
+        wd = rng.uniform(0.05, 0.13) * h * ss
+        img = Image.new("L", (w * ss, h * ss), 0)
+        dx, dy = np.cos(ang) * ln / 2, np.sin(ang) * ln / 2
+        ImageDraw.Draw(img).line((cx - dx, cy - dy, cx + dx, cy + dy), fill=255, width=int(wd))
+        m = np.asarray(img, np.float32) / 255 > 0.5
+        # мазок кладётся от начала к концу: время растёт вдоль него
+        along = ((xx - (cx - dx)) * dx + (yy - (cy - dy)) * dy) / (dx * dx + dy * dy + 1e-6)
+        tt = tm + np.clip(along, 0, 1) * 0.08
+        T = np.where(m & (tt < T), tt, T)
+    T = np.where(T > 1.5, 1.0, T)
+    T += (fbm(w * ss, h * ss, 16, 3, seed + 1) - 0.5) * 0.1      # сухая кисть: рваные края
+    T = np.asarray(Image.fromarray(np.clip(T * 200, 0, 255).astype(np.uint8)).resize((w, h), Image.LANCZOS), np.float32) / 200
+    for k in range(frames):
+        p = k / (frames - 1) * 1.15 - 0.05
+        cover = np.clip((T - p) / 0.09 + 0.5, 0, 1)            # 1 — ещё закрыто
+        save_png(np.zeros((h, w, 3), np.float32), cover, "reveal_%02d" % k)
+
+
+ALL = {"paintings": paintings, "logo": logo, "fx": fx, "masks": brush_masks}
 
 if __name__ == "__main__":
     for n in sys.argv[1:] or list(ALL):

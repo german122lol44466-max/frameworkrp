@@ -16,8 +16,44 @@ function FX.Init()
 	fogMat = UI.Mat(I.Path .. "fog.png", "smooth noclamp")
 	grainMat = UI.Mat(I.Path .. "grain.png", "noclamp")
 	vigMat = UI.Mat(I.Path .. "vignette.png", "smooth")
+	FX.masks = {}
+	for i = 0, FX.MaskFrames - 1 do
+		FX.masks[i] = UI.Mat(string.format("%sreveal_%02d.png", I.Path, i), "smooth")
+	end
 	FX.flakes = {}
 	FX.streaks = {}
+end
+
+FX.MaskFrames = 24
+
+--[[
+	Проявление мазками кисти: p = 0 — кадр закрыт чернотой, 1 — открыт полностью.
+	Между соседними кадрами маски — плавный переход, чтобы мазки «текли», а не щёлкали.
+]]
+function FX.BrushMask(p)
+	if p >= 1 then return end
+	local w, h = ScrW(), ScrH()
+	if p <= 0 then
+		surface.SetDrawColor(0, 0, 0, 255)
+		surface.DrawRect(0, 0, w, h)
+		return
+	end
+	local f = p * (FX.MaskFrames - 1)
+	local i = math.floor(f)
+	local k = f - i
+	-- чуть больше экрана: края маски не видны при любом соотношении сторон
+	local mw, mh = math.max(w, h * 16 / 9) * 1.02, math.max(h, w * 9 / 16) * 1.02
+	local x, y = (w - mw) / 2, (h - mh) / 2
+	-- следующий кадр маски закрывает меньше: рисуем его целиком, а текущий — с долей (1 - k)
+	local nxt = FX.masks[i + 1] or FX.masks[i]
+	surface.SetMaterial(nxt)
+	surface.SetDrawColor(255, 255, 255, 255)
+	surface.DrawTexturedRect(x, y, mw, mh)
+	if k < 1 then
+		surface.SetMaterial(FX.masks[i])
+		surface.SetDrawColor(255, 255, 255, 255 * (1 - k))
+		surface.DrawTexturedRect(x, y, mw, mh)
+	end
 end
 
 -- ---------------------------------------------------------------- метель

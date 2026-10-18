@@ -27,8 +27,10 @@ end
 
 local function loadMaterials()
 	for _, sh in ipairs(I.Shots) do
-		M[sh.image] = mat(sh.image .. ".jpg")
-		M[sh.image .. "_blur"] = mat(sh.image .. "_blur.jpg")
+		if sh.image then
+			M[sh.image] = mat(sh.image .. ".jpg")
+			M[sh.image .. "_blur"] = mat(sh.image .. "_blur.jpg")
+		end
 	end
 	M.logo = mat("scp_logo.png")
 	FX.Init()
@@ -89,6 +91,32 @@ end
 -- Особенности отдельных кадров: before — поверх картины до снега, after — поверх всего.
 local Extra = {}
 
+-- Заставка: темнота, холодное свечение в центре, надпись архива Фонда и тонкая черта, расходящаяся в стороны
+function Extra.opening(cam, t, k, abs)
+	local w, h = ScrW(), ScrH()
+	local sc = h / 1080
+	local glow = E.Smooth(t / 1.6) * (1 - E.Smooth((t - 2.2) / 0.6))
+	FX.Glow(w / 2, h * 0.5, h * 0.9, Color(70, 95, 130), 0.18 * glow)
+	for _, tx in ipairs(I.Opening) do
+		if t >= tx.at and t <= tx.to + 0.6 then
+			local a = 1 - E.Smooth((t - tx.to) / 0.6)
+			local kick = tx.style == "kicker"
+			UI.Reveal(tx.text, {
+				font = kick and WS.Font("sub", 26) or WS.Font("submed", 30),
+				spacing = (kick and 7 or 2.5) * sc, cps = kick and 40 or 70, fade = 0.5, rise = 2, shadow = 0.6,
+				color = kick and Color(226, 190, 120) or Color(200, 208, 220),
+				x = w / 2, y = h * (kick and 0.445 or 0.515), maxW = w * 0.8, t = t - tx.at, alpha = a,
+			})
+		end
+	end
+	local lw = w * 0.22 * E.OutCubic((t - 0.6) / 1.2) * (1 - E.Smooth((t - 2.2) / 0.6))
+	if lw > 1 then
+		local c = WS.Config.Color.accent
+		surface.SetDrawColor(c.r, c.g, c.b, 200)
+		surface.DrawRect(w / 2 - lw / 2, h * 0.497, lw, math.max(1, math.Round(sc * 1.5)))
+	end
+end
+
 -- Отблески в очках отряда: разгораются медленно и дрожат в такт сердцу
 function Extra.closeup(cam, t, k, abs)
 	local beat = 0.75 + 0.25 * math.abs(math.sin(abs * 3.6))
@@ -146,8 +174,10 @@ function Extra.banner_after(cam, t, k, abs)
 	surface.DrawRect(cx - lw / 2, h * 0.615, lw, math.max(2, h / 540))
 end
 
+local DEFAULT_CAM = { zoom = { 1, 1 }, x = { 0.5, 0.5 }, y = { 0.5, 0.5 } }
+
 local function drawShot(sh, t, k, dt, abs)
-	local c = sh.cam
+	local c = sh.cam or DEFAULT_CAM
 	local e = E.InOutSine(k)
 	local cam = { zoom = Lerp(e, c.zoom[1], c.zoom[2]), fx = Lerp(e, c.x[1], c.x[2]), fy = Lerp(e, c.y[1], c.y[2]) }
 	if sh.shake then
@@ -159,10 +189,16 @@ local function drawShot(sh, t, k, dt, abs)
 		cam.sx = (math.sin(abs * 61) * 1.4 + math.sin(abs * 37.3) * 1.0) * sc
 		cam.sy = (math.sin(abs * 53.7) * 1.6 + math.sin(abs * 17.2) * 0.8) * sc
 	end
+	if sh.brush then
+		-- пока кадр проявляется мазками, камера чуть «оседает» — медленно отъезжает к своей траектории
+		cam.zoom = cam.zoom * (1 + 0.06 * (1 - E.OutCubic(t / (sh.fadeIn + 1.5))))
+	end
 	frame(cam)
-	-- проявление: из размытого в резкий кадр
-	drawLayer(M[sh.image .. "_blur"], cam, 1, 1)
-	drawLayer(M[sh.image], cam, 1, E.Smooth(t / 2.4))
+	if sh.image then
+		-- проявление: из размытого в резкий кадр
+		drawLayer(M[sh.image .. "_blur"], cam, 1, 1)
+		drawLayer(M[sh.image], cam, 1, E.Smooth(t / (sh.brush and 0.9 or 2.4)))   -- под мазками резкость быстрее
+	end
 	if Extra[sh.id] then Extra[sh.id](cam, t, k, abs, dt) end
 	if sh.fog then
 		FX.Fog(abs, sh.fog, 40)
@@ -175,7 +211,7 @@ local function drawShot(sh, t, k, dt, abs)
 	end
 	if Extra[sh.id .. "_after"] then Extra[sh.id .. "_after"](cam, t, k, abs, dt) end
 	if sh.id == "arctic" then
-		surface.SetDrawColor(220, 230, 240, 120 * (1 - E.OutCubic(t / 2.2)))   -- белая вспышка проявления
+		surface.SetDrawColor(220, 230, 240, 50 * (1 - E.OutCubic(t / 2.2)))    -- лёгкая вспышка проявления
 		surface.DrawRect(0, 0, ScrW(), ScrH())
 	end
 end
@@ -292,11 +328,18 @@ local function paint(_, w, h)
 			cur = sh
 			local lt = t - sh.from
 			drawShot(sh, lt, lt / (sh.to - sh.from), dt, t)
-			-- затемнение на входе и выходе кадра
-			local v = E.Window(t, sh.from, sh.to - sh.fadeOut, sh.fadeIn, sh.fadeOut)
-			if v < 1 then
-				surface.SetDrawColor(0, 0, 0, 255 * (1 - v))
-				surface.DrawRect(0, 0, w, h)
+			if sh.brush then
+				-- проявление мазками от центра и закрытие мазками к центру
+				local pin = E.InOutSine(lt / sh.fadeIn)
+				local pout = 1 - E.InOutSine((t - (sh.to - sh.fadeOut)) / sh.fadeOut)
+				FX.BrushMask(math.min(pin, pout))
+			else
+				-- обычное затемнение на входе и выходе кадра
+				local v = E.Window(t, sh.from, sh.to - sh.fadeOut, sh.fadeIn, sh.fadeOut)
+				if v < 1 then
+					surface.SetDrawColor(0, 0, 0, 255 * (1 - v))
+					surface.DrawRect(0, 0, w, h)
+				end
 			end
 		end
 	end

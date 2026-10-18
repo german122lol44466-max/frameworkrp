@@ -11,7 +11,18 @@ SCP: Белая тишина — откуда взят контент
 Знак Фонда SCP — векторный файл из Simple Icons (simpleicons.org); сам знак — SCP Wiki, лицензия CC BY-SA 3.0.
 Весь контент на тему SCP распространяется на тех же условиях: CC BY-SA 3.0.
 
-Звуки (sound/whitesilence/intro):
-  ветер (подложка в blizzard.ogg), сердцебиение — react-sounds (github.com/e3ntity/react-sounds), MIT
-  голос в рации — нейросеть Piper, голоса ru_RU-dmitri и ru_RU-denis (датасет CC0, NabuCasa)
-  метель, вертолёт, удары, гул, помехи — синтез: tools/content/intro_audio.py
+Звуки (sound/whitesilence/intro) — реальные записи с обработкой (tools/content/intro_audio.py):
+  метель (blizzard):  «windy» — Red Eclipse (github.com/redeclipse/sounds), CC BY-SA 4.0;
+                      «wind» — Batuhan Bozkurt (freesound), CC BY-SA 3.0, через Red Eclipse;
+                      «stormwind» — Q009 (morph), CC BY 3.0, через Red Eclipse
+  вертолёт:           «helicopterRaw_16sec» — Lorenzo Sutton (lorenzosu), ред. Wuzzy, CC BY-SA 3.0,
+                      через OpenSFX (github.com/OpenTTD/OpenSFX); гул салона — «Large Fan», Ben Burnes, CC0
+  рация:              помехи «Cell Reception 1», «EM Room Noise 2» — NazdyNate, CC0; треск «Good Clean Noise» —
+                      MadameBerry, CC0; морзянка — Janis Lukss, CC BY 3.0, через OpenSFX;
+                      голос — нейросеть Piper, голоса ru_RU-dmitri и ru_RU-denis (датасет CC0, NabuCasa)
+  удары, гул, нарастание: «Approaching the Crash Site» (Boom, Bass Swell, Fadeout) — Ben Burnes, CC0;
+                      гром — пак «100 CC0 SFX #2», CC0; «Fake Thunder 2» — Chairmat, CC0
+  проявление кадров, пропуск: «Gentle Swish», «Swish 3» (Organic Wooshes) — Ben Burnes, CC0
+  сердцебиение:       react-sounds (github.com/e3ntity/react-sounds), MIT
+  Паки CC0 взяты из github.com/lavenderdotpet/CC0-Public-Domain-Sounds.
+  Изменения: склейка в петли, фильтрация, замедление, реверберация, сведение с синтезом.

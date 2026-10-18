@@ -3,17 +3,18 @@
 	Логика отрисовки — cl_intro.lua, эффекты (снег, туман, зерно) — cl_fx.lua.
 
 	Ход интро:
-	  0.0  Арктика в метели, отряд МОГ «Дельта-14» вдалеке; через секунду — субтитр.
-	 12.2  Ближе к отряду. «Но что-то в них было уже не так...» — в очках бойцов загорается бледный отблеск.
-	 19.8  Погибший боец: кровь на перчатке и снегу, рация в снегу, «Купол» вызывает отряд.
-	 30.9  В вертолёте: боец смотрит в окно, рядом летит второй борт.
-	 43.0  Знак Фонда.
+	  0.0  Заставка: темнота, сквозь неё летит снег, нарастают ветер и гул, надпись архива Фонда.
+	  2.4  Арктика проявляется мазками кисти, отряд МОГ «Дельта-14» вдалеке; через секунду — субтитр.
+	 14.6  Ближе к отряду. «Но что-то в них было уже не так...» — в очках бойцов загорается бледный отблеск.
+	 22.2  Погибший боец: кровь на перчатке и снегу, рация в снегу, «Купол» вызывает отряд.
+	 33.3  В вертолёте: боец смотрит в окно, рядом летит второй борт.
+	 45.4  Знак Фонда.
 ]]
 
 local I = WS.Intro
 
 I.Path = "whitesilence/intro/"
-I.Length = 51.0
+I.Length = 53.4
 I.ImageW, I.ImageH = 2560, 1440   -- размер кадров-картин (координаты точек ниже — в этих пикселях)
 
 --[[
@@ -21,21 +22,30 @@ I.ImageW, I.ImageH = 2560, 1440   -- размер кадров-картин (к�
 	  zoom (1 — кадр ровно накрывает экран), x/y — точка картины в центре экрана (0..1).
 	snow: "blizzard" (летящий вбок снег с ледяной крошкой) | "calm" (хлопья ложатся) | nil.
 	debris — доля тёмной ледяной крошки среди снега; fog — плотность тумана; sub — цвет подсветки под субтитрами.
+	brush — кадр проявляется мазками кисти (от центра к краям) и так же закрывается к центру.
 ]]
+
+-- Заставка в первые секунды: из темноты, под нарастающий ветер
+I.Opening = {
+	{ at = 0.35, to = 2.2, style = "kicker", text = "ФОНД SCP · ВОССТАНОВЛЕННАЯ ЗАПИСЬ" },
+	{ at = 0.9, to = 2.2, style = "kicker2", text = "Мобильная оперативная группа «Дельта-14» · последний сеанс связи" },
+}
 I.Shots = {
-	{ id = "arctic", from = 0.0, to = 11.8, fadeIn = 2.6, fadeOut = 1.2, image = "arctic",
+	{ id = "opening", from = 0.0, to = 2.9, fadeIn = 0.01, fadeOut = 0.01,
+		snow = "blizzard", snowDensity = 0.5, debris = 0.1 },
+	{ id = "arctic", brush = true, from = 2.4, to = 14.2, fadeIn = 2.6, fadeOut = 1.2, image = "arctic",
 		cam = { zoom = { 1.02, 1.12 }, x = { 0.48, 0.54 }, y = { 0.52, 0.54 } },
 		snow = "blizzard", snowDensity = 1, debris = 0.18, fog = 0.2 },
-	{ id = "closeup", from = 12.2, to = 19.4, fadeIn = 1.4, fadeOut = 1.2, image = "closeup",
+	{ id = "closeup", brush = true, from = 14.6, to = 21.8, fadeIn = 1.4, fadeOut = 1.2, image = "closeup",
 		cam = { zoom = { 1.03, 1.18 }, x = { 0.5, 0.5 }, y = { 0.45, 0.36 } },
 		snow = "blizzard", snowDensity = 0.9, debris = 0.12, fog = 0.18, tint = Color(8, 14, 26, 70) },
-	{ id = "dead", from = 19.8, to = 30.5, fadeIn = 1.6, fadeOut = 1.2, image = "dead",
+	{ id = "dead", brush = true, from = 22.2, to = 32.9, fadeIn = 1.6, fadeOut = 1.2, image = "dead",
 		cam = { zoom = { 1.12, 1.03 }, x = { 0.52, 0.5 }, y = { 0.5, 0.52 } },
 		snow = "calm", snowDensity = 0.6, debris = 0, fog = 0.1, sub = Color(150, 10, 20) },
-	{ id = "heli", from = 30.9, to = 42.5, fadeIn = 1.5, fadeOut = 1.2, image = "heli",
+	{ id = "heli", brush = true, from = 33.3, to = 44.9, fadeIn = 1.5, fadeOut = 1.2, image = "heli",
 		cam = { zoom = { 1.05, 1.12 }, x = { 0.52, 0.5 }, y = { 0.48, 0.47 } },
 		shake = true, sub = Color(40, 70, 120) },
-	{ id = "banner", from = 43.0, to = 50.6, fadeIn = 0.25, fadeOut = 1.4, image = "banner_bg",
+	{ id = "banner", from = 45.4, to = 53.0, fadeIn = 0.25, fadeOut = 1.4, image = "banner_bg",
 		cam = { zoom = { 1.02, 1.06 }, x = { 0.5, 0.5 }, y = { 0.5, 0.5 } },
 		snow = "calm", snowDensity = 0.35, fog = 0.08 },
 }
@@ -46,14 +56,14 @@ I.Shots = {
 	at/to — появление и конец (секунды интро); style: sub — субтитр, brand/motto — надписи под знаком Фонда.
 ]]
 I.Texts = {
-	{ at = 1.2, to = 10.0, style = "sub",
+	{ at = 4.8, to = 12.4, style = "sub",
 		text = "Арктика. Метель. {МОГ «Дельта-14»} была на задании по сдерживанию аномального объекта." },
-	{ at = 13.2, to = 17.9, style = "sub", text = "Но что-то в них было уже {не так...}" },
-	{ at = 21.4, to = 29.0, style = "sub", text = "Они все — {были мертвы.} Их сигнал пропал ещё неделю назад." },
-	{ at = 32.4, to = 41.0, style = "sub",
+	{ at = 15.6, to = 20.3, style = "sub", text = "Но что-то в них было уже {не так...}" },
+	{ at = 23.8, to = 31.4, style = "sub", text = "Они все — {были мертвы.} Их сигнал пропал ещё неделю назад." },
+	{ at = 34.8, to = 43.4, style = "sub",
 		text = "Ты — сотрудник спецподразделения. Твоя задача — {нейтрализовать} данных существ, которые {притворяются отрядом.}" },
-	{ at = 44.1, to = 49.3, style = "brand", text = "ФОНД SCP" },
-	{ at = 45.2, to = 49.3, style = "motto", text = "Обезопасить. Удержать. Сохранить." },
+	{ at = 46.5, to = 51.7, style = "brand", text = "ФОНД SCP" },
+	{ at = 47.6, to = 51.7, style = "motto", text = "Обезопасить. Удержать. Сохранить." },
 }
 
 --[[
@@ -61,23 +71,28 @@ I.Texts = {
 	vol — громкость, fade — нарастание; fade = <id> + vol + time — сменить громкость; stop = <id> + time.
 ]]
 I.Cues = {
-	{ at = 0.0, play = "blizzard", id = "wind", vol = 0.8, fade = 3.0, loop = true },
-	{ at = 10.6, play = "fade_boom", vol = 0.85 },
-	{ at = 11.4, play = "dread", vol = 0.8 },
-	{ at = 13.0, play = "heartbeat", id = "heart", vol = 0.5, fade = 2.5 },
-	{ at = 16.3, play = "fade_riser", vol = 0.55 },
-	{ at = 18.6, stop = "heart", time = 1.2 },
-	{ at = 19.3, play = "fade_boom", vol = 0.7 },
-	{ at = 19.6, fade = "wind", vol = 0.32, time = 2.5 },
-	{ at = 20.2, play = "radio", vol = 0.9 },
-	{ at = 28.6, play = "heli_interior", id = "heli", vol = 0.9, fade = 3.5, loop = true },
-	{ at = 29.0, stop = "wind", time = 2.5 },
-	{ at = 41.3, stop = "heli", time = 2.2 },
-	{ at = 42.7, play = "banner_hit", vol = 1.0 },
+	{ at = 0.0, play = "blizzard", id = "wind", vol = 0.8, fade = 4.0, loop = true },
+	{ at = 0.0, play = "opening", vol = 0.85 },
+	{ at = 2.3, play = "reveal", vol = 1.0 },
+	{ at = 13.0, play = "fade_boom", vol = 0.85 },
+	{ at = 13.8, play = "dread", vol = 0.8 },
+	{ at = 15.4, play = "heartbeat", id = "heart", vol = 0.5, fade = 2.5 },
+	{ at = 14.5, play = "reveal", vol = 0.7 },
+	{ at = 17.8, play = "fade_riser", vol = 0.55 },
+	{ at = 21.0, stop = "heart", time = 1.2 },
+	{ at = 21.7, play = "fade_boom", vol = 0.7 },
+	{ at = 22.0, fade = "wind", vol = 0.32, time = 2.5 },
+	{ at = 22.1, play = "reveal", vol = 0.6 },
+	{ at = 22.6, play = "radio", vol = 0.9 },
+	{ at = 31.0, play = "heli_interior", id = "heli", vol = 0.7, fade = 3.5, loop = true },
+	{ at = 31.4, stop = "wind", time = 2.5 },
+	{ at = 33.2, play = "reveal", vol = 0.6 },
+	{ at = 43.7, stop = "heli", time = 2.2 },
+	{ at = 45.1, play = "banner_hit", vol = 1.0 },
 }
 
 -- Когда горит лампочка рации (идёт передача): от/до, секунды интро
-I.RadioTx = { { 20.8, 23.9 }, { 24.6, 28.1 }, { 28.8, 31.0 } }
+I.RadioTx = { { 23.2, 26.3 }, { 27.0, 30.5 }, { 31.2, 33.4 } }
 
 -- Точки на картинах (пиксели 2560x1440): отблески в очках отряда, лампочка рации, красная лампа и дверь вертолёта
 -- {x, y, радиус} — линзы очков бойцов на closeup.jpg
