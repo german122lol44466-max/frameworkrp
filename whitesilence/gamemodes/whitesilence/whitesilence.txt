@@ -1,0 +1,20 @@
+"whitesilence"
+{
+	"base"			"sandbox"
+	"title"			"SCP: Белая тишина"
+	"maps"			""
+	"category"		"other"
+	"menusystem"	"1"
+
+	"settings"
+	{
+		1
+		{
+			"name"		"ws_intro_force"
+			"text"		"Интро при каждом входе (для всех)"
+			"help"		"1 — интро показывается каждому игроку при каждом входе"
+			"type"		"CheckBox"
+			"default"	"0"
+		}
+	}
+}

@@ -1,0 +1,15 @@
+SCP: Белая тишина — откуда взят контент
+
+Шрифты (SIL Open Font License 1.1, тексты лицензий рядом):
+  Cormorant Garamond — OFL_cormorantgaramond.txt
+  Oswald             — OFL_oswald.txt
+  IBM Plex Mono      — OFL_ibmplexmono.txt
+
+Картинки интро (materials/whitesilence/intro) нарисованы кодом: tools/content/intro_art.py.
+Знак Фонда SCP — по мотивам логотипа SCP Wiki, лицензия CC BY-SA 3.0 (scpwiki.com, scpfoundation.net).
+Весь контент на тему SCP распространяется на тех же условиях: CC BY-SA 3.0.
+
+Звуки (sound/whitesilence/intro):
+  ветер (подложка в blizzard.ogg), сердцебиение — react-sounds (github.com/e3ntity/react-sounds), MIT
+  голос в рации — нейросеть Piper, голоса ru_RU-dmitri и ru_RU-denis (датасет CC0, NabuCasa)
+  метель, вертолёт, удары, гул, помехи — синтез: tools/content/intro_audio.py

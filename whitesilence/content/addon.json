@@ -1,0 +1,12 @@
+{
+	"title": "SCP: Белая тишина — контент",
+	"type": "servercontent",
+	"tags": [
+		"scenic",
+		"fun"
+	],
+	"ignore": [
+		"*.psd",
+		"LICENSES/*"
+	]
+}
