@@ -62,6 +62,15 @@ function PlyMeta:SetPos(p) self.pos = p end
 function PlyMeta:GetPos() return self.pos or Vector() end
 function PlyMeta:SetEyeAngles() end
 function PlyMeta:SetNW2Entity() end
+function PlyMeta:GetAmmoCount(t) self.ammo = self.ammo or {} return self.ammo[t] or 0 end
+function PlyMeta:SetAmmo(n, t) self.ammo = self.ammo or {} self.ammo[t] = n end
+function PlyMeta:SetHealth(h) self.hp = h end
+function PlyMeta:Health() return self.hp or 100 end
+function PlyMeta:GetMaxHealth() return 100 end
+function PlyMeta:EmitSound() end
+function PlyMeta:ChatPrint() end
+function PlyMeta:UnSpectate() end
+function PlyMeta:Spectate() end
 function PlyMeta:GetPData(k, d) return self.pdata[k] or d end
 function PlyMeta:SetPData(k, v) self.pdata[k] = v end
 function PlyMeta:RemovePData(k) self.pdata[k] = nil end
@@ -71,7 +80,9 @@ function string.Trim(s) return (string.gsub(s, "^%s*(.-)%s*$", "%1")) end
 function isstring(v) return type(v) == "string" end
 NET_TO = {}
 net.Send = function(target)
-  if string.StartWith(net.cur.name, "ws.story") then return end   -- сюжет здесь не проверяется
+  for _, pre in ipairs({ "ws.story", "ws.ach", "ws.inv", "ws.hand" }) do   -- сюжет, достижения, инвентарь здесь не проверяются
+    if string.StartWith(net.cur.name, pre) then return end
+  end
   NET_TO[#NET_TO + 1] = { name = net.cur.name, target = target, data = net.cur }
 end
 net.WriteEntity = function(e) net.cur.ent = e end

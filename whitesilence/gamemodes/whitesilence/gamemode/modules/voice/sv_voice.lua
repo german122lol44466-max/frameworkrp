@@ -1,6 +1,6 @@
 --[[
 	Голос: в игре — по близости и объёмно (тише с расстоянием, слышно, откуда); в меню — общий канал отряда.
-	Мёртвые живых не слышат и не говорят им.
+	Павших живые не слышат; павшие (наблюдатели) слышат всех и друг друга.
 ]]
 
 local L = WS.Lobby
@@ -8,7 +8,9 @@ local L = WS.Lobby
 hook.Add("PlayerCanHearPlayersVoice", "ws.voice", function(listener, talker)
 	local li, ti = L.InGame(listener), L.InGame(talker)
 	if li and ti then
-		if not talker:Alive() or not listener:Alive() then return false end
+		local ta, la = talker:Alive(), listener:Alive()
+		if not ta then return not la, false end          -- павших слышат только павшие
+		if not la then return true, false end            -- наблюдатель слышит живых
 		return listener:GetPos():DistToSqr(talker:GetPos()) < WS.Config.VoiceRange ^ 2, true
 	end
 	if not li and not ti then

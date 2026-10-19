@@ -4,7 +4,8 @@
 	  squad  — «Отряд»: по рации своему отряду, где бы ни были;
 	  ooc    — «Всем»: всем на сервере (вне игры);
 	  me     — действие «/me …» рядом;
-	  phrase — голосовая фраза (G) рядом.
+	  phrase — голосовая фраза (G) рядом;
+  dead   — павший в бою: видят только павшие и те, кто в меню.
 	Команды в тексте: /me, /r (отряд), // или /ooc (всем).
 ]]
 
@@ -12,8 +13,8 @@ WS.Chat = WS.Chat or {}
 local CH = WS.Chat
 
 CH.Modes = { "local", "squad", "ooc" }          -- что можно выбрать в строке ввода (Tab — переключить)
-CH.ModeId = { ["local"] = 1, squad = 2, ooc = 3, me = 4, phrase = 5 }
-CH.ModeName = { "local", "squad", "ooc", "me", "phrase" }
+CH.ModeId = { ["local"] = 1, squad = 2, ooc = 3, me = 4, phrase = 5, dead = 6 }
+CH.ModeName = { "local", "squad", "ooc", "me", "phrase", "dead" }
 CH.Label = { ["local"] = "Рядом", squad = "Отряд", ooc = "Всем" }
 CH.MaxLen = 200
 

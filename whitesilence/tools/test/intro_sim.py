@@ -256,6 +256,12 @@ for _, f in ipairs({ "WriteUInt", "WriteFloat", "WriteVector", "WriteEntity", "W
   net[f] = net[f] or noop
 end
 PrintMessage = noop
+RunConsoleCommand = RunConsoleCommand or noop
+util.JSONToTable = util.JSONToTable or function() return nil end
+util.TableToJSON = util.TableToJSON or function() return "{}" end
+notification = notification or { AddLegacy = noop, AddProgress = noop }
+physenv = { GetGravity = function() return Vector(0, 0, -600) end }
+game.GetAmmoID = game.GetAmmoID or function() return 1 end
 function SetClipboardText() end
 function IsFirstTimePredicted() return true end
 engine = { TickInterval = function() return 1 / 66 end }
@@ -368,13 +374,22 @@ def run_timers(lua):
 ENGINE_MATERIALS = {"models/debug/debugwhite", "pp/blurscreen", "pp/colour", "vgui/white", "sprites/light_glow02_add"}
 
 
+ENGINE_SOUND_DIRS = ("sound/ui/", "sound/ambient/", "sound/items/", "sound/buttons/", "sound/weapons/", "sound/player/",
+                     "sound/common/", "sound/physics/")     # звуки HL2/GMod — есть в игре
+
+
 def check_paths(lua, errors):
     for p in lua.globals().MATERIALS.values():
         if p in ENGINE_MATERIALS or p.replace(".vmt", "") in ENGINE_MATERIALS:
             continue
+        # материал без расширения — это .vmt
+        if "." not in os.path.basename(p) and os.path.exists(os.path.join(CONTENT, "materials", p + ".vmt")):
+            continue
         if not os.path.exists(os.path.join(CONTENT, "materials", p)):
             errors.append("нет материала: materials/" + p)
     for p in lua.globals().SOUNDS.values():
+        if p.startswith(ENGINE_SOUND_DIRS):
+            continue
         if not os.path.exists(os.path.join(CONTENT, p)):
             errors.append("нет звука: " + p)
 

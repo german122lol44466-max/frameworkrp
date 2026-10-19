@@ -42,8 +42,10 @@ function W.HudAlpha()
 end
 
 hook.Add("WSDeployed", "ws.wake", function()
-	-- меню гаснет ~1.5 с, затем открываем глаза
-	timer.Simple(1.4, W.Start)
+	-- меню гаснет ~1.5 с, затем открываем глаза (если идёт брифинг — после него, см. cl_briefing.lua)
+	timer.Simple(1.4, function()
+		if not (WS.Briefing and WS.Briefing.Active()) then W.Start() end
+	end)
 end)
 
 local cm = {

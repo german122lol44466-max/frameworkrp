@@ -202,7 +202,7 @@ end
 function H.Visible()
 	local ply = LocalPlayer()
 	return IsValid(ply) and ply:Alive() and WS.Lobby.InGame(ply) and not (WS.Menu and WS.Menu.IsOpen())
-		and not (WS.Intro and WS.Intro.IsPlaying()) and not (WS.Story and WS.Story.Ending)
+		and not (WS.Intro and WS.Intro.IsPlaying()) and not (WS.Story and WS.Story.Ending) and not (WS.Briefing and WS.Briefing.Active())
 end
 
 H.Alpha = 0
@@ -218,7 +218,7 @@ hook.Add("HUDPaint", "ws.hud", function()
 
 	-- общая виньетка в игре; при низком здоровье — красная пульсация
 	if WS.Lobby.InGame(ply) and ply:Alive() then
-		FX.Vignette(0.6)
+		WS.Atmos.DrawVignette(ply)
 		local hpk = 1 - math.Clamp(ply:Health() / math.max(ply:GetMaxHealth(), 1) / 0.35, 0, 1)
 		if hpk > 0 then
 			local p = (0.5 + 0.5 * math.sin(RealTime() * 4)) * hpk

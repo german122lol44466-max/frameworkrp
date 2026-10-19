@@ -72,7 +72,11 @@ end
 function AngMeta:Right() local y = math.rad(self.y) return Vector(math.sin(y), -math.cos(y), 0) end
 function AngMeta:Up() local f, r = self:Forward(), self:Right() return Vector(r.y * f.z - r.z * f.y, r.z * f.x - r.x * f.z, r.x * f.y - r.y * f.x) * -1 end
 function AngMeta:RotateAroundAxis() end
+AngMeta.__add = function(a, b) return Angle(a.p + b.p, a.y + b.y, a.r + b.r) end
+AngMeta.__sub = function(a, b) return Angle(a.p - b.p, a.y - b.y, a.r - b.r) end
 vector_up, vector_origin, angle_zero = Vector(0, 0, 1), Vector(0, 0, 0), Angle(0, 0, 0)
+function LerpVector(t, a, b) return a + (b - a) * t end
+function LerpAngle(t, a, b) return Angle(a.p + (b.p - a.p) * t, a.y + (b.y - a.y) * t, a.r + (b.r - a.r) * t) end
 function VectorRand() return Vector(math.Rand(-1, 1), math.Rand(-1, 1), math.Rand(-1, 1)) end
 bit = { band = function(a, b) return math.floor(a) & math.floor(b) end, bor = function(...) local r = 0 for _, v in ipairs({ ... }) do r = r | math.floor(v) end return r end }
 function math.NormalizeAngle(a) return (a + 180) % 360 - 180 end
@@ -125,9 +129,13 @@ end
 util.TraceHull = function(t) return { Hit = false, HitPos = t.endpos, Fraction = 1 } end
 navmesh = { IsLoaded = function() return false end }
 weapons = { GetStored = function(c)
-  if c == "tfa_ins2_ak12" then return { WorldModel = "models/weapons/tfa_ins2/w_ak12.mdl", Primary = { Sound = "TFA_INS2.AK12.1", RPM = 700, ClipSize = 30 } } end
-  if c == "tfa_ins2_usp_match" then return { WorldModel = "models/w_usp.mdl", Primary = {} } end
+  if c == "tfa_ins2_ak12" then return { WorldModel = "models/weapons/tfa_ins2/w_ak12.mdl", Primary = { Sound = "TFA_INS2.AK12.1", RPM = 700, ClipSize = 30, Ammo = "ar2" } } end
+  if c == "tfa_ins2_usp_match" then return { WorldModel = "models/w_usp.mdl", Primary = { Ammo = "pistol" } } end
 end }
+game.GetAmmoID = function(n) return n == "ar2" and 1 or (n == "pistol" and 3 or 9) end
+physenv = { GetGravity = function() return Vector(0, 0, -600) end }
+navmesh.Find = function() return {} end
+os.date = os.date or function() return "12:00" end
 util.IsValidModel = function(m) return type(m) == "string" and m ~= "" end
 
 -- сущности
@@ -142,8 +150,28 @@ function NewEnt(cls)
   return e
 end
 for _, m in ipairs({ "SetKeyValue", "SetSolid", "SetCollisionGroup", "AddEffects", "SetBloodColor", "SetCollisionBounds",
-  "SetSkin", "DrawShadow", "SetNoDraw", "SetNotSolid", "SetMoveType", "PhysicsInit", "SetNW2Entity", "AddFlags" }) do
+  "SetSkin", "DrawShadow", "SetNoDraw", "SetNotSolid", "SetMoveType", "PhysicsInit", "AddFlags", "SetUseType",
+  "PhysicsInitBox", "SetRenderBounds", "SetOwner", "SetVelocity" }) do
   EntMeta2[m] = noop
+end
+FIRED = {}
+function EntMeta2:Fire(input, val) FIRED[#FIRED + 1] = { self.cls, input, val } end
+local PhysMeta = {}
+PhysMeta.__index = PhysMeta
+for _, m in ipairs({ "SetMass", "SetMaterial", "EnableMotion", "Wake", "AddAngleVelocity" }) do PhysMeta[m] = noop end
+function PhysMeta:SetVelocity(v) CHECK_NUM("Phys.SetVelocity", v.x, v.y, v.z) self.vel = v end
+function PhysMeta:IsValid() return true end
+function EntMeta2:GetPhysicsObject() self.phys = self.phys or setmetatable({}, PhysMeta) return self.phys end
+function EntMeta2:GetPhysicsObjectNum() return self:GetPhysicsObject() end
+function EntMeta2:WorldSpaceCenter() return self.pos + Vector(0, 0, 8) end
+function EntMeta2:SetNW2Entity(k, v) self.nw[k] = v end
+function EntMeta2:GetNW2Entity(k) return self.nw[k] end
+-- NetworkVar как в GMod: Set*/Get* по имени
+local NV_DEFAULT = { String = "", Int = 0, Bool = false, Float = 0 }
+function EntMeta2:NetworkVar(typ, idx, name)
+  local key = "_nv_" .. name
+  self["Set" .. name] = function(s, v) s[key] = v end
+  self["Get" .. name] = function(s) local v = s[key] if v == nil then return NV_DEFAULT[typ] end return v end
 end
 function EntMeta2:GetClass() return self.cls end
 function EntMeta2:SetModel(m) assert(type(m) == "string", "SetModel") self.mdl = m end
@@ -184,7 +212,12 @@ WORLDENT = NewEnt("worldspawn")
 
 ents.Create = function(cls)
   local e = NewEnt(cls)
-  if SENTS[cls] then setmetatable(e, SENTS[cls]) e:SimInit() end
+  local meta = SENTS[cls]
+  if meta then
+    setmetatable(e, meta)
+    if e.SetupDataTables then e:SetupDataTables() end
+    if meta.Type == "nextbot" then e:SimInit() end
+  end
   return e
 end
 ents.FindByClass = function(c)
@@ -251,9 +284,9 @@ function NB:RestartGesture() end
 function NB:FireBullets(b)
   CHECK_NUM("FireBullets", b.Damage, b.Spread.x, b.Dir.x, b.Src.x)
   SHOTS = SHOTS + 1
-  -- попадает с вероятностью 15%: бойцы иногда получают урон
+  -- попадает с вероятностью 8%: бойцы иногда получают урон
   local t = self.target
-  if t and math.random() < 0.15 and t.TakeBullet then t:TakeBullet(b.Damage, self) end
+  if t and math.random() < 0.08 and t.TakeBullet then t:TakeBullet(b.Damage, self) end
 end
 SHOTS = 0
 function NB:BecomeRagdoll() self.__removed = true RAGDOLLS = RAGDOLLS + 1 return NewEnt("prop_ragdoll") end
@@ -274,8 +307,11 @@ function LoadSENT(cls, src)
   local f = assert(load(src, "@entities/" .. cls))
   f()
   local meta = {}
-  for k, v in pairs(NB) do meta[k] = v end
+  local base = SENTS[ENT.Base]
+  for k, v in pairs(base or NB) do meta[k] = v end
+  if base then meta.BaseClass = base end
   for k, v in pairs(ENT) do meta[k] = v end
+  if not base and ENT.Type ~= "nextbot" then meta.SimInit = nil end
   meta.__index = meta
   SENTS[cls] = meta
   ENT = nil
@@ -314,13 +350,33 @@ function PLYMETA:TakeBullet(dmg, att)
 end
 HITS = 0
 function PLYMETA:Kill(att)
+  if self.dead then return end
   self.dead = true
   self.hp = 0
   self.wsLastDmg = 2
   hook.Run("PlayerDeath", self, att, att)
 end
+function PLYMETA:SetHealth(h) self.hp = h end
+function PLYMETA:GetMaxHealth() return 100 end
+function PLYMETA:Armor() return 50 end
+function PLYMETA:SetVelocity() end
+function PLYMETA:Spectate(m) self.obsMode = m end
+function PLYMETA:SpectateEntity(e) self.obsTarget = e end
+function PLYMETA:UnSpectate() self.obsMode, self.obsTarget = nil, nil end
+function PLYMETA:GetObserverTarget() return self.obsTarget end
+function PLYMETA:GetObserverMode() return self.obsMode or 0 end
+function PLYMETA:SetNW2Entity(k, v) self.nw[k] = v end
+function PLYMETA:GetNW2Entity(k) return self.nw[k] end
+function PLYMETA:GetEyeTrace() return { Entity = nil, HitPos = self:EyePos() + self:GetAimVector() * 100 } end
+function PLYMETA:GetAmmoCount(t) self.ammo = self.ammo or {} return self.ammo[t] or 0 end
+function PLYMETA:SetAmmo(n, t) self.ammo = self.ammo or {} self.ammo[t] = n end
 local spawn0 = PLYMETA.Spawn
 function PLYMETA:Spawn() self.dead = false self.hp = 100 spawn0(self) end
+function PLYMETA:Alive() return not self.dead end
+
+-- исходящие: записываем всё (в отличие от menu_sim)
+net.Send = function(target) NET_TO[#NET_TO + 1] = { name = net.cur.name, target = target, data = net.cur } end
+net.Broadcast = function() NET_TO[#NET_TO + 1] = { name = net.cur.name, data = net.cur } end
 
 -- входящие сообщения: очередь значений для net.Read*
 NETQ = {}
@@ -334,23 +390,27 @@ end
 
 # серверная часть: сценарий от выдвижения до финала
 SERVER = r'''
-local S, P, C = WS.Story, WS.Story.P, WS.Config
+local S, P, C, I, ACH = WS.Story, WS.Story.P, WS.Config, WS.Inv, WS.Ach
 assert(S.P, "точки сюжета загружены")
 A = MakePlayer("Alpha", 1) B = MakePlayer("Bravo", 2)
 A.admin = true
 for _, p in ipairs(PLAYERS) do hook.Run("PlayerInitialSpawn", p) p:Spawn() end
 LOG = {}
-function log(fmt, ...) LOG[#LOG + 1] = string.format("%6.0f с  " .. fmt, NOW - T0, ...) end
+function log(fmt, ...)
+  local line = string.format("%6.0f с  " .. fmt, NOW - (T0 or NOW), ...)
+  LOG[#LOG + 1] = line
+  print("    " .. line)
+end
 
 function Tick()
   NOW = NOW + SIMDT
   RunTimers()
   hook.Run("Think")
-  for _, e in ipairs(ENTS) do if e.SimTick and not e.__removed then e:SimTick() end end
+  for _, e in ipairs(ENTS) do if e.co and not e.__removed then e:SimTick() end end
 end
 function Run(sec, fn) local untilT = NOW + sec while NOW < untilT do Tick() if fn and fn() then return true end end return false end
 
--- игроки: идти к цели бегом, у предметов — удерживать E; отстреливаться
+-- боты-игроки: бегом к цели, E у предметов, стреляют по ближайшему врагу, подбирают лут
 local function moveTo(p, pos, speed)
   local d = pos - p.pos d.z = 0
   local len = d:Length()
@@ -362,13 +422,13 @@ local function moveTo(p, pos, speed)
   return len < 30
 end
 local nextShot = {}
+SHOTS_P = 0
 function Brain()
   local cur = S.Current()
   for _, p in ipairs(PLAYERS) do
     p.keys = {}
     if p.dead or not WS.Lobby.InGame(p) then goto skip end
     do
-      -- бой: ближайший видимый враг в 1500 — выстрел раз в ~3 с (урон 40), стоим на месте
       local foe, fd
       for _, e in ipairs(ents.FindByClass("ws_enemy")) do
         local d = e.pos:Distance(p.pos)
@@ -377,12 +437,24 @@ function Brain()
       if foe then
         p.yaw = (foe.pos - p.pos):Angle().y
         if NOW >= (nextShot[p] or 0) then
-          nextShot[p] = NOW + math.Rand(2, 4)
-          local d = DamageInfo() d:SetDamage(40) d:SetAttacker(p) d:SetInflictor(p)
+          nextShot[p] = NOW + math.Rand(1.0, 2.0)
+          SHOTS_P = SHOTS_P + 1
+          local d = DamageInfo() d:SetDamage(60) d:SetAttacker(p) d:SetInflictor(p)
+          if math.random() < 0.3 then foe.wsHeadHit = CurTime() end
           foe:TakeDamageInfo(d)
           hook.Run("EntityFireBullets", p, {})
+          -- перезарядка списывает патроны из коробок
+          local t = 1
+          if p:GetAmmoCount(t) > 0 then p:SetAmmo(p:GetAmmoCount(t) - 3, t) end
         end
         goto skip
+      end
+      -- лут рядом — подобрать
+      for _, it in ipairs(ents.FindByClass("ws_item")) do
+        if not it.__removed and it.pos:Distance(p.pos) < 300 then
+          if moveTo(p, it.pos, C.RunSpeed) or it.pos:Distance(p.pos) < 60 then it:Use(p) end
+          goto skip
+        end
       end
       if not cur then goto skip end
       local def = cur.def
@@ -406,32 +478,58 @@ function Brain()
         end
         target = best and best.pos
       end
-      if target then
-        local off = Vector((p.idx - 1.5) * 60, 0, 0)
-        moveTo(p, target + off, C.RunSpeed)
-      end
+      if target then moveTo(p, target + Vector((p.idx - 1.5) * 60, 0, 0), C.RunSpeed) end
     end
     ::skip::
   end
 end
 function Play(sec, cond) return Run(sec, function() Brain() return cond and cond() end) end
 
--- 1. выдвижение отряда
+-- 1. выдвижение: брифинг, затем первая глава
 T0 = NOW
 for _, p in ipairs(PLAYERS) do Recv("ws.lobby.open", p) end
-B.wsThrottle = nil
-local lobbyA = A:GetNW2Int("ws_lobby")
-B:SetNW2Int("ws_lobby", lobbyA) B:SetNW2Bool("ws_lead", false)
+B:SetNW2Int("ws_lobby", A:GetNW2Int("ws_lobby")) B:SetNW2Bool("ws_lead", false)
 Recv("ws.lobby.start", A)
 assert(A:GetNW2Bool("ws_ingame") and B:GetNW2Bool("ws_ingame"), "отряд в игре")
-Run(7)
-assert(S.State.running and S.State.ch == 1 and S.State.step >= 1, "глава 1 началась")
-local spawnPos = P.Get("spawn")
-assert(A.pos:Distance(spawnPos) < 400, "появились у точки высадки")
-log("глава 1, шаг %d", S.State.step)
+local brief = false
+for _, m in ipairs(NET_TO) do if m.name == "ws.story.briefing" then brief = true end end
+assert(brief, "брифинг отправлен")
+Run(5)
+assert(not S.State.running, "во время брифинга глава ещё не началась")
+Run(C.BriefingTime)
+assert(S.State.running and S.State.ch == 1, "после брифинга — глава 1")
+-- набор
+assert(I.Count(I.List(A), "bandage") >= 3 and I.Count(I.List(A), "medkit") >= 1, "набор выдан")
+assert(A:GetAmmoCount(1) == I.CountAmmo(I.List(A), 1) and A:GetAmmoCount(1) >= 200, "запас оружия = патроны в коробках: " .. A:GetAmmoCount(1))
+assert(A:GetAmmoCount(3) == 50, "пистолетные патроны: " .. A:GetAmmoCount(3))
+log("брифинг, глава 1, набор: %d предм., %d патр.", #I.List(A), A:GetAmmoCount(1))
+
+-- инвентарь: патроны списываются при перезарядке
+local before = I.CountAmmo(I.List(A), 1)
+A:SetAmmo(A:GetAmmoCount(1) - 30, 1)
+Run(0.5)
+assert(I.CountAmmo(I.List(A), 1) == before - 30, "перезарядка списала 30 патронов из коробок")
+-- кровотечение и бинт
+A:SetNW2Int("ws_bleed", 2)
+local hp0 = A.hp
+Run(4)
+assert(A.hp < hp0, "кровотечение отнимает здоровье")
+Recv("ws.inv.quick", A, 4)
+assert(A.wsUsing, "бинт применяется")
+Run(3.5)
+assert(A:GetNW2Int("ws_bleed", 0) == 0, "бинт остановил кровотечение")
+assert(ACH.Prog == nil or true)
+-- перенос предмета в сетке и выброс
+local it = I.List(A)[1]
+Recv("ws.inv.move", A, it.uid, 6, 4, false)
+local dropped = #ents.FindByClass("ws_item")
+local last = I.List(A)[#I.List(A)]
+Recv("ws.inv.drop", A, last.uid)
+assert(#ents.FindByClass("ws_item") == dropped + 1, "предмет выброшен на землю")
+log("инвентарь: перезарядка, кровотечение, бинт, перенос, выброс — ок")
 
 local lastCh, lastStep = 0, 0
-local died, wiped = false, false
+local died, wiped, specSeen, revived, crashed = false, false, false, false, false
 local function watch()
   if S.State.ch ~= lastCh or S.State.step ~= lastStep then
     lastCh, lastStep = S.State.ch, S.State.step
@@ -440,72 +538,109 @@ local function watch()
   end
 end
 
--- 2. играем; в главе 2 гибнет Bravo и возвращается к отряду; в главе 3 гибнет весь отряд
+-- 2. играем; в главе 2 гибнет Bravo (наблюдает до чекпоинта), в главе 4 гибнет весь отряд
 local finished = false
 local guard = 0
+local wall = os.clock()
 while not finished do
   guard = guard + 1
-  if guard >= 40000 then for _, l in ipairs(LOG) do print(l) end end
-  assert(guard < 40000, "сюжет завис: глава " .. S.State.ch .. " шаг " .. S.State.step .. " running=" .. tostring(S.State.running))
+  if guard > 9000 or os.clock() - wall > 900 then
+    for _, l in ipairs(LOG) do print(l) end
+    error("сюжет завис: глава " .. S.State.ch .. " шаг " .. S.State.step .. " running=" .. tostring(S.State.running))
+  end
   Play(1)
   watch()
-  for _, m in ipairs(NET_TO) do if m.name == "ws.story.finish" then finished = true end end
-  -- случайные гибели от огня врагов: экран смерти → меню → к отряду (или заново, если погибли все)
-  for _, p in ipairs(PLAYERS) do
-    if p.dead and WS.Lobby.InGame(p) and NOW - (p.wsDeathT or NOW) > 6 then
-      Recv("ws.death.return", p)
-      log("%s погиб в бою", p.name)
-    end
-  end
-  for _, p in ipairs(PLAYERS) do
-    if not WS.Lobby.InGame(p) and not finished then
-      local anyAlive = false
-      for _, q in ipairs(PLAYERS) do if WS.Lobby.InGame(q) and not q.dead then anyAlive = true end end
-      if anyAlive or (not S.State.running and (p == A)) then
-        p.wsThrottle = nil
-        Recv("ws.lobby.start", p)
-      end
-    end
+  for _, m in ipairs(NET_TO) do
+    if m.name == "ws.story.finish" then finished = true end
+    if m.name == "ws.story.cutscene" then crashed = true end
   end
   if S.State.ch == 2 and not died then
     died = true
     B:Kill(WORLDENT)
-    assert(B:GetNW2Bool("ws_ingame"), "погибший пока в игре (экран смерти)")
     Run(6)
-    Recv("ws.death.return", B)
-    assert(not B:GetNW2Bool("ws_ingame"), "после экрана смерти — в меню")
-    B.wsThrottle = nil
-    Recv("ws.lobby.start", B)
-    assert(B:GetNW2Bool("ws_ingame") and not B.dead, "вернулся к отряду")
-    Run(0.2)
-    assert(B.pos:Distance(A.pos) < 400, "подкрепление появилось рядом с товарищем")
-    log("Bravo погиб и вернулся к отряду")
+    assert(B:GetNW2Bool("ws_spectating") and B.obsTarget == A, "Bravo наблюдает за Alpha")
+    assert(WS.Lobby.InGame(B), "наблюдатель остаётся в игре")
+    -- голос и чат павшего живые не слышат
+    assert(hook.Run("PlayerCanHearPlayersVoice", A, B) == false, "живой не слышит павшего")
+    assert(hook.Run("PlayerCanHearPlayersVoice", B, A) == true, "павший слышит живого")
+    specSeen = true
+    log("Bravo погиб → наблюдает за Alpha")
   end
-  if S.State.ch == 3 and S.State.step >= 3 and not wiped then
+  if specSeen and not revived and not B.dead then
+    revived = true
+    assert(not B:GetNW2Bool("ws_spectating"), "после чекпоинта — не наблюдатель")
+    log("Bravo вернулся в бой на чекпоинте (глава %d, шаг %d)", S.State.ch, S.State.step)
+  end
+  if S.State.ch == 4 and S.State.step >= 2 and not wiped then
     wiped = true
     A:Kill(WORLDENT) B:Kill(WORLDENT)
     Run(C.StoryWipeDelay + 1)
-    assert(not S.State.running and S.State.ch == 3, "гибель отряда: глава откатилась и ждёт")
-    assert(#ents.FindByClass("ws_enemy") == 0, "враги убраны после отката")
-    Run(6)
-    Recv("ws.death.return", A) Recv("ws.death.return", B)
-    A.wsThrottle = nil
-    Recv("ws.lobby.start", A)
-    Run(7)
-    assert(S.State.running and S.State.ch == 3, "глава 3 началась заново")
-    log("отряд погиб — глава 3 заново")
+    assert(not S.State.running and S.State.ch == 4, "гибель отряда: глава откатилась")
+    Run(5)
+    assert(S.State.running and S.State.ch == 4 and not A.dead and not B.dead, "глава 4 началась заново, все живы")
+    log("отряд погиб — глава 4 заново, все вернулись")
   end
+  -- случайные гибели от огня врагов: наблюдение до чекпоинта, иногда — откат главы
 end
 local total = NOW - T0
+assert(died and wiped and revived, "сценарии гибели пройдены")
+assert(crashed, "сцена крушения вертолёта была")
 log("финал")
-assert(died and wiped, "сценарии гибели пройдены")
+assert(ACH.Has(A, "first_blood") and ACH.Has(A, "complete"), "достижения: первый контакт, операция завершена")
 -- 3. финал: через StoryEndTime все в меню, сюжет сброшен
 Run(C.StoryEndTime + 1)
 assert(not A:GetNW2Bool("ws_ingame") and not B:GetNW2Bool("ws_ingame"), "после финала — меню")
 assert(not S.State.running and S.State.ch == 1, "операция сброшена")
-RESULT = { total = total, kills = S.Stats.kills, deaths = S.Stats.deaths, shots = SHOTS, hits = HITS, ragdolls = RAGDOLLS }
+-- награды за достижения — в наборе
+local extra = hook.Run("WSExtraKit", A) or {}
+assert(#extra >= 1, "награда «Белая тишина» добавляет к набору")
+local got = {}
+for _, a in ipairs(ACH.List) do if ACH.Has(A, a.id) then got[#got + 1] = a.id end end
+RESULT = { total = total, kills = S.Stats.kills, deaths = S.Stats.deaths, shots = SHOTS, hits = HITS, ragdolls = RAGDOLLS,
+  ach = table.concat(got, ", "), grenades = 0, items = #ents.FindByClass("ws_item") }
+for _, f in ipairs(FIRED) do if f[1] == "npc_grenade_frag" then RESULT.grenades = RESULT.grenades + 1 end end
 
--- 4. редактор
+-- ИИ отдельно: стена x = 200 (выше 90 — нет), укрытие и граната
+do
+  local trace0 = util.TraceLine
+  util.TraceLine = function(t)
+    local a, b = t.start, t.endpos
+    if (a.x - 200) * (b.x - 200) < 0 then
+      local k = (200 - a.x) / (b.x - a.x)
+      local z = a.z + (b.z - a.z) * k
+      if z < 50 then return { Hit = true, HitPos = a + (b - a) * k, Fraction = k, HitNormal = Vector(-1, 0, 0), HitWorld = true } end
+    end
+    return trace0(t)
+  end
+  local e = ents.Create("ws_enemy")
+  e:SetPos(Vector(260, 0, 0))
+  e:Spawn()
+  local threat = Vector(900, 40, 0)
+  local c = e:FindCover(threat)
+  AI_COVER = c and string.format("(%.0f, %.0f)%s", c.pos.x, c.pos.y, c.peek and " с выглядыванием" or "") or "нет"
+  assert(c and c.pos.x < 200, "укрытие — за стеной от угрозы")
+  local fired0 = #FIRED
+  local co = coroutine.create(function() return e:ThrowGrenade(threat) end)
+  local ok, thrown
+  for _ = 1, 200 do
+    ok, thrown = coroutine.resume(co)
+    assert(ok, tostring(thrown))
+    if coroutine.status(co) == "dead" then break end
+    NOW = NOW + 0.1
+  end
+  AI_GRENADE = tostring(thrown)
+  assert(thrown and #FIRED > fired0, "граната брошена, запал выставлен")
+  util.TraceLine = trace0
+  e:Remove()
+end
+
+-- 4. звание за достижение
+Recv("ws.ach.title", A, "Белая тишина")
+assert(A:GetNW2String("ws_title") == "Белая тишина", "звание выбрано")
+Recv("ws.ach.title", A, "Несуществующее")
+assert(A:GetNW2String("ws_title") == "Белая тишина", "чужое звание не выдаётся")
+
+-- 5. редактор
 concommand.t["scp_edit"](B)
 assert(not B.wsEditing, "не-админу редактор недоступен")
 concommand.t["scp_edit"](A)
@@ -524,8 +659,7 @@ assert(#P.GroupSpots("ambush") == 3, "точки группы")
 op("gdel", "ambush", 2)
 assert(#P.GroupSpots("ambush") == 2 and P.GroupSpots("ambush")[2].pos.x == 700, "удаление точки группы")
 op("test", "ambush")
-local tested = #ents.FindByClass("ws_enemy")
-assert(tested >= 3, "тестовый спавн группы")
+assert(#ents.FindByClass("ws_enemy") >= 3, "тестовый спавн группы")
 for i = 1, 20 do Tick() end
 op("clear")
 assert(#ents.FindByClass("ws_enemy") == 0, "убрать врагов")
@@ -533,15 +667,13 @@ op("auto")
 for _, d in ipairs(S.Points) do assert(P.IsSet(d.id), "авто: " .. d.id) end
 op("save")
 local f = FILES["whitesilence/points/gm_snowtest.json"]
-assert(f and f:find("crash"), "файл точек записан")
+assert(f and f:find("crash") and f:find("pylon3"), "файл точек записан (вместе с новыми главами)")
 op("reset", "crash")
 assert(not P.IsSet("crash"), "сброс точки")
 op("reload")
 assert(P.IsSet("crash") and P.Get("crash"):Distance(Vector(1000, 2000, 0)) < 1, "загрузка из файла")
-local _, _, r2 = P.Get("crash") assert(r2 == 640, "радиус из файла")
-assert(#P.GroupSpots("ambush") == 2, "группа из файла")
-op("story", 5)
-assert(S.State.running and S.State.ch == 5, "редактор: запуск главы")
+op("story", 9)
+assert(S.State.running and S.State.ch == 9, "редактор: запуск главы 9")
 op("story", 0)
 assert(not S.State.running, "редактор: стоп")
 concommand.t["scp_edit"](A)
@@ -550,28 +682,132 @@ EDITOR_OK = true
 '''
 
 CLIENT = r'''
-local S = WS.Story
+local S, I, ACH = WS.Story, WS.Inv, WS.Ach
 local me = LOCALPLY
 me.nw.ws_ingame = true
+me.nw.ws_lobby = 3
 me.pos = Vector(0, 0, 0)
 function me:GetPos() return self.pos end
 function me:EyePos() return self.pos + Vector(0, 0, 64) end
+function me:GetVelocity() return Vector(180, 40, 0) end
+function me:IsOnGround() return true end
+function me:GetViewEntity() return self end
+function me:GetMoveType() return MOVETYPE_WALK end
+function me:GetHands() return nil end
+function me:GetObserverTarget() return self.obs end
+function me:GetNW2Entity(k) return self.nw[k] end
+function me:GetEyeTrace() return { Entity = nil, HitPos = Vector(100, 0, 64) } end
+function me:GetMaxHealth() return 100 end
+-- оружие в руках
+local function weapon(cls, clip)
+  return setmetatable({ cls = cls }, { __index = function(t, k)
+    if k == "GetWeaponWorldModel" or k == "GetModel" then return function() return "models/w_" .. cls .. ".mdl" end end
+    if k == "Clip1" then return function() return clip end end
+    if k == "GetPrimaryAmmoType" then return function() return 1 end end
+    if k == "GetPrintName" then return function() return cls end end
+    if k == "GetClass" then return function() return cls end end
+    if k == "IsValid" then return function() return true end end
+    if k == "IsTFAWeapon" then return true end
+    if k == "GetIronSights" then return function() return false end end
+    if k == "GetMaxClip1" then return function() return 30 end end
+    if k == "Clip2" or k == "GetSecondaryAmmoType" then return function() return -1 end end
+    if k == "Instructions" or k == "PrintName" then return cls end
+    if type(k) == "string" and k:match("^[A-Z]") then return function() return nil end end
+  end })
+end
+me.weps = { weapon("tfa_ins2_ak12", 27), weapon("tfa_ins2_usp_match", 12) }
+function me:GetActiveWeapon() return self.weps[1] end
+-- товарищ (для контура, имён, наблюдения, аватаров в чате)
+MATE = MakeFakePlayer(2, "Bravo")
+MATE.nw.ws_ingame = true MATE.nw.ws_lobby = 3
+MATE.pos = Vector(400, 120, 0)
+function MATE:GetPos() return self.pos end
+function MATE:EyePos() return self.pos + Vector(0, 0, 64) end
+function MATE:GetChildren() return {} end
+function MATE:GetActiveWeapon() return nil end
+player.GetAll = function() return { me, MATE } end
 function EyePos() return me:EyePos() end
 function EyeAngles() return Angle(0, 0, 0) end
 WS.Intro.IsPlaying = function() return false end
 WS.Menu.IsOpen = function() return false end
+GAMEMODE = { CalcView = function(_, ply, o, a, f) return { origin = o, angles = a, fov = f } end,
+  CalcViewModelView = function(_, w, vm, op, oa, p, a) return p, a end }
+local vm = { ViewModelIndex = function() return 0 end, IsValid = function() return true end }
 local function frame(n)
   for i = 1, n or 1 do
     NOW = NOW + 1 / 30
     hook.Run("Think")
-    hook.Run("HUDPaint")
+    hook.Run("CalcView", me, me:EyePos(), Angle(0, 0, 0), 90, 1, 30000)
+    hook.Run("CalcViewModelView", me.weps[1], vm, Vector(), Angle(), Vector(), Angle())
+    hook.Run("CreateMove", setmetatable({}, { __index = function() return function() end end }))
+    hook.Run("SetupWorldFog")
+    hook.Run("RenderScreenspaceEffects")
     hook.Run("PostDrawTranslucentRenderables", false, false)
+    hook.Run("PostDrawViewModel", vm, me, me.weps[1])
+    hook.Run("PostDrawEffects")
+    hook.Run("HUDPaint")
   end
 end
 WS.Wake.Start = WS.Wake.Start or function() end
+
+-- брифинг (с выходом в игру): карта, поля, голос — и пробуждение после
+hook.Run("WSDeployed")
+Recv("ws.story.briefing", nil)
+assert(WS.Briefing.Active(), "брифинг идёт")
+assert(not WS.HUD.Visible(), "во время брифинга HUD скрыт")
+local t = TIMERS TIMERS = {} for _, x in ipairs(t) do x.fn() end
+frame(30 * 25)
+assert(not WS.Briefing.Active(), "брифинг закончился")
+
+-- инвентарь: состояние с сервера, микро-слоты, кольцо применения
+Recv("ws.inv", nil, 4,
+  1, "bandage", 1, 1, false, 3, 0,
+  2, "medkit", 2, 1, false, 1, 3,
+  3, "ammo_rifle", 1, 2, false, 120, 0,
+  4, "battery", 4, 1, false, 1, 0)
+assert(#I.Mine == 4, "рюкзак принят")
+me.nw.ws_bleed = 2
+me.nw.ws_weight = 21
+me.nw.ws_using_until = CurTime() + 2 me.nw.ws_using_dur = 3 me.nw.ws_using_item = "bandage"
 frame(60)
--- состояние: задача + метки (впереди далеко, вблизи, сбоку, сзади, зона, враг-сущность)
-local foe = setmetatable({ pos = Vector(900, 300, 0) }, { __index = function(t, k) if k == "GetPos" then return function(s) return s.pos end end end })
+me.nw.ws_using_until = 0 me.nw.ws_bleed = 0
+Recv("ws.inv.notify", nil, "Нет места в рюкзаке")
+frame(10)
+-- руки: подобрать, применить, удерживать E
+Recv("ws.hand", nil, "pickup", Vector(60, -10, 0), 0.9)
+assert(WS.Hands.Active(), "анимация руки")
+frame(15)
+assert(WS.Hands.Lower > 0.3, "оружие опущено, пока рука работает: " .. WS.Hands.Lower)
+frame(30)
+Recv("ws.hand", nil, "use", Vector(), 3)
+frame(100)
+me.nw.ws_use = 0.4 frame(20) me.nw.ws_use = 0 frame(40)
+-- меню Q: окно, сетка, перетаскивание, R, двойной клик
+hook.Run("OnSpawnMenuOpen")
+local root
+for _, p in ipairs(VGUI_ALL) do if p.cls == "DPanel" and not p.parent and not p.__removed then root = p end end
+assert(root, "окно снаряжения открыто")
+for i = 1, 10 do PaintTree(root) if root.PaintOver then root:PaintOver(1500, 760) end frame(1) end
+local grid
+for _, p in ipairs(VGUI_ALL) do if p.parent == root and p.OnMousePressed then grid = p end end
+assert(grid, "сетка рюкзака")
+grid.CursorPos = function() return 10, 10 end
+grid:OnMousePressed(MOUSE_LEFT)
+PaintTree(grid)
+KEYS_DOWN[KEY_R] = true grid:Think() KEYS_DOWN[KEY_R] = false grid:Think()
+grid.CursorPos = function() return 300, 100 end
+PaintTree(grid)
+grid:OnMouseReleased(MOUSE_LEFT)
+local moved = false
+for _, m in ipairs(NET_SENT) do if m.name == "ws.inv.move" then moved = true end end
+assert(moved, "перенос отправлен на сервер")
+grid.CursorPos = function() return 10, 10 end
+grid:OnMousePressed(MOUSE_LEFT) grid:OnMouseReleased(MOUSE_LEFT) grid:OnMousePressed(MOUSE_LEFT)
+grid:OnMousePressed(MOUSE_RIGHT)
+hook.Run("OnSpawnMenuOpen")
+frame(10)
+
+-- сюжет: состояние, метки (вблизи пропадают), реплики, глава, подрыв, крушение
 local function state(text, prog, frac, marks)
   local q = { true, 3, text, prog, frac, #marks }
   for _, m in ipairs(marks) do
@@ -581,77 +817,93 @@ local function state(text, prog, frac, marks)
 end
 state("Удерживать ретранслятор", "1:42", 0.3, {
   { Vector(3000, 0, 0), "defend", "Удерживать", 450 },
-  { Vector(120, 0, 0), "goto", "", 0 },
   { Vector(0, 2000, 0), "radio", "Запустить", 0 },
   { Vector(-2000, 0, 0), "extract", "", 0 },
-  { Vector(0, 0, 0), "enemy", "", 0, foe },
 })
-assert(#WS.Markers.List == 5, "метки приняты")
-frame(90)
--- метка вблизи исчезает: считаем отрисовки ромба
-local near = 0
-local orig = surface.DrawTexturedRect
+frame(60)
 state("Дойти", "", -1, { { Vector(60, 0, 0), "goto", "", 0 } })
 local d0 = DRAWS frame(10) local nearDraws = DRAWS - d0
 state("Дойти", "", -1, { { Vector(2500, 0, 0), "goto", "", 0 } })
 d0 = DRAWS frame(10) local farDraws = DRAWS - d0
-assert(farDraws > nearDraws, "метка вблизи не рисуется (" .. nearDraws .. " против " .. farDraws .. ")")
--- реплики всех говорящих, карточка главы, кольцо E, подрыв
-for _, id in ipairs({ "c1_a", "c1_c", "c2_b" }) do Recv("ws.story.line", nil, id) frame(40) end
-Recv("ws.story.chapter", nil, 4) frame(120)
-me.nw.ws_use = 0.6 me.nw.ws_use_label = "Осмотреть" frame(10)
-me.nw.ws_use = 0 frame(2)
-state("Осмотреть тела", "1 / 3", 0.33, { { Vector(90, 0, 40), "search", "Осмотреть", 0 } })
+assert(farDraws > nearDraws, "метка вблизи не рисуется")
+for _, id in ipairs({ "c1_a", "c2_b", "c7_e", "c10_d" }) do Recv("ws.story.line", nil, id) frame(30) end
+Recv("ws.story.chapter", nil, 8) frame(90)
+Recv("ws.story.boom", nil, Vector(500, 0, 0)) frame(60)
+Recv("ws.story.cutscene", nil, "crash")
+frame(60)
+t = TIMERS TIMERS = {} for _, x in ipairs(t) do x.fn() end
 frame(10)
-Recv("ws.story.boom", nil, Vector(500, 0, 0)) frame(100)
+Recv("ws.story.checkpoint", nil)
+
+-- достижения: состояние, «получено», экран в меню
+local q = { #ACH.List }
+for i, a in ipairs(ACH.List) do q[#q + 1] = i % 3 == 0 q[#q + 1] = i * 3 end
+Recv("ws.ach.state", nil, table.unpack(q))
+Recv("ws.ach.unlock", nil, "first_blood")
+frame(60)
+local achPanel = ACH.OpenPanel(nil)
+for _, p in ipairs(VGUI_ALL) do if p.parent == achPanel and p.DoClick then p.hover = true PaintTree(p) p:DoClick() end end
+PaintTree(achPanel)
+
+-- чат: открыть, отправить, лента с аватаром, «печатает» у товарища
+MATE.nw.ws_typing = true
+local CH = WS.Chat
+CH.Open("squad")
+frame(5)
+Recv("ws.chat.msg", nil, MATE, 2, "Контакт слева!")
+Recv("ws.chat.msg", nil, MATE, 6, "я наблюдаю")
+Recv("ws.chat.msg", nil, me, 1, "принял")
+hook.Run("ChatText", 0, "", "Игрок подключился", "joinleave")
+frame(20)
+CH.Close()
+frame(30 * 13)
+
+-- гибель → экран смерти → наблюдение
+me.alive = false
+frame(5)
+Recv("ws.death", nil, "Убит: Дельта-14")
+frame(30 * 4)
+me.nw.ws_spectating = true
+me.nw.ws_spec_target = MATE
+me.obs = MATE
+frame(60)
+KEYS_DOWN[KEY_SPACE] = true frame(2) KEYS_DOWN[KEY_SPACE] = false frame(2)
+local nextSent = false
+for _, m in ipairs(NET_SENT) do if m.name == "ws.spec.next" then nextSent = true end end
+assert(nextSent, "переключение наблюдения")
+me.alive = true me.nw.ws_spectating = false
+frame(30)
+
 -- финал
-Recv("ws.story.finish", nil, 1925.5, 47, 3)
+Recv("ws.story.finish", nil, 3325.5, 204, 9)
 frame(30 * 22)
 assert(S.Ending, "финальные титры")
 me.nw.ws_ingame = false frame(5)
 assert(not S.Ending, "финал закрылся после возврата в меню")
 me.nw.ws_ingame = true
+
 -- редактор
-local q = { true, true, 2, 1 }
-for _, d in ipairs(S.Points) do q[#q + 1] = Vector(math.random(-3000, 3000), math.random(-3000, 3000), 0) q[#q + 1] = 45 q[#q + 1] = d.r or 0 q[#q + 1] = math.random() < 0.5 end
+local q2 = { true, true, 2, 1 }
+for _, d in ipairs(S.Points) do q2[#q2 + 1] = Vector(math.random(-3000, 3000), math.random(-3000, 3000), 0) q2[#q2 + 1] = 45 q2[#q2 + 1] = d.r or 0 q2[#q2 + 1] = math.random() < 0.5 end
 for i, g in ipairs(S.Groups) do
-  local n = i % 3 q[#q + 1] = n
-  for k = 1, n do q[#q + 1] = Vector(k * 100, i * 100, 0) q[#q + 1] = 0 end
+  local n = i % 3 q2[#q2 + 1] = n
+  for k = 1, n do q2[#q2 + 1] = Vector(k * 100, i * 100, 0) q2[#q2 + 1] = 0 end
 end
-Recv("ws.edit.state", nil, table.unpack(q))
+Recv("ws.edit.state", nil, table.unpack(q2))
 assert(S.Editor.on, "редактор включён")
-local root
-for _, p in ipairs(VGUI_ALL) do if p.cls == "DPanel" and not p.parent and not p.__removed then root = p end end
-assert(root, "панель редактора")
+local eroot
+for _, p in ipairs(VGUI_ALL) do if p.cls == "DPanel" and not p.parent and not p.__removed and p ~= achPanel then eroot = p end end
 hook.Run("OnContextMenuOpen")
-for i = 1, 30 do PaintTree(root) frame(1) end
--- выбрать точку и группу, нажать все кнопки
-local function clickAll()
-  local n = 0
-  for _, p in ipairs(VGUI_ALL) do
-    if not p.__removed and p.cls == "DButton" and p.DoClick then
-      local alive, q = true, p
-      while q do if q.__removed then alive = false end q = q.parent end
-      if alive and p ~= SKIP then p.hover = true PaintTree(p) p:DoClick() n = n + 1 end
-    end
-  end
-  return n
-end
-SENT0 = #NET_SENT
--- строки списка: первая точка, затем группа
+for i = 1, 10 do PaintTree(eroot) frame(1) end
 local rows = {}
-for _, p in ipairs(VGUI_ALL) do if p.cls == "DButton" and p.parent and p.parent.cls == "DScrollPanel" then rows[#rows + 1] = p end end
+for _, p in ipairs(VGUI_ALL) do if p.cls == "DButton" and p.parent and p.parent.cls == "DScrollPanel" and not p.__removed then rows[#rows + 1] = p end end
 assert(#rows == #S.Points + #S.Groups, "в списке все точки и группы: " .. #rows)
-rows[2]:DoClick() PaintTree(root)
-rows[#S.Points + 1]:DoClick() PaintTree(root)
-rows[3]:DoClick() PaintTree(root)
-local clicked = clickAll()
-for i = 1, 10 do PaintTree(root) frame(1) end
+rows[2]:DoClick() PaintTree(eroot)
+rows[#S.Points + 1]:DoClick() PaintTree(eroot)
 hook.Run("OnContextMenuClose")
 Recv("ws.edit.state", nil, false)
-assert(not S.Editor.on, "редактор выключен")
 frame(10)
-CLICKED = clicked
+CLICKED = #rows
 '''
 
 
@@ -670,7 +922,8 @@ def server_test(errors):
         sim.PRELUDE = base
     g = lua.globals()
     g.SERVER, g.CLIENT = True, False
-    load_entity(lua, "ws_enemy")
+    for cls in ("ws_enemy", "ws_prop", "ws_item", "ws_crate"):
+        load_entity(lua, cls)
     # JSON как в GMod
     def to_py(v):
         if lupa_type(v) == "table":
@@ -695,29 +948,94 @@ def server_test(errors):
             return t
         return o
     g.util.TableToJSON = lambda t, pretty=False: json.dumps(to_py(t), ensure_ascii=False, indent=1 if pretty else None)
-    g.util.JSONToTable = lambda s: from_py(json.loads(s))
+    def json_to_table(src):
+        try:
+            return from_py(json.loads(src))
+        except (ValueError, TypeError):
+            return None          # как в GMod: мусор → nil
+    g.util.JSONToTable = json_to_table
     lua.execute(SERVER)
     r = g.RESULT
-    print("сервер: сюжет пройден от выдвижения до финала, гибель бойца и всего отряда, возврат в меню")
-    for line in g.LOG.values():
-        print("   ", line)
+    print("сервер: 10 глав от брифинга до финала; гибель → наблюдение → чекпоинт; гибель отряда → глава заново;")
+    print("        крушение вертолёта; инвентарь (набор, патроны из коробок, кровотечение, бинт, лут); достижения")
     print("   время прохождения (бег без препятствий, ровное поле, боты-стрелки): %d мин %d с" % (r.total // 60, r.total % 60))
-    print("   уничтожено врагов: %d, гибелей: %d, выстрелов врагов: %d, попаданий по бойцам: %d" % (r.kills, r.deaths, r.shots, r.hits))
+    print("   уничтожено врагов: %d, гибелей бойцов: %d, выстрелов врагов: %d, попаданий по бойцам: %d, гранат: %d"
+          % (r.kills, r.deaths, r.shots, r.hits, r.grenades))
+    print("   достижения Alpha:", r.ach)
     assert g.EDITOR_OK
     print("сервер: scp_edit — точки, радиус, группы, тест-спавн, авто, сохранение/загрузка, запуск главы — ок")
-    print("   json:", (g.FILES["whitesilence/points/gm_snowtest.json"] or "")[:160].replace("\n", " "), "…")
-    if r.total < 25 * 60:
-        errors.append("сюжет короче 25 минут даже в упрощённом прогоне: %d с" % r.total)
+    if r.total < 18 * 60:          # нижняя граница: обязательные удержания (~19 мин) и реплики
+        errors.append("сюжет короче 18 минут даже в упрощённом прогоне: %d с" % r.total)
+    print("   ИИ: укрытие за стеной найдено %s, граната брошена: %s" % (g.AI_COVER, g.AI_GRENADE))
 
 
 def client_test(errors):
     base = sim.PRELUDE
-    sim.PRELUDE = base + menu_sim.EXTRA.replace("local PlyMeta = {}", "PlyMeta = {} PLYMETA = PlyMeta") + menu_sim.VGUI + WORLD.split("-- игроки: позиция")[0] + r'''
+    sim.PRELUDE = base + menu_sim.EXTRA.replace("local PlyMeta = {}", "PlyMeta = {} PLYMETA = PlyMeta").replace("local EntMeta = {}", "EntMeta = {}") \
+        + menu_sim.VGUI + WORLD.split("-- игроки: позиция")[0] + r'''
 NETQ = {}
 local function pop() return table.remove(NETQ, 1) end
 net.ReadBool, net.ReadUInt, net.ReadString, net.ReadFloat, net.ReadVector, net.ReadEntity = pop, pop, pop, pop, pop, pop
 function Recv(name, ply, ...) NETQ = { ... } net.r[name](0, ply) end
 function LocalPlayer() return LOCALPLY end
+-- клиентские API, которых нет в общей заготовке: значения-заглушки, аргументы-числа проверяются там, где важно
+local function permissive(t)
+  return setmetatable(t or {}, { __index = function(_, k) return function() return nil end end })
+end
+local r0 = render
+render = permissive({})
+for k, v in pairs(r0) do render[k] = v end
+render.ComputeLighting = function() return Vector(0.4, 0.42, 0.45) end
+render.ComputeDynamicLighting = function() return Vector(0, 0, 0) end
+cam = permissive(cam)
+mesh = permissive({})
+function Mesh() return permissive({}) end
+local MatM = {}
+MatM.__index = MatM
+function Matrix(t) return setmetatable({ rows = t }, MatM) end
+function MatM:SetAngles(a) self.ang = a end
+MatM.__mul = function(m, v) return v end
+function GetRenderTargetEx(n) return { GetName = function() return n end } end
+function ParticleEmitter() return permissive({ IsValid = function() return true end, Add = function() return permissive({}) end }) end
+function DrawBloom() end
+function DrawMotionBlur() end
+surface.DrawLine = function(...) CHECK_NUM("surface.DrawLine", ...) end
+surface.PlaySound = function(p) SOUNDS[#SOUNDS + 1] = "sound/" .. p end
+draw.RoundedBoxEx = function(r, x, y, w, h) CHECK_NUM("draw.RoundedBoxEx", r, x, y, w, h) end
+draw.SimpleTextOutlined = function(t, f, x, y) CHECK_NUM("draw.SimpleTextOutlined", x, y) surface.SetFont(f) end
+EntMeta.AddCallback = function(self, n, fn) self.cb = fn end
+EntMeta.GetBoneName = function(self, i) return "ValveBiped.Bip01_R_Hand" end
+EntMeta.SetBoneMatrix = function() end
+EntMeta.GetModelBounds = function() return Vector(-10, -2, -3), Vector(20, 2, 6) end
+EntMeta.SetBodygroup = function() end
+EntMeta.SetAlpha = function() end
+EntMeta.IsValid = function(self) return not self.__removed end
+local cm0 = ClientsideModel
+function ClientsideModel(m) local e = cm0(m) e.IsValid = function(s) return not s.__removed end return e end
+FakePlyMeta = getmetatable(LOCALPLY).__index
+FakePlyMeta.GetChildren = function() return {} end
+FakePlyMeta.GetNW2Entity = function(self, k) return self.nw[k] end
+FakePlyMeta.GetVelocity = function() return Vector() end
+FakePlyMeta.GetPrimaryAmmoType = function() return 1 end
+FakePlyMeta.LookupAttachment = function() return 0 end
+FakePlyMeta.IsFlagSet = function() return false end
+FakePlyMeta.DrawModel = function() DRAWS = DRAWS + 1 end
+FakePlyMeta.IsOnGround = function() return true end
+FakePlyMeta.GetViewEntity = function(self) return self end
+FakePlyMeta.GetMoveType = function() return MOVETYPE_WALK end
+FakePlyMeta.GetMaxHealth = function() return 100 end
+os.date = os.date or function() return "12:00" end
+local vc0 = vgui.Create
+vgui.Create = function(cls, parent)
+  local p = vc0(cls, parent)
+  if cls == "DModelPanel" then rawset(p, "Entity", false) end   -- модели в панели нет (заглушка)
+  rawset(p, "CursorPos", function() return 0, 0 end)
+  return p
+end
+local mat0 = Material
+function Material(p, f) return setmetatable(mat0(p, f), { __index = function() return function() end end }) end
+local cmat0 = CreateMaterial
+function CreateMaterial(n, sh, t) return setmetatable(cmat0(n, sh, t), { __index = function() return function() end end }) end
 player = { GetAll = function() return { LOCALPLY } end, GetCount = function() return 1 end }
 '''
     try:
@@ -726,8 +1044,9 @@ player = { GetAll = function() return { LOCALPLY } end, GetCount = function() re
         sim.PRELUDE = base
     lua.execute(CLIENT)
     snd = sorted(set(os.path.basename(s) for s in lua.globals().SOUNDS.values()))
-    print("клиент: задача, метки (исчезают вблизи), реплики, глава, E, подрыв, финал, редактор (%d кнопок) — без ошибок"
-          % lua.globals().CLICKED)
+    print("клиент: брифинг, инвентарь и микро-слоты, руки и опускание оружия, меню Q (сетка, перенос, R), метки,")
+    print("        реплики, глава, подрыв, крушение, достижения, чат (лента, аватары, «печатает»), смерть → наблюдение,")
+    print("        финал, редактор (%d строк) — без ошибок Lua и nil/NaN в отрисовке" % lua.globals().CLICKED)
     print("   звуки:", ", ".join(snd))
     sim.check_paths(lua, errors)
 

@@ -1,0 +1,6 @@
+"UnlitGeneric"
+{
+	"$basetexture" "whitesilence/props/bandage"
+	"$vertexcolor" "1"
+	"$nocull" "1"
+}

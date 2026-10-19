@@ -33,7 +33,7 @@ SCP: Белая тишина — откуда взят контент
 Class401, FireFox, gmodfan11, Kevin MacLeod, phlip45, revo794, Shaun Gaylard, Slagar, Tim Morrison.
   music — SFX/Music/Menu.ogg; drone — Room ambience/lowdrone; hover/click — Interact/Button, Button2;
   open — KeycardUse1; join — ScannerUse1; invite — Character/MTF/Beep; error — Radio/Buzz;
-  spark — Door/DoorSparks; flicker — Room/Intro/Light1; deploy — Character/MTF/Announc (объявление МОГ).
+  spark — Door/DoorSparks; flicker — Room/Intro/Light1.
   Изменения: громкость/нормализация (tools/content/menu_audio.py).
 
 Картины меню: фон — Stable Diffusion XL (кадр из той же серии, что интро), изображение отряда — фрагмент кадра SDXL.
@@ -45,3 +45,11 @@ ru_RU-denis (датасет CC0), обработка tools/content/game_audio.py
 Иконки HUD и меток (materials/whitesilence/icons, markers) — Tabler Icons (tabler.io), лицензия MIT; рамки меток
 нарисованы кодом (tools/content/marker_icons.py).
 Код выбора оружия основан на плагине Weapon Select для Helix (Chessnut, MIT); ноги — legs.lua (общественное достояние).
+
+Модели предметов и объектов сюжета (materials/whitesilence/props, сетки в gamemode/modules/props/cl_mesh_data.lua) —
+собственные: геометрия и текстуры созданы кодом (tools/content/props.py), надписи — шрифтами Oswald, Exo 2,
+IBM Plex Mono (OFL). Материал контура (materials/whitesilence/fx) и карта брифинга (menu/briefing_map.jpg) — кодом.
+Озвучка сюжета (sound/whitesilence/story) и голоса врагов (game/enemy_*) — Piper (ru_RU-dmitri, ru_RU-denis,
+датасет CC0); вдохи между фразами — SCP – Containment Breach, SFX/Character/D9341/breath*.ogg (CC BY-SA 3.0).
+Звон в ушах (game/tinnitus.ogg), метки, задачи — синтез кодом.
+Руки: модель рук игрока или c_arms_citizen из Garry's Mod (Facepunch), скелет прочитан tools/content/hands_data.py.

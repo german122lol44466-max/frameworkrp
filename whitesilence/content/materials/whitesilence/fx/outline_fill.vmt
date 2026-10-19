@@ -1,0 +1,10 @@
+"UnlitGeneric"
+{
+	"$basetexture" "whitesilence/fx/outline_fill"
+	"$translucent" "1"
+	"$additive" "1"
+	"$vertexcolor" "1"
+	"$vertexalpha" "1"
+	"$ignorez" "1"
+	"$nocull" "1"
+}

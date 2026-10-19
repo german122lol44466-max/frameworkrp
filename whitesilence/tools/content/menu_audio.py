@@ -28,7 +28,6 @@ SOUNDS = {
     "error": ("SFX/Radio/Buzz.ogg", "volume=0.6"),                           # отказ / ошибка
     "spark": ("SFX/Door/DoorSparks.ogg", "volume=0.55"),                     # вспышка искр на фоне
     "flicker": ("SFX/Room/Intro/Light1.ogg", "volume=0.5"),                  # мигание прожектора
-    "deploy": ("SFX/Character/MTF/Announc.ogg", "loudnorm=I=-18:TP=-2"),     # объявление МОГ при выдвижении
 }
 
 

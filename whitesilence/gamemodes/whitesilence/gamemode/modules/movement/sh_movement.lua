@@ -57,6 +57,22 @@ hook.Add("SetupMove", "ws.move", function(ply, mv, cmd)
 		if exhausted and st >= C.StaminaRecover then exhausted = false end
 	end
 
+	-- применяет предмет — медленным шагом; перегруз — медленнее и бег тяжелее
+	local limit
+	if ply:GetNW2Float("ws_using_until", 0) > now then limit = C.SlowWalkSpeed end
+	local weight = ply:GetNW2Float("ws_weight", 0)
+	local light = WS.Inv and WS.Inv.CarryLight or 18
+	if weight > light then
+		local k = math.Clamp(1 - (weight - light) / ((WS.Inv.CarryMax - light) * 2.2), 0.55, 1)
+		local cur = mv:GetMaxClientSpeed()
+		limit = math.min(limit or cur, cur * k)
+		if mutate and wantSprint then st = st - C.StaminaSprint * dt * (1 - k) * 1.5 end
+	end
+	if limit then
+		mv:SetMaxClientSpeed(math.min(mv:GetMaxClientSpeed(), limit))
+		mv:SetMaxSpeed(math.min(mv:GetMaxSpeed(), limit))
+	end
+
 	if mv:KeyPressed(IN_JUMP) and ply:IsOnGround() then
 		if st < C.StaminaJump then
 			mv:SetButtons(bit.band(mv:GetButtons(), bit.bnot(IN_JUMP)))   -- нет сил прыгнуть

@@ -12,7 +12,7 @@ local C = WS.Config
 local L = WS.Lobby
 local P = S.P
 
-for _, n in ipairs({ "ws.story.state", "ws.story.line", "ws.story.chapter", "ws.story.finish", "ws.story.boom" }) do
+for _, n in ipairs({ "ws.story.state", "ws.story.line", "ws.story.chapter", "ws.story.finish", "ws.story.boom", "ws.story.checkpoint", "ws.story.cutscene", "ws.story.briefing" }) do
 	util.AddNetworkString(n)
 end
 
@@ -165,6 +165,13 @@ local function placeProp(pid, model)
 			local ph = e:GetPhysicsObjectNum(b)
 			if IsValid(ph) then ph:SetVelocity(VectorRand() * 40) end
 		end
+	elseif WS.Props.Defs[model] then
+		e = ents.Create("ws_prop")
+		e:SetMeshId(model)
+		e.wsStatic = true
+		e:SetPos(pos)
+		e:SetAngles(Angle(0, yaw, 0))
+		e:Spawn()
 	else
 		if not util.IsValidModel(model) then return end
 		e = ents.Create("prop_dynamic")
@@ -282,13 +289,23 @@ beginStep = function(i)
 		for e in pairs(S.Enemies) do S.Enemies[e] = cur.tag end
 	end
 	if d.type == "explode" then cur.boomAt = CurTime() + 1.5 end
+	-- чекпоинт: павшие возвращаются к живым
+	if d.checkpoint then
+		S.State.cp = i
+		hook.Run("WSCheckpoint", S.State.ch, i)
+		WS.Death.ReviveAll()
+		net.Start("ws.story.checkpoint")
+		net.Send(inGame())
+	end
 	dirty = true
 	hook.Run("WSStoryStep", S.State.ch, i, d)
 end
 
-function S.StartChapter(ch, continuing)
+-- fromStep — начать главу не с начала, а с шага-чекпоинта (после гибели всего отряда)
+function S.StartChapter(ch, continuing, fromStep)
 	S.State.ch = math.Clamp(ch, 1, #S.Chapters)
 	S.State.step = 0
+	S.State.cp = fromStep
 	S.State.running = true
 	cur = nil
 	clearProps()
@@ -309,6 +326,20 @@ function S.StartChapter(ch, continuing)
 			end
 		end
 	end
+	-- ящик снабжения у начала главы (кроме первой — набор только что выдан)
+	if S.State.ch > 1 then
+		local base, yaw = P.Get(c.spawn or "spawn")
+		local spot = P.AutoNear(base, 90, 180)
+		local crate = ents.Create("ws_crate")
+		if IsValid(crate) then
+			crate:SetPos(spot)
+			crate:SetAngles(Angle(0, yaw + 90, 0))
+			crate:Spawn()
+			S.Props[#S.Props + 1] = crate
+		end
+	end
+	hook.Run("WSCheckpoint", S.State.ch, 0)
+	WS.Death.ReviveAll()
 	if not continuing then
 		S.ClearEnemies()
 	else
@@ -319,7 +350,7 @@ function S.StartChapter(ch, continuing)
 	net.WriteUInt(S.State.ch, 6)
 	net.Send(inGame())
 	timer.Simple(3.5, function()
-		if S.State.running and S.State.step == 0 and chapter() == c then beginStep(1) end
+		if S.State.running and S.State.step == 0 and chapter() == c then beginStep(fromStep or 1) end
 	end)
 	dirty = true
 	WS.Print("Сюжет: глава %d «%s»", S.State.ch, c.title)
@@ -346,6 +377,7 @@ local function finish()
 	S.State.running = false
 	cur = nil
 	dirty = true
+	hook.Run("WSStoryFinished", { time = t, kills = S.Stats.kills, deaths = S.Stats.deaths })
 	timer.Simple(C.StoryEndTime, function()
 		for _, p in ipairs(inGame()) do
 			p:SetNW2Bool("ws_ingame", false)
@@ -381,6 +413,18 @@ local function explode(pos)
 	net.Start("ws.story.boom")
 	net.WriteVector(pos)
 	net.Broadcast()
+end
+
+-- Свободное место рядом с точкой (кольцом вокруг)
+local function freeAround(pos, idx)
+	if P.Free(pos) and idx == 0 then return pos end
+	for k = 0, 23 do
+		local a = (idx * 0.9 + k * 0.785)
+		local r = 60 + math.floor(k / 8) * 50
+		local p = P.Ground(pos + Vector(math.cos(a) * r, math.sin(a) * r, 0))
+		if p and P.Free(p) then return p end
+	end
+	return pos
 end
 
 -- ---------------------------------------------------------------- взаимодействие (удерживать E)
@@ -422,14 +466,8 @@ local function useThink(step, dt)
 				ply:EmitSound("buttons/button9.wav", 60, 110)
 				if d.plant then
 					local pos, yaw = P.Get(target)
-					local e = ents.Create("prop_dynamic")
-					if IsValid(e) and util.IsValidModel(d.plant) then
-						e:SetModel(d.plant)
-						e:SetPos(pos + Vector(0, 0, 2))
-						e:SetAngles(Angle(0, yaw, 0))
-						e:Spawn()
-						S.Props[#S.Props + 1] = e
-					end
+					local e = placeProp(target, d.plant)
+					if IsValid(e) then e:SetPos(pos + Vector(0, 0, 1)) e:SetAngles(Angle(0, yaw, 0)) end
 				end
 				if d.after and d.after[target] then S.Say(d.after[target]) end
 				dirty = true
@@ -500,6 +538,34 @@ local function stepThink(dt)
 			cur.after = CurTime() + 2
 		end
 		done = cur.after and CurTime() >= cur.after
+	elseif d.type == "cutscene" then
+		-- крушение: реплики → затемнение и удар (клиент) → все очнутся в точке d.point
+		if not cur.sent and not S.Talking() then
+			cur.sent = true
+			net.Start("ws.story.cutscene")
+			net.WriteString(d.scene or "crash")
+			net.Send(inGame())
+			cur.tpAt = CurTime() + 6.5
+		end
+		if cur.tpAt and not cur.tp and CurTime() >= cur.tpAt then
+			cur.tp = true
+			S.ClearEnemies()
+			clearProps()
+			WS.Death.ReviveAll()
+			local base, yaw = P.Get(d.point)
+			for i, p in ipairs(fighters()) do
+				p:SetPos(freeAround(base, i))
+				p:SetEyeAngles(Angle(0, yaw, 0))
+				p:SetHealth(math.random(48, 70))
+				p:SetVelocity(-p:GetVelocity())
+			end
+			-- обломки: дым и огонь у места падения
+			local ed = EffectData()
+			ed:SetOrigin(base + Vector(0, 0, 10))
+			util.Effect("HelicopterMegaBomb", ed, true, true)
+			cur.after = CurTime() + 1
+		end
+		done = cur.after and CurTime() >= cur.after
 	elseif d.type == "finish" then
 		if not S.Talking() then
 			cur = nil
@@ -524,10 +590,18 @@ hook.Add("Think", "ws.story", function()
 			wipeT = wipeT or CurTime()
 			if CurTime() - wipeT > C.StoryWipeDelay then
 				wipeT = nil
-				local ch = S.State.ch
+				local ch, cp = S.State.ch, S.State.cp
 				S.Stop(true)
 				S.State.ch = ch
-				WS.Chat.System("Связь с отрядом потеряна. Операция начнётся с главы «" .. S.Chapters[ch].title .. "».")
+				WS.Chat.System("Связь с отрядом потеряна. " .. (cp and "Отряд вернётся к последнему чекпоинту главы «" or "Глава «")
+					.. S.Chapters[ch].title .. (cp and "»." or "» начнётся заново."))
+				hook.Run("WSSquadWiped", ch)
+				-- все сразу возвращаются: к последнему чекпоинту главы или к её началу
+				timer.Simple(3, function()
+					if S.State.running or #inGame() == 0 then return end
+					WS.Death.ReviveAll()
+					S.StartChapter(ch, false, cp)
+				end)
 			end
 		else
 			wipeT = nil
@@ -540,9 +614,18 @@ end)
 -- ---------------------------------------------------------------- выход в игру и появление
 
 hook.Add("WSSquadDeployed", "ws.story", function(members)
-	if not S.State.running then
-		if S.State.ch == 1 then S.Stats = { t0 = CurTime(), kills = 0, deaths = 0 } end
-		timer.Simple(2.5, function()
+	if not S.State.running and not S.Starting then
+		local delay = 2.5
+		if S.State.ch == 1 then
+			S.Stats = { t0 = CurTime(), kills = 0, deaths = 0 }
+			-- брифинг миссии: карта, задача, голос штаба — потом пробуждение и первая глава
+			net.Start("ws.story.briefing")
+			net.Send(members)
+			delay = C.BriefingTime
+		end
+		S.Starting = true
+		timer.Simple(delay, function()
+			S.Starting = nil
 			if not S.State.running and #inGame() > 0 then S.StartChapter(S.State.ch) end
 		end)
 	end
@@ -552,18 +635,6 @@ end)
 local function spawnPoint()
 	local ch = chapter()
 	return P.Get(ch and ch.spawn or "spawn")
-end
-
--- Свободное место рядом с точкой (кольцом вокруг)
-local function freeAround(pos, idx)
-	if P.Free(pos) and idx == 0 then return pos end
-	for k = 0, 23 do
-		local a = (idx * 0.9 + k * 0.785)
-		local r = 60 + math.floor(k / 8) * 50
-		local p = P.Ground(pos + Vector(math.cos(a) * r, math.sin(a) * r, 0))
-		if p and P.Free(p) then return p end
-	end
-	return pos
 end
 
 hook.Add("PlayerSpawn", "ws.story", function(ply)

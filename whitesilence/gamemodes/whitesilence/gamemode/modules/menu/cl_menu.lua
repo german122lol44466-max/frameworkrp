@@ -112,6 +112,8 @@ local function menuButton(parent, text, size, onClick)
 end
 
 -- Небольшая кнопка-надпись (в строках лобби)
+M.Button = function(...) return menuButton(...) end
+
 local function smallButton(parent, text, onClick, color)
 	local b = vgui.Create("DButton", parent)
 	b:SetText("")
@@ -165,7 +167,7 @@ local function drawLogo(a, title)
 	draw.SimpleText("БЕЛАЯ ТИШИНА", WS.Font("menubold", 58, 10), tx, ty, Color(170, 200, 235, 70 * a))
 	draw.SimpleText("БЕЛАЯ ТИШИНА", WS.Font("menubold", 58), tx + 2, ty + 3, Color(0, 0, 0, 180 * a))
 	draw.SimpleText("БЕЛАЯ ТИШИНА", WS.Font("menubold", 58), tx, ty, Color(238, 240, 244, 255 * a))
-	draw.SimpleText("SCP · МОГ «ДЕЛЬТА-14»", WS.Font("menulight", 20), tx + 3, ty + 66 * s, Color(196, 204, 216, 200 * a))
+	draw.SimpleText("SCP · МОГ «БУРАН» · ОПЕРАЦИЯ В АРКТИКЕ", WS.Font("menulight", 20), tx + 3, ty + 66 * s, Color(196, 204, 216, 200 * a))
 end
 
 -- ---------------------------------------------------------------- лобби
@@ -334,6 +336,9 @@ local function buildLobby()
 				draw.SimpleText(rowName(p), WS.Font("menusemi", 22), nx, ph * 0.38, Color(238, 240, 244, 255 * a), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 				local sub = L.IsLeader(p) and "Командир" or "Боец"
 				if p:GetNW2String("ws_callsign", "") ~= "" then sub = sub .. " · " .. p:Nick() end
+				local title = WS.Ach and WS.Ach.TitleOf(p)
+				if title then sub = sub .. " · «" .. title .. "»" end
+				if L.InGame(p) then sub = sub .. " · в бою" end
 				draw.SimpleText(sub, WS.Font("menulight", 15), nx, ph * 0.72,
 					L.IsLeader(p) and Color(226, 190, 120, 230 * a) or Color(160, 168, 180, 230 * a), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 			end
@@ -421,8 +426,26 @@ local function buildLobby()
 		surface.SetDrawColor(196, 38, 38, 220 * a)
 		surface.DrawRect(0, 0, 60 * s, 3 * s)
 		draw.SimpleText("ОТРЯД №" .. id, WS.Font("menubold", 30), 20 * s, ih - 78 * s, Color(238, 240, 244, 255 * a))
-		draw.SimpleText("Спецподразделение Фонда · задача: нейтрализация", WS.Font("menulight", 17), 20 * s, ih - 38 * s,
+		draw.SimpleText("МОГ «Буран» · задача: найти «Дельту-14» и нейтрализовать угрозу", WS.Font("menulight", 17), 20 * s, ih - 38 * s,
 			Color(196, 204, 216, 230 * a))
+		-- карточка операции: где сейчас сюжет, сколько достижений
+		local st = WS.Story and WS.Story.ClientState and WS.Story.ClientState()
+		local cx, cy, cw2, chh = 20 * s, 20 * s, iw - 40 * s, 96 * s
+		draw.RoundedBox(4, cx, cy, cw2, chh, Color(6, 8, 12, 200 * a))
+		surface.SetDrawColor(226, 190, 120, 160 * a)
+		surface.DrawRect(cx, cy, 3 * s, chh)
+		draw.SimpleText("ОПЕРАЦИЯ «БЕЛАЯ ТИШИНА»", WS.Font("menusemi", 15), cx + 16 * s, cy + 12 * s, Color(226, 190, 120, 255 * a))
+		local chText = "Не начата — выход с брифингом"
+		if st and st.running then
+			local c = WS.Story.Chapters[st.ch]
+			chText = "Идёт: глава " .. (WS.Story.Roman[st.ch] or st.ch) .. " «" .. (c and c.title or "") .. "» — подкрепление к отряду"
+		elseif st and st.ch and st.ch > 1 then
+			local c = WS.Story.Chapters[st.ch]
+			chText = "Чекпоинт: глава " .. (WS.Story.Roman[st.ch] or st.ch) .. " «" .. (c and c.title or "") .. "»"
+		end
+		draw.SimpleText(chText, WS.Font("menu", 17), cx + 16 * s, cy + 38 * s, Color(232, 236, 242, 255 * a))
+		draw.SimpleText(string.format("Глав: %d · Достижений: %d / %d", #WS.Story.Chapters, WS.Ach.Count(), #WS.Ach.List),
+			WS.Font("menulight", 15), cx + 16 * s, cy + 66 * s, Color(170, 178, 190, 230 * a))
 	end
 end
 
@@ -559,12 +582,15 @@ function M.Open()
 	local s = sc()
 	local box = vgui.Create("DPanel", panel)
 	M.Buttons = box
-	box:SetSize(520 * s, 150 * s)
-	box:SetPos(ScrW() / 2 - 260 * s, ScrH() * 0.47)
+	box:SetSize(520 * s, 216 * s)
+	box:SetPos(ScrW() / 2 - 260 * s, ScrH() * 0.45)
 	box.Paint = nil
 	local play = menuButton(box, "ИГРАТЬ", 46, function() M.SetState("lobby") end)
 	play:Dock(TOP)
 	play:SetTall(66 * s)
+	local ach = menuButton(box, "ДОСТИЖЕНИЯ", 34, function() WS.Ach.OpenPanel(panel) end)
+	ach:Dock(TOP)
+	ach:SetTall(56 * s)
 	local quit = menuButton(box, "ОТКЛЮЧИТЬСЯ", 46, function()
 		M.Closing = RealTime()
 		timer.Simple(0.6, function() RunConsoleCommand("disconnect") end)
@@ -585,9 +611,11 @@ function M.Close()
 	panel = nil
 end
 
--- Отряд выдвинулся: объявление МОГ, затемнение, вход в игру
+-- Отряд выдвинулся: затемнение, вход в игру
 net.Receive("ws.lobby.started", function()
-	snd("deploy", 0.9)
+	-- без объявления МОГ: глухой удар и щелчок рации — дальше брифинг миссии
+	WS.Audio.Play("whitesilence/intro/fade_boom.ogg", { volume = 0.7 })
+	WS.Audio.Play("whitesilence/game/radio.ogg", { volume = 0.5 })
 	hook.Run("WSDeployed")
 	if not IsValid(panel) then return end
 	M.Closing = RealTime()

@@ -13,6 +13,8 @@ local UI = WS.UI
 
 V.Mode = nil          -- nil | "nvg" | "thermal"
 V.Battery = C.NVGBattery
+-- батарея из инвентаря — полный заряд
+net.Receive("ws.inv.battery", function() V.Battery = C.NVGBattery end)
 local switchT = 0     -- момент переключения (короткая вспышка при включении)
 
 local function canUse()

@@ -1,0 +1,6 @@
+"UnlitGeneric"
+{
+	"$basetexture" "whitesilence/props/ammo_pistol"
+	"$vertexcolor" "1"
+	"$nocull" "1"
+}

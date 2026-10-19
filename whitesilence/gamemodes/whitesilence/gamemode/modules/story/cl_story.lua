@@ -15,6 +15,8 @@ local sub                   -- { id, t0, dur }
 local boom                  -- { t0, k }
 S.Ending = nil              -- { t0, time, kills, deaths }
 
+function S.ClientState() return st end
+
 net.Receive("ws.story.state", function()
 	st.running = net.ReadBool()
 	st.ch = net.ReadUInt(6)

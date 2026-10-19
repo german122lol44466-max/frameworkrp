@@ -9,14 +9,14 @@ DeriveGamemode("sandbox")
 GM.Name = "SCP: Белая тишина"
 GM.Author = "John Make"
 GM.Website = ""
-GM.Version = "0.1.0"
+GM.Version = "0.2.0"
 
 WS = WS or {}
 WS.Version = GM.Version
 WS.Root = GM.FolderName .. "/gamemode/"
 
 -- Общие пространства имён создаются заранее: порядок загрузки файлов не важен.
-for _, ns in ipairs({ "Config", "UI", "Audio", "Intro", "Lobby", "Menu" }) do
+for _, ns in ipairs({ "Config", "UI", "Audio", "Intro", "Lobby", "Menu", "Inv", "Story", "Ach", "Props", "Chat", "Move" }) do
 	WS[ns] = WS[ns] or {}
 end
 

@@ -120,7 +120,13 @@ hook.Add("PlayerBindPress", "ws.wepsel", function(client, bind, pressed)
 		if WSel.alpha == 0 or old ~= WSel.index then WSel.OnIndexChanged(weapons[WSel.index]) end
 		return true
 	elseif bind:find("slot") then
-		WSel.index = math.Clamp(tonumber(bind:match("slot(%d)")) or 1, 1, math.max(#weapons, 1))
+		local n = tonumber(bind:match("slot(%d)")) or 1
+		-- 4..7 — быстрые слоты инвентаря (бинт, аптечка, промедол, батарея)
+		if n >= 4 and n <= 7 and WS.Inv and WS.Inv.Quick then
+			WS.Inv.Quick(n)
+			return true
+		end
+		WSel.index = math.Clamp(n, 1, math.max(#weapons, 1))
 		WSel.OnIndexChanged(weapons[WSel.index])
 		return true
 	elseif bind:find("attack") and WSel.alpha > 0 then

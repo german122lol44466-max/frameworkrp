@@ -86,6 +86,15 @@ def synth():
     t5 = A.t(0.5)
     obj[:len(t5)] += np.sin(2 * np.pi * 660 * t5) * np.clip(t5 / 0.004, 0, 1) * np.exp(-t5 * 5) * 0.35
     A.save(A.norm(A.reverb(A.stereo(A.lp(obj, 2500), 0.3), 1.5, 0.3, 3000), 0.6), "objective")
+    tinnitus()
+
+
+def tinnitus():
+    # звон в ушах после взрыва/крушения: высокий тон с биениями, медленно гаснет
+    tt = A.t(6.0)
+    x = (np.sin(2 * np.pi * 6200 * tt) + 0.6 * np.sin(2 * np.pi * 6230 * tt)) * np.exp(-tt * 0.45) * 0.25
+    x = x * np.clip(tt / 0.3, 0, 1)
+    A.save(A.norm(A.stereo(x, 0.1), 0.45), "tinnitus")
 
 
 def phrases():
@@ -109,5 +118,7 @@ if __name__ == "__main__":
         from_cb()
     if "synth" in parts:
         synth()
+    if "tinnitus" in parts:
+        tinnitus()
     if "phrases" in parts:
         phrases()

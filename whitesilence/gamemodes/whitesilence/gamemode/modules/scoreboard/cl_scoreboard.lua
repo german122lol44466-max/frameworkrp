@@ -13,7 +13,7 @@ local function icon(n) return UI.Mat("whitesilence/icons/" .. n .. ".png", "smoo
 
 local function status(p)
 	if not L.InGame(p) then return "в меню", Color(160, 168, 180) end
-	if not p:Alive() then return "погиб", Color(220, 100, 90) end
+	if not p:Alive() then return p:GetNW2Bool("ws_spectating", false) and "наблюдает" or "погиб", Color(220, 100, 90) end
 	return "в игре", Color(130, 210, 140)
 end
 
@@ -81,6 +81,8 @@ local function build()
 				local sub = st
 				if p:GetNW2String("ws_callsign", "") ~= "" then sub = sub .. " · " .. p:Nick() end
 				if L.IsLeader(p) then sub = "командир · " .. sub end
+				local title = WS.Ach and WS.Ach.TitleOf(p)
+				if title then sub = sub .. " · «" .. title .. "»" end
 				draw.SimpleText(sub, WS.Font("menulight", 14), nx, h * 0.72, sc, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 				-- пинг
 				local ping = p:Ping()

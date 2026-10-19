@@ -7,9 +7,26 @@ local L = WS.Lobby
 
 util.AddNetworkString("ws.chat.say")
 util.AddNetworkString("ws.chat.msg")
+util.AddNetworkString("ws.chat.typing")
+
+-- «печатает…» над головой
+net.Receive("ws.chat.typing", function(_, ply)
+	local on = net.ReadBool()
+	if (ply.wsTypingNext or 0) > CurTime() and on then return end
+	ply.wsTypingNext = CurTime() + 0.5
+	ply:SetNW2Bool("ws_typing", on and ply:Alive())
+end)
+hook.Add("PlayerDeath", "ws.chat.typing", function(ply) ply:SetNW2Bool("ws_typing", false) end)
 
 local function receivers(ply, mode)
 	local out = {}
+	-- павший в бою пишет только павшим (и тем, кто в меню)
+	if mode == "dead" then
+		for _, p in ipairs(player.GetAll()) do
+			if not L.InGame(p) or not p:Alive() then out[#out + 1] = p end
+		end
+		return out
+	end
 	if mode == "ooc" then return player.GetAll() end
 	local id = L.Id(ply)
 	if mode == "squad" or not L.InGame(ply) then
@@ -54,6 +71,7 @@ net.Receive("ws.chat.say", function(_, ply)
 	mode, text = CH.Parse(mode, text)
 	text = CH.Clean(text)
 	if text == "" then return end
+	if L.InGame(ply) and not ply:Alive() then mode = "dead" end
 	-- админ-моды и другие аддоны получают сообщение как обычно; пустая строка — подавить
 	local res = hook.Run("PlayerSay", ply, text, mode == "squad")
 	if res == "" then return end
